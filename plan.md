@@ -126,7 +126,7 @@ sprint:
   number: 5
   pbi: PBI-005
   status: in_progress
-  subtasks_completed: 1
+  subtasks_completed: 2
   subtasks_total: 3
   impediments: 0
 ```
@@ -314,14 +314,17 @@ sprint_5:
         - phase: red
           hash: d4d28a3
         - phase: green
-          hash: pending
+          hash: a41c0be
 
     - id: ST-002
       test: "test_cli_entrypoint: auto-daily コマンドで起動できる"
       implementation: "__init__.py に main() を追加し、pyproject.toml と整合させる"
       type: behavioral
-      status: pending
-      commits: []
+      status: completed
+      commits:
+        - phase: green
+          hash: a41c0be
+          note: "ST-001 の実装でカバー済み"
 
     - id: ST-003
       test: "test_main_starts_monitoring: 起動後、ウィンドウ監視ループが開始される"

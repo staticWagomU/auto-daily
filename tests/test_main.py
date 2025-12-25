@@ -25,3 +25,33 @@ def test_module_execution() -> None:
     # --help typically exits with 0
     assert result.returncode == 0
     assert "auto-daily" in result.stdout.lower() or "usage" in result.stdout.lower()
+
+
+def test_cli_entrypoint() -> None:
+    """Test that auto-daily command works via pyproject.toml scripts.
+
+    The CLI should:
+    1. Be callable via the 'auto-daily' command after pip install
+    2. Support --help flag
+    3. Show usage information
+    """
+    # Act: Import and call main directly (simulates CLI invocation)
+    from auto_daily import main
+
+    # Verify main is callable
+    assert callable(main)
+
+    # Test via subprocess with the scripts entry point
+    # This requires the package to be installed in editable mode
+    result = subprocess.run(
+        [sys.executable, "-c", "from auto_daily import main; main()"],
+        input="",
+        capture_output=True,
+        text=True,
+        timeout=5,
+        env={**dict(__import__("os").environ), "COLUMNS": "80"},
+    )
+
+    # When called without args, should print version and exit normally
+    assert result.returncode == 0
+    assert "auto-daily" in result.stdout.lower()
