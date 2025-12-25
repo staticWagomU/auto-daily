@@ -123,11 +123,11 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 17
-  pbi: PBI-018
+  number: 18
+  pbi: PBI-019
   status: done
-  subtasks_completed: 2
-  subtasks_total: 2
+  subtasks_completed: 3
+  subtasks_total: 3
   impediments: 0
 ```
 
@@ -577,6 +577,535 @@ product_backlog:
     dependencies:
       - PBI-007
     status: done
+
+  - id: PBI-019
+    story:
+      role: "Mac ユーザー"
+      capability: "プロジェクトルートの slack_config.yaml から Slack 設定を読み込める"
+      benefit: "プロジェクトごとに異なる Slack 設定を Git 管理でき、チームで設定を共有できる"
+    acceptance_criteria:
+      - criterion: "プロジェクトルートの slack_config.yaml から Slack ユーザー名を読み込める"
+        verification: "pytest tests/test_config.py::test_slack_config_from_project_root -v"
+      - criterion: "プロジェクトルートにファイルがない場合は ~/.auto-daily/slack_config.yaml にフォールバックする"
+        verification: "pytest tests/test_config.py::test_slack_config_fallback_to_home -v"
+      - criterion: "どちらにもファイルがない場合は None を返す"
+        verification: "pytest tests/test_config.py::test_slack_username_config_file_not_found -v"
+    technical_notes: |
+      ## 変更内容
+      .env や prompt.txt と同様に、プロジェクトルートの slack_config.yaml を優先的に読み込む。
+      ホームディレクトリへのフォールバックも維持する（個人設定用）。
+
+      ## 修正箇所
+      config.py: get_slack_username() を修正
+      - 現在: ~/.auto-daily/slack_config.yaml を読み込み
+      - 変更後: まず Path.cwd() / "slack_config.yaml" をチェック
+                存在しなければ ~/.auto-daily/slack_config.yaml にフォールバック
+
+      ## 実装方針
+      ```python
+      def get_slack_username(workspace: str) -> str | None:
+          # 1. プロジェクトルートをチェック
+          project_config = Path.cwd() / "slack_config.yaml"
+          if project_config.exists():
+              config = yaml.safe_load(project_config.read_text())
+              # ... parse and return
+
+          # 2. ホームディレクトリにフォールバック
+          home_config = Path.home() / ".auto-daily" / "slack_config.yaml"
+          if home_config.exists():
+              config = yaml.safe_load(home_config.read_text())
+              # ... parse and return
+
+          return None
+      ```
+
+      ## サンプルファイル
+      slack_config.yaml.example をリポジトリルートに追加:
+      ```yaml
+      # Slack ワークスペースごとのユーザー名設定
+      workspaces:
+        "Your Workspace Name":
+          username: "your-username"
+        "Another Workspace":
+          username: "another-username"
+      ```
+    story_points: 2
+    dependencies:
+      - PBI-013
+    status: done
+
+  - id: PBI-020
+    story:
+      role: "Mac ユーザー"
+      capability: "スクリプトを実行して必要な macOS 権限（画面収録・アクセシビリティ）の設定画面を開ける"
+      benefit: "手動で設定画面を探す手間なく、アプリに必要な権限を簡単に設定できる"
+    acceptance_criteria:
+      - criterion: "scripts/setup-permissions.sh を実行すると画面収録の設定画面が開く"
+        verification: "bash scripts/setup-permissions.sh で設定画面が開くことを確認"
+      - criterion: "アクセシビリティの設定画面が開く"
+        verification: "bash scripts/setup-permissions.sh で設定画面が開くことを確認"
+      - criterion: "現在の権限状態を確認できるオプション (--check) がある"
+        verification: "bash scripts/setup-permissions.sh --check で権限状態が表示される"
+      - criterion: "権限が不足している場合に警告メッセージを表示する"
+        verification: "権限未設定状態でスクリプトを実行し警告を確認"
+    technical_notes: |
+      ## 必要な権限
+      1. **画面収録 (Screen Recording)**
+         - screencapture コマンドに必要
+         - 設定画面: System Preferences > Privacy & Security > Screen Recording
+         - 確認方法: CGPreflightScreenCaptureAccess() または実際にキャプチャを試行
+
+      2. **アクセシビリティ (Accessibility)**
+         - System Events 経由のウィンドウ情報取得に必要
+         - 設定画面: System Preferences > Privacy & Security > Accessibility
+         - 確認方法: AXIsProcessTrusted() を呼び出す
+
+      ## 実装方針
+      ```bash
+      #!/bin/bash
+      # scripts/setup-permissions.sh
+
+      # 設定画面を開く
+      open "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture"
+      open "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+
+      # 権限チェック (--check オプション)
+      # Python スクリプトを呼び出して権限状態を確認
+      ```
+
+      ## Python 権限チェックモジュール
+      新規ファイル: src/auto_daily/permissions.py
+      ```python
+      import subprocess
+      from ApplicationServices import AXIsProcessTrusted
+      import Quartz
+
+      def check_screen_recording_permission() -> bool:
+          # CGPreflightScreenCaptureAccess() を使用
+          pass
+
+      def check_accessibility_permission() -> bool:
+          return AXIsProcessTrusted()
+
+      def request_permissions() -> None:
+          # 設定画面を開く
+          pass
+      ```
+
+      ## 既存スクリプトとの連携
+      scripts/start.sh から権限チェックを呼び出し、不足時に setup-permissions.sh の実行を促す
+    story_points: 3
+    dependencies:
+      - PBI-009
+    status: ready
+
+  - id: PBI-021
+    story:
+      role: "開発者"
+      capability: "LLM クライアントを抽象化して複数のバックエンド（Ollama、LM Studio）を統一的に扱える"
+      benefit: "新しい LLM バックエンドを追加する際のコード変更を最小限に抑えられる"
+    acceptance_criteria:
+      - criterion: "LLM クライアントの Protocol/ABC が定義されている"
+        verification: "pytest tests/test_llm_client.py::test_llm_protocol -v"
+      - criterion: "既存の OllamaClient がプロトコルを実装している"
+        verification: "pytest tests/test_llm_client.py::test_ollama_implements_protocol -v"
+      - criterion: "AI_BACKEND 環境変数でバックエンドを切り替えられる"
+        verification: "pytest tests/test_config.py::test_ai_backend_from_env -v"
+      - criterion: "get_llm_client() ファクトリ関数が環境変数に応じたクライアントを返す"
+        verification: "pytest tests/test_llm_client.py::test_get_llm_client_factory -v"
+    technical_notes: |
+      ## リファクタリング内容
+      現在の ollama.py は Ollama API に直接依存している。
+      複数バックエンドに対応するため抽象化レイヤーを導入する。
+
+      ## 新規ファイル構成
+      ```
+      src/auto_daily/
+        llm/
+          __init__.py       # get_llm_client() ファクトリ
+          protocol.py       # LLMClient Protocol 定義
+          ollama.py         # OllamaClient 実装
+          lm_studio.py      # (PBI-022で追加)
+      ```
+
+      ## Protocol 定義
+      ```python
+      # llm/protocol.py
+      from typing import Protocol
+
+      class LLMClient(Protocol):
+          async def generate(self, prompt: str) -> str:
+              """テキストを生成する"""
+              ...
+
+          async def generate_with_image(self, prompt: str, image_path: str) -> str:
+              """画像付きでテキストを生成する（Vision モデル用）"""
+              ...
+      ```
+
+      ## 環境変数
+      - AI_BACKEND: "ollama" (default) | "lm_studio"
+      - AI_MODEL: 使用するモデル名（バックエンド共通）
+
+      ## 後方互換性
+      - 既存の OllamaClient は llm/ollama.py に移動
+      - ollama.py の他の関数（generate_daily_report_prompt, save_daily_report）は維持
+    story_points: 5
+    dependencies:
+      - PBI-004
+    status: ready
+
+  - id: PBI-022
+    story:
+      role: "Mac ユーザー"
+      capability: "LM Studio を使って日報を生成できる"
+      benefit: "Ollama 以外の選択肢があり、好みのツールで日報生成ができる"
+    acceptance_criteria:
+      - criterion: "LMStudioClient が LLMClient プロトコルを実装している"
+        verification: "pytest tests/test_llm_client.py::test_lm_studio_implements_protocol -v"
+      - criterion: "AI_BACKEND=lm_studio で LM Studio を使用できる"
+        verification: "pytest tests/test_llm_client.py::test_lm_studio_backend -v"
+      - criterion: "LM_STUDIO_BASE_URL 環境変数で接続先を設定できる"
+        verification: "pytest tests/test_config.py::test_lm_studio_base_url_from_env -v"
+    technical_notes: |
+      ## LM Studio API
+      LM Studio は OpenAI 互換 API を提供する。
+      - デフォルト URL: http://localhost:1234
+      - エンドポイント: /v1/chat/completions
+
+      ## 実装
+      ```python
+      # llm/lm_studio.py
+      class LMStudioClient:
+          def __init__(self, base_url: str = "http://localhost:1234"):
+              self.base_url = base_url
+
+          async def generate(self, prompt: str) -> str:
+              # OpenAI 互換 API を使用
+              async with httpx.AsyncClient() as client:
+                  response = await client.post(
+                      f"{self.base_url}/v1/chat/completions",
+                      json={
+                          "messages": [{"role": "user", "content": prompt}],
+                          "temperature": 0.7,
+                      },
+                  )
+                  return response.json()["choices"][0]["message"]["content"]
+      ```
+
+      ## 環境変数
+      - LM_STUDIO_BASE_URL: "http://localhost:1234" (default)
+    story_points: 3
+    dependencies:
+      - PBI-021
+    status: draft
+
+  - id: PBI-023
+    story:
+      role: "開発者"
+      capability: "OCR バックエンドを抽象化して複数の方式（Apple Vision、AI Vision）を統一的に扱える"
+      benefit: "新しい OCR 方式を追加する際のコード変更を最小限に抑えられる"
+    acceptance_criteria:
+      - criterion: "OCR バックエンドの Protocol/ABC が定義されている"
+        verification: "pytest tests/test_ocr.py::test_ocr_protocol -v"
+      - criterion: "既存の Vision Framework OCR がプロトコルを実装している"
+        verification: "pytest tests/test_ocr.py::test_apple_vision_implements_protocol -v"
+      - criterion: "OCR_BACKEND 環境変数でバックエンドを切り替えられる"
+        verification: "pytest tests/test_config.py::test_ocr_backend_from_env -v"
+      - criterion: "get_ocr_backend() ファクトリ関数が環境変数に応じたバックエンドを返す"
+        verification: "pytest tests/test_ocr.py::test_get_ocr_backend_factory -v"
+    technical_notes: |
+      ## リファクタリング内容
+      現在の ocr.py は Apple Vision Framework に直接依存している。
+      AI Vision モデル対応のため抽象化レイヤーを導入する。
+
+      ## 新規ファイル構成
+      ```
+      src/auto_daily/
+        ocr/
+          __init__.py       # get_ocr_backend() ファクトリ
+          protocol.py       # OCRBackend Protocol 定義
+          apple_vision.py   # Apple Vision Framework 実装
+          ai_vision.py      # (PBI-024で追加)
+      ```
+
+      ## Protocol 定義
+      ```python
+      # ocr/protocol.py
+      from typing import Protocol
+
+      class OCRBackend(Protocol):
+          def perform_ocr(self, image_path: str) -> str:
+              """画像からテキストを抽出する"""
+              ...
+      ```
+
+      ## 環境変数
+      - OCR_BACKEND: "apple" (default) | "ai_vision"
+
+      ## 後方互換性
+      - 既存の perform_ocr() 関数は維持（内部でファクトリを使用）
+    story_points: 3
+    dependencies:
+      - PBI-002
+    status: draft
+
+  - id: PBI-024
+    story:
+      role: "Mac ユーザー"
+      capability: "Ollama/LM Studio の Vision モデルを使って OCR を実行できる"
+      benefit: "より高精度な文脈理解が可能な AI ベースの OCR を選択できる"
+    acceptance_criteria:
+      - criterion: "AIVisionOCR が OCRBackend プロトコルを実装している"
+        verification: "pytest tests/test_ocr.py::test_ai_vision_implements_protocol -v"
+      - criterion: "OCR_BACKEND=ai_vision で AI Vision を使用できる"
+        verification: "pytest tests/test_ocr.py::test_ai_vision_backend -v"
+      - criterion: "OCR_MODEL 環境変数で使用する Vision モデルを指定できる"
+        verification: "pytest tests/test_config.py::test_ocr_model_from_env -v"
+      - criterion: "画像を Base64 エンコードして Vision モデルに送信できる"
+        verification: "pytest tests/test_ocr.py::test_ai_vision_image_encoding -v"
+    technical_notes: |
+      ## AI Vision OCR の仕組み
+      Ollama/LM Studio の Vision 対応モデル（llava, llama3.2-vision 等）を使用して
+      画像からテキストを抽出する。
+
+      ## 実装
+      ```python
+      # ocr/ai_vision.py
+      class AIVisionOCR:
+          def __init__(self, llm_client: LLMClient):
+              self.llm_client = llm_client
+
+          def perform_ocr(self, image_path: str) -> str:
+              prompt = "この画像に含まれるすべてのテキストを抽出してください。"
+              return await self.llm_client.generate_with_image(prompt, image_path)
+      ```
+
+      ## Ollama Vision API
+      ```json
+      {
+        "model": "llava",
+        "prompt": "この画像のテキストを抽出してください",
+        "images": ["<base64 encoded image>"]
+      }
+      ```
+
+      ## 環境変数
+      - OCR_MODEL: Vision モデル名（例: "llava", "llama3.2-vision"）
+      - OCR_BACKEND と AI_BACKEND の組み合わせで動作
+
+      ## 注意点
+      - AI Vision OCR は LLM クライアントに依存するため、PBI-021 が前提
+      - Apple Vision より遅いがコンテキスト理解力が高い
+    story_points: 5
+    dependencies:
+      - PBI-021
+      - PBI-023
+    status: draft
+
+  - id: PBI-025
+    story:
+      role: "Mac ユーザー"
+      capability: "ログファイルを1時間単位で分割して保存できる"
+      benefit: "ログファイルが肥大化せず、時間帯ごとのアクティビティを管理しやすくなる"
+    acceptance_criteria:
+      - criterion: "日付ディレクトリ logs/YYYY-MM-DD/ が自動作成される"
+        verification: "pytest tests/test_logger.py::test_date_directory_creation -v"
+      - criterion: "ログファイル名が activity_HH.jsonl 形式で生成される"
+        verification: "pytest tests/test_logger.py::test_hourly_log_filename -v"
+      - criterion: "時間が変わると新しいログファイルに書き込まれる"
+        verification: "pytest tests/test_logger.py::test_hourly_rotation -v"
+      - criterion: "既存の日単位ログとの後方互換性がある（移行期間中）"
+        verification: "pytest tests/test_logger.py::test_legacy_daily_log_compat -v"
+    technical_notes: |
+      ## 変更内容
+      ログファイルの粒度を1日から1時間に変更し、日付ごとのディレクトリに整理する。
+
+      ## ディレクトリ構造
+      ```
+      ~/.auto-daily/
+        └── logs/
+            ├── 2025-12-25/           # 日付ディレクトリ
+            │   ├── activity_09.jsonl  # 09:00-10:00 のログ
+            │   ├── activity_10.jsonl  # 10:00-11:00 のログ
+            │   └── ...
+            └── 2025-12-26/
+                └── ...
+      ```
+
+      ## 修正箇所
+      logger.py を修正:
+      - get_log_dir_for_date(date) -> Path: 日付ディレクトリを返す
+      - get_log_filename(dt) -> str: activity_HH.jsonl 形式
+      - append_log(): 日付ディレクトリを自動作成
+
+      ## 実装方針
+      ```python
+      def get_log_dir_for_date(log_base: Path, dt: datetime | None = None) -> Path:
+          if dt is None:
+              dt = datetime.now()
+          date_dir = log_base / dt.strftime('%Y-%m-%d')
+          date_dir.mkdir(parents=True, exist_ok=True)
+          return date_dir
+
+      def get_log_filename(dt: datetime | None = None) -> str:
+          if dt is None:
+              dt = datetime.now()
+          return f"activity_{dt.strftime('%H')}.jsonl"
+      ```
+
+      ## ヘルパー関数
+      - get_log_files_for_date(date) -> list[Path]: 指定日のログファイル一覧
+      - get_log_file_for_hour(date, hour) -> Path: 指定時間のログファイル
+    story_points: 3
+    dependencies:
+      - PBI-003
+    status: ready
+
+  - id: PBI-026
+    story:
+      role: "Mac ユーザー"
+      capability: "1時間ごとにログを要約して保存できる"
+      benefit: "長時間の作業でもコンテキストが溢れず、効率的に日報を生成できる"
+    acceptance_criteria:
+      - criterion: "python -m auto_daily summarize で現在の時間のログを要約できる"
+        verification: "pytest tests/test_main.py::test_summarize_command -v"
+      - criterion: "日付ディレクトリ summaries/YYYY-MM-DD/ が自動作成される"
+        verification: "pytest tests/test_summarize.py::test_summary_date_directory -v"
+      - criterion: "要約が summaries/YYYY-MM-DD/summary_HH.md として保存される"
+        verification: "pytest tests/test_summarize.py::test_summary_file_format -v"
+      - criterion: "スケジューラーで1時間ごとに自動的に要約が生成される"
+        verification: "pytest tests/test_scheduler.py::test_hourly_summary_scheduler -v"
+      - criterion: "--hour オプションで特定の時間の要約を生成できる"
+        verification: "pytest tests/test_main.py::test_summarize_with_hour_option -v"
+    technical_notes: |
+      ## 新規コマンド
+      ```bash
+      # 現在の時間のログを要約
+      python -m auto_daily summarize
+
+      # 特定の時間を指定
+      python -m auto_daily summarize --date 2025-12-25 --hour 14
+      ```
+
+      ## ディレクトリ構造
+      ```
+      ~/.auto-daily/
+        ├── logs/
+        │   └── 2025-12-25/
+        │       ├── activity_09.jsonl
+        │       ├── activity_10.jsonl
+        │       └── ...
+        └── summaries/
+            └── 2025-12-25/           # 日付ディレクトリ
+                ├── summary_09.md      # 09:00-10:00 の要約
+                ├── summary_10.md      # 10:00-11:00 の要約
+                └── ...
+      ```
+
+      ## 要約用プロンプト
+      ```
+      以下の1時間分のアクティビティログを簡潔に要約してください。
+      重要なタスク、作業内容、成果を箇条書きで記載してください。
+
+      {activities}
+      ```
+
+      ## スケジューラー統合
+      - PeriodicCapture と同様に SummaryScheduler を作成
+      - 毎時0分（または設定可能な間隔）で前の時間のログを要約
+
+      ## 新規ファイル
+      - src/auto_daily/summarize.py: 要約生成ロジック
+      - 要約用プロンプトテンプレート: summary_prompt.txt
+
+      ## ヘルパー関数
+      - get_summary_dir_for_date(date) -> Path: 要約の日付ディレクトリ
+      - get_summary_filename(hour) -> str: summary_HH.md 形式
+    story_points: 5
+    dependencies:
+      - PBI-025
+      - PBI-004
+    status: draft
+
+  - id: PBI-027
+    story:
+      role: "Mac ユーザー"
+      capability: "時間単位の要約を集約して日報を生成できる"
+      benefit: "コンテキスト制限を回避しながら、1日全体を俯瞰した日報を作成できる"
+    acceptance_criteria:
+      - criterion: "report コマンドが要約ファイルから日報を生成する"
+        verification: "pytest tests/test_main.py::test_report_from_summaries -v"
+      - criterion: "要約がない時間帯はスキップされる"
+        verification: "pytest tests/test_main.py::test_report_skips_missing_summaries -v"
+      - criterion: "要約がまだ生成されていないログは直接読み込む（フォールバック）"
+        verification: "pytest tests/test_main.py::test_report_fallback_to_logs -v"
+      - criterion: "日報生成前に未要約のログを自動で要約するオプション (--auto-summarize)"
+        verification: "pytest tests/test_main.py::test_report_auto_summarize -v"
+    technical_notes: |
+      ## ディレクトリ構造
+      ```
+      ~/.auto-daily/
+        ├── logs/
+        │   └── 2025-12-25/
+        │       ├── activity_09.jsonl
+        │       └── ...
+        ├── summaries/
+        │   └── 2025-12-25/
+        │       ├── summary_09.md
+        │       ├── summary_10.md
+        │       └── ...
+        └── reports/
+            └── daily_report_2025-12-25.md  # 最終的な日報
+      ```
+
+      ## 処理フロー
+      ```
+      1. 指定日の要約ファイル一覧を取得
+         summaries/2025-12-25/summary_*.md
+
+      2. 各要約を読み込んで結合
+         09:00-10:00: [要約1]
+         10:00-11:00: [要約2]
+         ...
+
+      3. 結合した要約から日報を生成
+         「以下の時間帯ごとの要約をもとに、1日の日報を作成してください」
+      ```
+
+      ## プロンプト構造
+      ```
+      以下は今日の作業の時間帯ごとの要約です。
+      これらをもとに、1日の日報を作成してください。
+
+      ## 09:00-10:00
+      {summary_09}
+
+      ## 10:00-11:00
+      {summary_10}
+
+      ...
+
+      ## 日報フォーマット
+      1. 今日の作業内容
+      2. 進捗・成果
+      3. 課題・問題点
+      4. 明日の予定
+      ```
+
+      ## フォールバック動作
+      要約がない時間帯のログがある場合：
+      1. --auto-summarize: 自動で要約を生成してから日報作成
+      2. --include-raw: ログを直接含める（コンテキスト注意）
+      3. デフォルト: 警告を表示してスキップ
+
+      ## コンテキスト削減効果
+      - 従来: 1日分のログ（数百KB〜数MB）
+      - 変更後: 時間単位の要約（各1-2KB × 8-10時間 = 10-20KB）
+    story_points: 5
+    dependencies:
+      - PBI-026
+    status: draft
 ```
 
 ### Definition of Ready
@@ -600,42 +1129,50 @@ definition_of_ready:
 ## 2. Current Sprint
 
 ```yaml
-sprint_17:
-  number: 17
-  pbi_id: PBI-018
-  story: "プロジェクトルートの prompt.txt からプロンプトテンプレートを読み込める"
+sprint_18:
+  number: 18
+  pbi_id: PBI-019
+  story: "プロジェクトルートの slack_config.yaml から Slack 設定を読み込める"
   status: done
 
   sprint_goal:
-    statement: "プロジェクトルートの prompt.txt を優先的に読み込む機能を実装する"
+    statement: "プロジェクトルートの slack_config.yaml を優先的に読み込み、ホームディレクトリにフォールバックする機能を実装する"
     success_criteria:
-      - "プロジェクトルートの prompt.txt からプロンプトを読み込める"
-      - "prompt.txt が存在しない場合はデフォルトテンプレートを使用する"
-    stakeholder_value: "プロジェクトごとに異なるプロンプトを Git 管理できる"
+      - "プロジェクトルートの slack_config.yaml から Slack ユーザー名を読み込める"
+      - "プロジェクトルートにファイルがない場合は ~/.auto-daily/slack_config.yaml にフォールバック"
+      - "どちらにもファイルがない場合は None を返す"
+    stakeholder_value: "プロジェクトごとに異なる Slack 設定を Git 管理でき、チームで設定を共有できる"
 
   subtasks:
     - id: ST-001
-      test: "test_prompt_template_from_project_root: プロジェクトルートの prompt.txt からプロンプトを読み込む"
+      test: "test_slack_config_from_project_root: プロジェクトルートの slack_config.yaml から読み込む"
       implementation: |
-        config.py の get_prompt_template() を修正:
-        - Path.cwd() / "prompt.txt" を最優先でチェック
-        - 存在しない場合は DEFAULT_PROMPT_TEMPLATE を返す
+        config.py の get_slack_username() を修正:
+        - Path.cwd() / "slack_config.yaml" を最優先でチェック
+        - 存在しない場合は ~/.auto-daily/slack_config.yaml にフォールバック
       type: behavioral
       status: completed
       commits: []
 
     - id: ST-002
-      test: "test_prompt_template_default: prompt.txt が存在しない場合はデフォルトを使用"
+      test: "test_slack_config_fallback_to_home: プロジェクトルートにない場合はホームディレクトリにフォールバック"
       implementation: |
-        既存テスト test_prompt_template_default を更新
         ST-001 の実装で自動的にカバーされる
       type: behavioral
       status: completed
       commits: []
 
+    - id: ST-003
+      test: "test_slack_username_config_file_not_found: どちらにもファイルがない場合は None を返す"
+      implementation: |
+        既存テストを更新して Path.cwd() もモックする
+      type: behavioral
+      status: completed
+      commits: []
+
   notes: |
-    PBI-007 の仕様変更。
-    .env と同様にプロジェクトルートからの読み込みを優先する。
+    PBI-013 の拡張。
+    .env や prompt.txt と同様にプロジェクトルートからの読み込みを優先する。
 ```
 
 ### Impediment Registry
@@ -820,6 +1357,12 @@ completed:
     pbi_id: PBI-018
     story: "プロジェクトルートの prompt.txt からプロンプトテンプレートを読み込める"
     subtasks_completed: 2
+    commits: []
+
+  - sprint: 18
+    pbi_id: PBI-019
+    story: "プロジェクトルートの slack_config.yaml から Slack 設定を読み込める"
+    subtasks_completed: 3
     commits: []
 ```
 
@@ -1011,6 +1554,17 @@ retrospectives:
       - "特になし - シンプルな仕様変更がスムーズに完了"
     action_items:
       - "README.md を更新して prompt.txt の読み込み先を明記する"
+
+  - sprint: 18
+    what_went_well:
+      - "PBI-018（prompt.txt）と同じパターンを踏襲し、効率的に実装"
+      - "ホームディレクトリへのフォールバック機能を維持"
+      - "既存テスト test_slack_username_config_file_not_found も更新して両方のパスをテスト"
+      - "TDD サイクル（Red-Green）がスムーズに回った"
+    what_to_improve:
+      - "特になし - 既存パターンを活用してシンプルに完了"
+    action_items:
+      - "slack_config.yaml.example はすでにリポジトリに存在することを確認"
 ```
 
 ---
