@@ -100,6 +100,28 @@ python -m auto_daily report --date 2024-12-24
 
 ## 設定
 
+### .env ファイルによる設定
+
+`~/.auto-daily/.env` ファイルで各種設定を一元管理できます。
+
+```bash
+# 設定ファイルを作成
+mkdir -p ~/.auto-daily
+cp .env.example ~/.auto-daily/.env
+
+# 必要に応じて編集
+vim ~/.auto-daily/.env
+```
+
+利用可能な環境変数：
+
+| 環境変数 | 説明 | デフォルト値 |
+|---------|------|-------------|
+| `OLLAMA_BASE_URL` | Ollama の接続先 URL | `http://localhost:11434` |
+| `OLLAMA_MODEL` | 使用する Ollama モデル | `llama3.2` |
+| `AUTO_DAILY_CAPTURE_INTERVAL` | 定期キャプチャの間隔（秒） | `30` |
+| `AUTO_DAILY_LOG_DIR` | ログ出力先ディレクトリ | `~/.auto-daily/logs/` |
+
 ### ログ出力先のカスタマイズ
 
 環境変数 `AUTO_DAILY_LOG_DIR` でログの出力先を指定できます。

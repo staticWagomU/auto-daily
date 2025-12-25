@@ -12,6 +12,7 @@ dependencies = [
     "pyobjc-framework-CoreML",
     "httpx",
     "pyyaml",
+    "python-dotenv",
 ]
 
 [dependency-groups]

@@ -189,3 +189,130 @@ def test_slack_username_config_file_not_found(tmp_path: Path) -> None:
 
         # Assert: Should return None
         assert result is None
+
+
+# ============================================================
+# PBI-015: .env ファイルで設定を管理する
+# ============================================================
+
+
+def test_load_dotenv(tmp_path: Path) -> None:
+    """Test that .env file is loaded and environment variables are set.
+
+    The config should:
+    1. Load .env file from ~/.auto-daily/.env
+    2. Set environment variables from the file
+    3. Allow subsequent get_* functions to read these values
+    """
+    from auto_daily.config import load_env
+
+    # Arrange: Create .env file with a test variable
+    config_dir = tmp_path / ".auto-daily"
+    config_dir.mkdir()
+    env_file = config_dir / ".env"
+    env_file.write_text("TEST_DOTENV_VAR=hello_from_dotenv\n")
+
+    # Clear the test variable if it exists
+    if "TEST_DOTENV_VAR" in os.environ:
+        del os.environ["TEST_DOTENV_VAR"]
+
+    # Mock Path.home() to return tmp_path
+    with patch("auto_daily.config.Path.home", return_value=tmp_path):
+        # Act: Load the .env file
+        load_env()
+
+        # Assert: Environment variable should be set
+        assert os.environ.get("TEST_DOTENV_VAR") == "hello_from_dotenv"
+
+    # Cleanup
+    if "TEST_DOTENV_VAR" in os.environ:
+        del os.environ["TEST_DOTENV_VAR"]
+
+
+def test_ollama_base_url_from_env() -> None:
+    """Test that OLLAMA_BASE_URL environment variable sets Ollama connection URL.
+
+    The config should:
+    1. Read OLLAMA_BASE_URL from environment
+    2. Return the custom URL when set
+    """
+    from auto_daily.config import get_ollama_base_url
+
+    # Arrange: Set custom Ollama URL
+    custom_url = "http://ollama.example.com:11434"
+
+    with patch.dict(os.environ, {"OLLAMA_BASE_URL": custom_url}):
+        # Act: Get Ollama base URL
+        result = get_ollama_base_url()
+
+        # Assert: Should return the custom URL
+        assert result == custom_url
+
+
+def test_ollama_model_from_env() -> None:
+    """Test that OLLAMA_MODEL environment variable sets the model name.
+
+    The config should:
+    1. Read OLLAMA_MODEL from environment
+    2. Return the custom model name when set
+    """
+    from auto_daily.config import get_ollama_model
+
+    # Arrange: Set custom model name
+    custom_model = "mistral"
+
+    with patch.dict(os.environ, {"OLLAMA_MODEL": custom_model}):
+        # Act: Get Ollama model
+        result = get_ollama_model()
+
+        # Assert: Should return the custom model
+        assert result == custom_model
+
+
+def test_capture_interval_from_env() -> None:
+    """Test that AUTO_DAILY_CAPTURE_INTERVAL environment variable sets capture interval.
+
+    The config should:
+    1. Read AUTO_DAILY_CAPTURE_INTERVAL from environment
+    2. Return the value as an integer (seconds)
+    """
+    from auto_daily.config import get_capture_interval
+
+    # Arrange: Set custom interval
+    custom_interval = "60"
+
+    with patch.dict(os.environ, {"AUTO_DAILY_CAPTURE_INTERVAL": custom_interval}):
+        # Act: Get capture interval
+        result = get_capture_interval()
+
+        # Assert: Should return the integer value
+        assert result == 60
+        assert isinstance(result, int)
+
+
+def test_env_defaults() -> None:
+    """Test that default values are used when environment variables are not set.
+
+    When env vars are not set, the config should return:
+    1. OLLAMA_BASE_URL default: "http://localhost:11434"
+    2. OLLAMA_MODEL default: "llama3.2"
+    3. AUTO_DAILY_CAPTURE_INTERVAL default: 30
+    """
+    from auto_daily.config import (
+        get_capture_interval,
+        get_ollama_base_url,
+        get_ollama_model,
+    )
+
+    # Arrange: Clear relevant environment variables
+    env_without_vars = {
+        k: v
+        for k, v in os.environ.items()
+        if k not in ["OLLAMA_BASE_URL", "OLLAMA_MODEL", "AUTO_DAILY_CAPTURE_INTERVAL"]
+    }
+
+    with patch.dict(os.environ, env_without_vars, clear=True):
+        # Act & Assert: Check default values
+        assert get_ollama_base_url() == "http://localhost:11434"
+        assert get_ollama_model() == "llama3.2"
+        assert get_capture_interval() == 30

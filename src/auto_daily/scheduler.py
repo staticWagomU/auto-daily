@@ -5,6 +5,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from auto_daily.capture import capture_screen, cleanup_image
+from auto_daily.config import get_capture_interval
 from auto_daily.logger import append_log
 from auto_daily.ocr import perform_ocr
 from auto_daily.window_monitor import get_active_window
@@ -50,18 +51,21 @@ class PeriodicCapture:
         self,
         callback: CaptureCallback,
         log_dir: Path,
-        interval: float = 30.0,
+        interval: float | None = None,
     ) -> None:
         """Initialize the periodic capture scheduler.
 
         Args:
             callback: Function to call on each capture interval.
             log_dir: Directory for storing logs.
-            interval: Time in seconds between captures. Default is 30 seconds.
+            interval: Time in seconds between captures.
+                     Uses AUTO_DAILY_CAPTURE_INTERVAL env var or default if not specified.
         """
         self._callback = callback
         self._log_dir = log_dir
-        self._interval = interval
+        self._interval = (
+            interval if interval is not None else float(get_capture_interval())
+        )
         self._running = False
         self._thread: threading.Thread | None = None
 

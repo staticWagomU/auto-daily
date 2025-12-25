@@ -55,5 +55,6 @@ logs/
 *.jsonl
 daily_reports/
 screenshots/
+.env
 
 .direnv

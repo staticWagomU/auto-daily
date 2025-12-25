@@ -6,19 +6,20 @@ from pathlib import Path
 
 import httpx
 
-from auto_daily.config import get_prompt_template
+from auto_daily.config import get_ollama_base_url, get_prompt_template
 
 
 class OllamaClient:
     """Client for interacting with the Ollama API."""
 
-    def __init__(self, base_url: str = "http://localhost:11434") -> None:
+    def __init__(self, base_url: str | None = None) -> None:
         """Initialize the Ollama client.
 
         Args:
             base_url: Base URL of the Ollama server.
+                     Uses OLLAMA_BASE_URL env var or default if not specified.
         """
-        self.base_url = base_url
+        self.base_url = base_url if base_url is not None else get_ollama_base_url()
 
     async def generate(self, model: str, prompt: str) -> str:
         """Generate text using the Ollama API.
