@@ -123,11 +123,11 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 9
-  pbi: PBI-009
+  number: 10
+  pbi: PBI-010
   status: done
-  subtasks_completed: 3
-  subtasks_total: 3
+  subtasks_completed: 4
+  subtasks_total: 4
   impediments: 0
 ```
 
@@ -315,7 +315,7 @@ product_backlog:
       - PBI-001
       - PBI-002
       - PBI-003
-    status: ready
+    status: done
 ```
 
 ### Definition of Ready
@@ -339,46 +339,58 @@ definition_of_ready:
 ## 2. Current Sprint
 
 ```yaml
-sprint_9:
-  number: 9
-  pbi_id: PBI-009
-  story: "シェルスクリプトを実行するだけでアプリケーションを起動できる"
+sprint_10:
+  number: 10
+  pbi_id: PBI-010
+  story: "ウィンドウ切り替え時に自動的に画面キャプチャ、OCR、ログ保存が実行される"
   status: done
 
   subtasks:
     - id: ST-001
-      test: "scripts/start.sh を実行するとアプリケーションが起動する"
-      implementation: "scripts/start.sh を作成し、python -m auto_daily --start を実行"
+      test: "test_capture_on_window_change: ウィンドウ切り替え時に画面キャプチャが実行される"
+      implementation: "processor.py の process_window_change() で capture_screen() を呼び出す"
       type: behavioral
       status: completed
       commits:
+        - phase: red
+          hash: 4d4a1be
         - phase: green
-          hash: db7e591
+          hash: 4cdf8bb
 
     - id: ST-002
-      test: "Ollama が起動していない場合はエラーメッセージを表示する"
-      implementation: "Ollama 起動チェックを追加"
+      test: "test_ocr_on_capture: キャプチャ画像に対して OCR が実行される"
+      implementation: "キャプチャ後に perform_ocr() を呼び出す"
       type: behavioral
       status: completed
       commits:
         - phase: green
-          hash: db7e591
-          note: "ST-001 のコミットでカバー済み"
+          hash: 4cdf8bb
+          note: "ST-001 の実装でカバー済み"
 
     - id: ST-003
-      test: "スクリプトに実行権限が付与されている"
-      implementation: "chmod +x scripts/start.sh を実行"
+      test: "test_log_on_window_change: ウィンドウ情報と OCR 結果がログに保存される"
+      implementation: "OCR 結果を append_log() で保存する"
       type: behavioral
       status: completed
       commits:
         - phase: green
-          hash: db7e591
-          note: "ST-001 のコミットでカバー済み（mode 100755）"
+          hash: 4cdf8bb
+          note: "ST-001 の実装でカバー済み"
+
+    - id: ST-004
+      test: "test_cleanup_after_processing: 処理完了後に画像が削除される"
+      implementation: "ログ保存後に cleanup_image() を呼び出す"
+      type: behavioral
+      status: completed
+      commits:
+        - phase: green
+          hash: 4cdf8bb
+          note: "ST-001 の実装でカバー済み"
 
   notes: |
-    シェルスクリプトタスクのためテストファイルは不要。
-    start.sh に Ollama 起動チェック、ヘルプ表示、色付き出力を実装。
-    1つのコミットですべてのサブタスクをカバー。
+    processor.py を新規作成し、パイプライン処理を実装。
+    __init__.py を更新してメインループに統合。
+    TDD で統合テストを書き、すべてのテストがパス。
 ```
 
 ### Impediment Registry
@@ -498,6 +510,15 @@ completed:
     subtasks_completed: 3
     commits:
       - db7e591  # feat: add start.sh script for easy application launch (PBI-009)
+
+  - sprint: 10
+    pbi_id: PBI-010
+    story: "ウィンドウ切り替え時に自動的に画面キャプチャ、OCR、ログ保存が実行される"
+    subtasks_completed: 4
+    commits:
+      - 4d4a1be  # test: add failing integration tests for window change processing (PBI-010)
+      - 4cdf8bb  # feat: implement processor module for window change pipeline (PBI-010)
+      - 58c0e64  # feat: integrate processor into main event loop (PBI-010)
 ```
 
 ---
@@ -595,6 +616,18 @@ retrospectives:
       - "特になし - シンプルなスクリプト作成がスムーズに完了"
     action_items:
       - "Product Backlog の次の ready アイテムを確認し、必要に応じて新規 PBI を追加"
+
+  - sprint: 10
+    what_went_well:
+      - "processor.py でパイプライン処理を単一責任で実装できた"
+      - "TDD サイクル（Red-Green）が順調に回った"
+      - "統合テストで各モジュールの連携を検証できた"
+      - "アプリケーションが実際に動作するようになった"
+    what_to_improve:
+      - "特になし - 統合タスクがスムーズに完了"
+    action_items:
+      - "実際にアプリを起動して E2E テストを実施"
+      - "Ollama 日報生成のスケジュール機能を検討"
 ```
 
 ---
