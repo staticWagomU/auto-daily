@@ -117,3 +117,106 @@ def test_openai_backend() -> None:
     with patch.dict(os.environ, {"AI_BACKEND": "openai", "OPENAI_API_KEY": "test-key"}):
         client = get_llm_client()
         assert isinstance(client, OpenAIClient)
+
+
+class TestCheckOllamaConnection:
+    """Tests for check_ollama_connection() function."""
+
+    def test_check_ollama_connection_success(self) -> None:
+        """Test that check_ollama_connection returns True when Ollama is available.
+
+        The function should:
+        1. Send a GET request to OLLAMA_BASE_URL/api/tags
+        2. Return True when the request succeeds
+        """
+        from unittest.mock import MagicMock
+
+        import httpx
+
+        from auto_daily.llm.ollama import check_ollama_connection
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+
+        with patch.object(httpx, "get", return_value=mock_response):
+            result = check_ollama_connection()
+            assert result is True
+
+    def test_check_ollama_connection_failure(self) -> None:
+        """Test that check_ollama_connection returns False when Ollama is unavailable.
+
+        The function should:
+        1. Return False when the connection fails (timeout, connection error, etc.)
+        """
+        import httpx
+
+        from auto_daily.llm.ollama import check_ollama_connection
+
+        with patch.object(
+            httpx, "get", side_effect=httpx.ConnectError("Connection refused")
+        ):
+            result = check_ollama_connection()
+            assert result is False
+
+    def test_check_ollama_connection_uses_configured_url(self) -> None:
+        """Test that check_ollama_connection uses the configured OLLAMA_BASE_URL.
+
+        The function should:
+        1. Use the URL from get_ollama_base_url()
+        2. Append /api/tags to the base URL
+        """
+        from unittest.mock import MagicMock
+
+        import httpx
+
+        from auto_daily.llm.ollama import check_ollama_connection
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+
+        with patch.dict(os.environ, {"OLLAMA_BASE_URL": "http://custom:8080"}):
+            with patch.object(httpx, "get", return_value=mock_response) as mock_get:
+                check_ollama_connection()
+                mock_get.assert_called_once()
+                call_args = mock_get.call_args
+                assert "http://custom:8080/api/tags" in str(call_args)
+
+
+def test_lm_studio_implements_protocol() -> None:
+    """Test that LMStudioClient implements the LLMClient protocol.
+
+    The LMStudioClient should:
+    1. Have an async generate(prompt: str, model: str) -> str method
+    2. Be structurally compatible with LLMClient Protocol
+    """
+    from auto_daily.llm.lm_studio import LMStudioClient
+    from auto_daily.llm.protocol import LLMClient
+
+    # Create an instance
+    client = LMStudioClient()
+
+    # Verify the method signature exists
+    assert hasattr(client, "generate")
+    assert callable(client.generate)
+
+    # Type checking verification (this is for runtime, static checking happens via mypy/ty)
+    # The client should be usable where LLMClient is expected
+    def accepts_llm_client(c: LLMClient) -> None:
+        pass
+
+    # This should not raise - if LMStudioClient implements the protocol correctly
+    accepts_llm_client(client)
+
+
+def test_lm_studio_backend() -> None:
+    """Test that AI_BACKEND=lm_studio returns LMStudioClient.
+
+    The factory should:
+    1. Return LMStudioClient when AI_BACKEND is "lm_studio"
+    """
+    from auto_daily.llm import get_llm_client
+    from auto_daily.llm.lm_studio import LMStudioClient
+
+    with patch.dict(os.environ, {"AI_BACKEND": "lm_studio"}):
+        client = get_llm_client()
+        assert isinstance(client, LMStudioClient)

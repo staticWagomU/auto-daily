@@ -2,6 +2,7 @@
 
 import argparse
 import asyncio
+import json
 import signal
 import sys
 import time
@@ -10,13 +11,27 @@ from pathlib import Path
 
 __version__ = "0.1.0"
 
-from auto_daily.config import get_log_dir, get_ollama_model, get_reports_dir, load_env
+from auto_daily.calendar import (
+    LogEntry,
+    get_all_events,
+    match_events_with_logs,
+)
+from auto_daily.config import (
+    get_log_dir,
+    get_ollama_base_url,
+    get_ollama_model,
+    get_reports_dir,
+    load_env,
+)
+from auto_daily.llm.ollama import check_ollama_connection
 from auto_daily.logger import get_log_filename
 from auto_daily.ollama import (
     OllamaClient,
     generate_daily_report_prompt,
+    generate_daily_report_prompt_with_calendar,
     save_daily_report,
 )
+from auto_daily.permissions import check_all_permissions
 from auto_daily.processor import process_window_change
 from auto_daily.scheduler import PeriodicCapture, process_periodic_capture
 from auto_daily.window_monitor import WindowMonitor
@@ -34,13 +49,53 @@ def on_periodic_capture(log_dir: Path) -> None:
         print("⏱ Periodic capture: ✗ Processing failed")
 
 
-async def report_command(date_str: str | None = None) -> None:
+def _load_logs_as_entries(log_file: Path) -> list[LogEntry]:
+    """Load JSONL log file and convert to LogEntry objects.
+
+    Args:
+        log_file: Path to the JSONL log file.
+
+    Returns:
+        List of LogEntry objects.
+    """
+    entries = []
+    with open(log_file) as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                data = json.loads(line)
+                timestamp_str = data.get("timestamp", "")
+                window_info = data.get("window_info", {})
+                entries.append(
+                    LogEntry(
+                        timestamp=datetime.fromisoformat(timestamp_str),
+                        app_name=window_info.get("app_name", ""),
+                        window_title=window_info.get("window_title", ""),
+                        ocr_text=data.get("ocr_text", ""),
+                    )
+                )
+    return entries
+
+
+async def report_command(
+    date_str: str | None = None, with_calendar: bool = False
+) -> None:
     """Generate a daily report from logs.
 
     Args:
         date_str: Optional date string in YYYY-MM-DD format.
                   If None, uses today's date.
+        with_calendar: If True, include calendar events in report.
     """
+    # Check Ollama connection before proceeding
+    if not check_ollama_connection():
+        ollama_url = get_ollama_base_url()
+        print(
+            f"Error: Cannot connect to Ollama at {ollama_url}. "
+            "Please ensure Ollama is running."
+        )
+        sys.exit(1)
+
     # Determine the target date
     if date_str:
         target_date = date.fromisoformat(date_str)
@@ -59,7 +114,15 @@ async def report_command(date_str: str | None = None) -> None:
 
     # Generate report using Ollama
     print(f"Generating report for {target_date.isoformat()}...")
-    prompt = generate_daily_report_prompt(log_file)
+
+    if with_calendar:
+        # Fetch calendar events and match with logs
+        events = await get_all_events(target_date)
+        log_entries = _load_logs_as_entries(log_file)
+        match_result = match_events_with_logs(events, log_entries)
+        prompt = generate_daily_report_prompt_with_calendar(log_file, match_result)
+    else:
+        prompt = generate_daily_report_prompt(log_file)
 
     client = OllamaClient()
     model = get_ollama_model()
@@ -106,16 +169,46 @@ def main() -> None:
         type=str,
         help="Date to generate report for (YYYY-MM-DD format)",
     )
+    report_parser.add_argument(
+        "--with-calendar",
+        action="store_true",
+        help="Include calendar events in the report",
+    )
 
     args = parser.parse_args()
 
     # Handle report subcommand
     if args.command == "report":
-        asyncio.run(report_command(args.date))
+        asyncio.run(report_command(args.date, args.with_calendar))
         return
 
     if args.start:
         print(f"auto-daily v{__version__} - Starting window monitor...")
+
+        # Check permissions before starting
+        perms = check_all_permissions()
+        missing_perms = False
+
+        if not perms["screen_recording"]:
+            print("⚠️ Screen recording permission is required.")
+            missing_perms = True
+
+        if not perms["accessibility"]:
+            print("⚠️ Accessibility permission is required.")
+            missing_perms = True
+
+        if missing_perms:
+            print("Run: bash scripts/setup-permissions.sh")
+            print("Please grant permissions and restart.")
+            sys.exit(1)
+
+        # Check Ollama connection and warn if unavailable
+        if not check_ollama_connection():
+            ollama_url = get_ollama_base_url()
+            print(
+                f"⚠️ Warning: Ollama is not available at {ollama_url}. "
+                "Report generation will not work."
+            )
 
         log_dir = get_log_dir()
         print(f"Logging to: {log_dir}")

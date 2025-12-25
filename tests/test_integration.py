@@ -65,7 +65,9 @@ class TestLogOnWindowChange:
                     with patch("auto_daily.processor.cleanup_image"):
                         process_window_change(old_window, new_window, tmp_path)
 
-            mock_log.assert_called_once_with(tmp_path, new_window, ocr_text)
+            mock_log.assert_called_once_with(
+                tmp_path, new_window, ocr_text, slack_context=None
+            )
 
 
 class TestCleanupAfterProcessing:

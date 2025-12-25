@@ -334,6 +334,278 @@ def test_report_uses_correct_log_filename(tmp_path, monkeypatch) -> None:
     mock_client.generate.assert_called_once()
 
 
+# ============================================================
+# PBI-033: Permission check on startup
+# ============================================================
+
+
+def test_permission_warning_on_start(capsys) -> None:
+    """Test that a warning is displayed when permissions are missing on start.
+
+    The main function should:
+    1. Check permissions when --start is passed
+    2. Display a warning message if screen recording permission is missing
+    3. Display a warning message if accessibility permission is missing
+    4. Suggest running setup-permissions.sh
+    5. Exit with code 1 when permissions are missing
+    """
+    from unittest.mock import patch
+
+    # Arrange: Mock permissions to return all False
+    mock_perms = {"screen_recording": False, "accessibility": False}
+
+    with (
+        patch("auto_daily.check_all_permissions", return_value=mock_perms),
+        patch("sys.argv", ["auto-daily", "--start"]),
+    ):
+        from auto_daily import main
+
+        # Act: Call main with --start (should exit with error)
+        try:
+            main()
+            raise AssertionError("Expected SystemExit")
+        except SystemExit as e:
+            # Assert: Should exit with code 1
+            assert e.code == 1
+
+    # Assert: Should display warning messages
+    captured = capsys.readouterr()
+    assert (
+        "Screen recording permission" in captured.out
+        or "screen recording" in captured.out.lower()
+    )
+    assert (
+        "Accessibility permission" in captured.out
+        or "accessibility" in captured.out.lower()
+    )
+    assert "setup-permissions.sh" in captured.out
+
+
+def test_start_with_permissions(capsys) -> None:
+    """Test that monitoring starts normally when all permissions are granted.
+
+    The main function should:
+    1. Check permissions when --start is passed
+    2. Continue to start monitoring if all permissions are granted
+    3. Not display permission warning messages
+    """
+    from unittest.mock import MagicMock, patch
+
+    # Arrange: Mock permissions to return all True
+    mock_perms = {"screen_recording": True, "accessibility": True}
+    mock_monitor_instance = MagicMock()
+    mock_monitor_class = MagicMock(return_value=mock_monitor_instance)
+
+    with (
+        patch("auto_daily.check_all_permissions", return_value=mock_perms),
+        patch("auto_daily.WindowMonitor", mock_monitor_class),
+        patch("sys.argv", ["auto-daily", "--start"]),
+        patch("time.sleep", side_effect=KeyboardInterrupt),  # Stop loop immediately
+    ):
+        from auto_daily import main
+
+        # Act: Call main with --start
+        try:
+            main()
+        except (KeyboardInterrupt, SystemExit):
+            pass  # Expected when we interrupt the loop
+
+    # Assert: WindowMonitor should have been instantiated and started
+    mock_monitor_class.assert_called_once()
+    mock_monitor_instance.start.assert_called_once()
+
+    # Assert: No permission warning messages
+    captured = capsys.readouterr()
+    assert (
+        "permission" not in captured.out.lower()
+        or "Screen recording permission" not in captured.out
+    )
+
+
+# ============================================================
+# PBI-016: Ollama connection check
+# ============================================================
+
+
+def test_start_without_ollama(capsys) -> None:
+    """Test that app starts successfully even when Ollama is not available.
+
+    The main function should:
+    1. Check Ollama connection when --start is passed
+    2. Display a warning message if Ollama is not available
+    3. Continue to start window monitoring regardless
+    """
+    from unittest.mock import MagicMock, patch
+
+    # Arrange: Mock permissions as granted, but Ollama as unavailable
+    mock_perms = {"screen_recording": True, "accessibility": True}
+    mock_monitor_instance = MagicMock()
+    mock_monitor_class = MagicMock(return_value=mock_monitor_instance)
+
+    with (
+        patch("auto_daily.check_all_permissions", return_value=mock_perms),
+        patch("auto_daily.check_ollama_connection", return_value=False),
+        patch("auto_daily.WindowMonitor", mock_monitor_class),
+        patch("sys.argv", ["auto-daily", "--start"]),
+        patch("time.sleep", side_effect=KeyboardInterrupt),  # Stop loop immediately
+    ):
+        from auto_daily import main
+
+        # Act: Call main with --start
+        try:
+            main()
+        except (KeyboardInterrupt, SystemExit):
+            pass  # Expected when we interrupt the loop
+
+    # Assert: WindowMonitor should have been instantiated and started
+    # (even though Ollama is not available)
+    mock_monitor_class.assert_called_once()
+    mock_monitor_instance.start.assert_called_once()
+
+
+def test_start_warns_without_ollama(capsys) -> None:
+    """Test that a warning is displayed when Ollama is not available on start.
+
+    The main function should:
+    1. Check Ollama connection when --start is passed
+    2. Display a warning message if Ollama is not available
+    3. Include the Ollama URL in the warning message
+    4. Indicate that report generation will not work
+    """
+    from unittest.mock import MagicMock, patch
+
+    # Arrange: Mock permissions as granted, but Ollama as unavailable
+    mock_perms = {"screen_recording": True, "accessibility": True}
+    mock_monitor_instance = MagicMock()
+    mock_monitor_class = MagicMock(return_value=mock_monitor_instance)
+
+    with (
+        patch("auto_daily.check_all_permissions", return_value=mock_perms),
+        patch("auto_daily.check_ollama_connection", return_value=False),
+        patch("auto_daily.get_ollama_base_url", return_value="http://localhost:11434"),
+        patch("auto_daily.WindowMonitor", mock_monitor_class),
+        patch("sys.argv", ["auto-daily", "--start"]),
+        patch("time.sleep", side_effect=KeyboardInterrupt),  # Stop loop immediately
+    ):
+        from auto_daily import main
+
+        # Act: Call main with --start
+        try:
+            main()
+        except (KeyboardInterrupt, SystemExit):
+            pass  # Expected when we interrupt the loop
+
+    # Assert: Warning should be displayed
+    captured = capsys.readouterr()
+    assert "Warning" in captured.out or "warning" in captured.out.lower()
+    assert "Ollama" in captured.out
+    assert "http://localhost:11434" in captured.out
+    assert "Report" in captured.out or "report" in captured.out.lower()
+
+
+def test_report_fails_without_ollama(tmp_path, monkeypatch, capsys) -> None:
+    """Test that report command fails when Ollama is not available.
+
+    The report command should:
+    1. Check Ollama connection before generating report
+    2. Exit with code 1 if Ollama is not available
+    3. Display an error message with the Ollama URL
+    """
+    import json
+    from datetime import date, datetime
+    from unittest.mock import patch
+
+    from auto_daily.logger import get_log_filename
+
+    # Arrange: Create a log file (report should fail before reading it)
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+
+    today = date.today()
+    log_file = log_dir / get_log_filename(datetime.combine(today, datetime.min.time()))
+    log_entry = {
+        "timestamp": "2024-12-25T10:00:00",
+        "window_info": {"app_name": "Code", "window_title": "test.py"},
+        "ocr_text": "test content",
+    }
+    log_file.write_text(json.dumps(log_entry) + "\n")
+
+    monkeypatch.setenv("AUTO_DAILY_LOG_DIR", str(log_dir))
+
+    with (
+        patch("auto_daily.check_ollama_connection", return_value=False),
+        patch("auto_daily.get_ollama_base_url", return_value="http://localhost:11434"),
+        patch("sys.argv", ["auto-daily", "report"]),
+    ):
+        from auto_daily import main
+
+        # Act: Call main with report command (should exit with error)
+        try:
+            main()
+            raise AssertionError("Expected SystemExit")
+        except SystemExit as e:
+            # Assert: Should exit with code 1
+            assert e.code == 1
+
+    # Assert: Error message should be displayed
+    captured = capsys.readouterr()
+    assert "Error" in captured.out or "error" in captured.out.lower()
+    assert "Ollama" in captured.out
+    assert "http://localhost:11434" in captured.out
+
+
+def test_report_fails_with_invalid_ollama_url(tmp_path, monkeypatch, capsys) -> None:
+    """Test that report command fails when OLLAMA_BASE_URL is invalid.
+
+    The report command should:
+    1. Check connection to the configured OLLAMA_BASE_URL
+    2. Exit with code 1 if the URL is unreachable
+    3. Display the configured URL in the error message
+    """
+    import json
+    from datetime import date, datetime
+    from unittest.mock import patch
+
+    from auto_daily.logger import get_log_filename
+
+    # Arrange: Create a log file
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+
+    today = date.today()
+    log_file = log_dir / get_log_filename(datetime.combine(today, datetime.min.time()))
+    log_entry = {
+        "timestamp": "2024-12-25T10:00:00",
+        "window_info": {"app_name": "Code", "window_title": "test.py"},
+        "ocr_text": "test content",
+    }
+    log_file.write_text(json.dumps(log_entry) + "\n")
+
+    monkeypatch.setenv("AUTO_DAILY_LOG_DIR", str(log_dir))
+
+    # Use a custom invalid URL
+    custom_url = "http://invalid-host:9999"
+
+    with (
+        patch("auto_daily.check_ollama_connection", return_value=False),
+        patch("auto_daily.get_ollama_base_url", return_value=custom_url),
+        patch("sys.argv", ["auto-daily", "report"]),
+    ):
+        from auto_daily import main
+
+        # Act: Call main with report command (should exit with error)
+        try:
+            main()
+            raise AssertionError("Expected SystemExit")
+        except SystemExit as e:
+            # Assert: Should exit with code 1
+            assert e.code == 1
+
+    # Assert: Error message should include the custom URL
+    captured = capsys.readouterr()
+    assert custom_url in captured.out
+
+
 def test_report_with_existing_log(tmp_path, monkeypatch, capsys) -> None:
     """Test that report succeeds when activity_YYYY-MM-DD.jsonl exists.
 
@@ -386,3 +658,81 @@ def test_report_with_existing_log(tmp_path, monkeypatch, capsys) -> None:
     expected_report = reports_dir / f"daily_report_{target_date}.md"
     assert expected_report.exists()
     assert "日報" in expected_report.read_text()
+
+
+# ============================================================
+# PBI-032: Calendar integration in report command
+# ============================================================
+
+
+def test_report_with_calendar_option(tmp_path, monkeypatch) -> None:
+    """Test that --with-calendar option enables calendar integration.
+
+    The --with-calendar option should:
+    1. Be accepted by the report command
+    2. Fetch calendar events for the target date
+    3. Match events with logs
+    4. Include calendar information in the generated prompt
+    """
+    import json
+    from datetime import UTC, date, datetime
+    from unittest.mock import AsyncMock, patch
+
+    import auto_daily
+    from auto_daily.calendar import CalendarEvent
+    from auto_daily.logger import get_log_filename
+
+    # Arrange: Create a log file
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    reports_dir = tmp_path / "reports"
+
+    today = date.today()
+    log_file = log_dir / get_log_filename(datetime.combine(today, datetime.min.time()))
+    log_entry = {
+        "timestamp": datetime.combine(today, datetime.min.time())
+        .replace(hour=9, minute=15)
+        .isoformat(),
+        "window_info": {"app_name": "Zoom", "window_title": "Team Meeting"},
+        "ocr_text": "Meeting notes",
+    }
+    log_file.write_text(json.dumps(log_entry) + "\n")
+
+    monkeypatch.setenv("AUTO_DAILY_LOG_DIR", str(log_dir))
+
+    # Mock calendar events
+    mock_events = [
+        CalendarEvent(
+            summary="Team Meeting",
+            start=datetime.combine(today, datetime.min.time(), tzinfo=UTC).replace(
+                hour=9
+            ),
+            end=datetime.combine(today, datetime.min.time(), tzinfo=UTC).replace(
+                hour=10
+            ),
+            calendar_name="Work",
+        )
+    ]
+
+    mock_client = AsyncMock()
+    mock_client.generate.return_value = "# 日報\n\n予定通りにミーティングを実施"
+
+    with (
+        patch.object(auto_daily, "OllamaClient", return_value=mock_client),
+        patch.object(auto_daily, "get_reports_dir", return_value=reports_dir),
+        patch("auto_daily.get_all_events", return_value=mock_events),
+        patch("sys.argv", ["auto-daily", "report", "--with-calendar"]),
+    ):
+        # Act: Call main with report command and --with-calendar
+        auto_daily.main()
+
+    # Assert: Ollama should have been called
+    mock_client.generate.assert_called_once()
+
+    # The prompt should contain calendar-related content
+    call_args = mock_client.generate.call_args
+    prompt = call_args.kwargs.get(
+        "prompt", call_args.args[1] if len(call_args.args) > 1 else ""
+    )
+    # Prompt should mention the meeting or calendar info
+    assert "Team Meeting" in prompt or "予定" in prompt
