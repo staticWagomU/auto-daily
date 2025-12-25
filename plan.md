@@ -216,6 +216,22 @@ product_backlog:
     dependencies:
       - PBI-003
     status: done
+
+  - id: PBI-005
+    story:
+      role: "Mac ユーザー"
+      capability: "auto-daily コマンドでアプリケーションを起動し、ウィンドウ監視から日報生成までの一連の処理を実行できる"
+      benefit: "インストール後すぐにコマンド一つで利用を開始できる"
+    acceptance_criteria:
+      - criterion: "python -m auto_daily でアプリケーションを起動できる"
+        verification: "pytest tests/test_main.py::test_module_execution -v"
+      - criterion: "auto-daily コマンド（pyproject.toml の scripts）で起動できる"
+        verification: "pytest tests/test_main.py::test_cli_entrypoint -v"
+      - criterion: "起動後、ウィンドウ監視ループが開始される"
+        verification: "pytest tests/test_main.py::test_main_starts_monitoring -v"
+    dependencies:
+      - PBI-004
+    status: ready
 ```
 
 ### Definition of Ready
