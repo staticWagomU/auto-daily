@@ -21,6 +21,14 @@ DEFAULT_AI_BACKEND = "ollama"
 # OpenAI settings
 DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 
+# LM Studio settings
+DEFAULT_LM_STUDIO_BASE_URL = "http://localhost:1234"
+DEFAULT_LM_STUDIO_MODEL = "default"
+
+# OCR settings
+DEFAULT_OCR_BACKEND = "apple"
+DEFAULT_OCR_MODEL = "gpt-4o-mini"
+
 DEFAULT_PROMPT_TEMPLATE = """以下のアクティビティログに基づいて、日報を作成してください。
 
 ## 今日のアクティビティ
@@ -221,3 +229,51 @@ def get_openai_model() -> str:
         OpenAI model name.
     """
     return os.environ.get("OPENAI_MODEL", DEFAULT_OPENAI_MODEL)
+
+
+def get_lm_studio_base_url() -> str:
+    """Get the LM Studio API base URL.
+
+    Reads from LM_STUDIO_BASE_URL environment variable.
+    Falls back to default (http://localhost:1234) if not set.
+
+    Returns:
+        LM Studio API base URL.
+    """
+    return os.environ.get("LM_STUDIO_BASE_URL", DEFAULT_LM_STUDIO_BASE_URL)
+
+
+def get_lm_studio_model() -> str:
+    """Get the LM Studio model name.
+
+    Reads from LM_STUDIO_MODEL environment variable.
+    Falls back to default ("default") if not set.
+
+    Returns:
+        LM Studio model name.
+    """
+    return os.environ.get("LM_STUDIO_MODEL", DEFAULT_LM_STUDIO_MODEL)
+
+
+def get_ocr_backend_name() -> str:
+    """Get the OCR backend name.
+
+    Reads from OCR_BACKEND environment variable.
+    Falls back to default ("apple") if not set.
+
+    Returns:
+        OCR backend name ("apple", "openai", etc.).
+    """
+    return os.environ.get("OCR_BACKEND", DEFAULT_OCR_BACKEND)
+
+
+def get_ocr_model() -> str:
+    """Get the OCR model name for Vision API.
+
+    Reads from OCR_MODEL environment variable.
+    Falls back to default ("gpt-4o-mini") if not set.
+
+    Returns:
+        OCR model name for Vision API.
+    """
+    return os.environ.get("OCR_MODEL", DEFAULT_OCR_MODEL)

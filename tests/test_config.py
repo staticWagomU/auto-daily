@@ -639,3 +639,84 @@ def test_reports_dir_from_project_root(tmp_path: Path) -> None:
             assert result == project_reports
     finally:
         os.chdir(original_cwd)
+
+
+# ============================================================
+# PBI-022: LM Studio 対応
+# ============================================================
+
+
+def test_lm_studio_base_url_from_env() -> None:
+    """Test that LM_STUDIO_BASE_URL environment variable sets the LM Studio URL.
+
+    The config should:
+    1. Read LM_STUDIO_BASE_URL from environment
+    2. Return the custom URL when set
+    3. Return "http://localhost:1234" as default when not set
+    """
+    from auto_daily.config import get_lm_studio_base_url
+
+    # Test custom URL
+    with patch.dict(os.environ, {"LM_STUDIO_BASE_URL": "http://custom:8080"}):
+        result = get_lm_studio_base_url()
+        assert result == "http://custom:8080"
+
+    # Test default URL
+    env_without_var = {k: v for k, v in os.environ.items() if k != "LM_STUDIO_BASE_URL"}
+    with patch.dict(os.environ, env_without_var, clear=True):
+        result = get_lm_studio_base_url()
+        assert result == "http://localhost:1234"
+
+
+# ============================================================
+# PBI-023: OCR バックエンド抽象化
+# ============================================================
+
+
+def test_ocr_backend_from_env() -> None:
+    """Test that OCR_BACKEND environment variable sets the OCR backend.
+
+    The config should:
+    1. Read OCR_BACKEND from environment
+    2. Return the custom backend name when set
+    3. Return "apple" as default when not set
+    """
+    from auto_daily.config import get_ocr_backend_name
+
+    # Test custom backend
+    with patch.dict(os.environ, {"OCR_BACKEND": "openai"}):
+        result = get_ocr_backend_name()
+        assert result == "openai"
+
+    # Test default backend
+    env_without_var = {k: v for k, v in os.environ.items() if k != "OCR_BACKEND"}
+    with patch.dict(os.environ, env_without_var, clear=True):
+        result = get_ocr_backend_name()
+        assert result == "apple"
+
+
+# ============================================================
+# PBI-029: OpenAI Vision OCR
+# ============================================================
+
+
+def test_ocr_model_openai_from_env() -> None:
+    """Test that OCR_MODEL environment variable sets the Vision model.
+
+    The config should:
+    1. Read OCR_MODEL from environment
+    2. Return the custom model name when set
+    3. Return "gpt-4o-mini" as default when not set
+    """
+    from auto_daily.config import get_ocr_model
+
+    # Test custom model
+    with patch.dict(os.environ, {"OCR_MODEL": "gpt-4o"}):
+        result = get_ocr_model()
+        assert result == "gpt-4o"
+
+    # Test default model
+    env_without_var = {k: v for k, v in os.environ.items() if k != "OCR_MODEL"}
+    with patch.dict(os.environ, env_without_var, clear=True):
+        result = get_ocr_model()
+        assert result == "gpt-4o-mini"

@@ -123,8 +123,8 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 23
-  pbi: PBI-031
+  number: 29
+  pbi: PBI-029
   status: done
   subtasks_completed: 4
   subtasks_total: 4
@@ -157,89 +157,6 @@ product_goal:
 ```yaml
 product_backlog:
   # --- Active PBIs (draft/refining/ready) ---
-
-  - id: PBI-016
-    story:
-      role: "Mac ユーザー"
-      capability: "Ollama がインストールされていなくてもアプリケーションを起動できる"
-      benefit: "まずログ収集だけを試したい場合や、Ollama を後から導入したい場合でも使い始められる"
-    acceptance_criteria:
-      - criterion: "Ollama 未接続でもアプリケーションが起動しウィンドウ監視が動作する"
-        verification: "pytest tests/test_main.py::test_start_without_ollama -v"
-      - criterion: "アプリケーション起動時に Ollama 未接続の場合は警告メッセージを表示する"
-        verification: "pytest tests/test_main.py::test_start_warns_without_ollama -v"
-      - criterion: "report コマンド実行時に Ollama 未接続の場合はエラーで終了する"
-        verification: "pytest tests/test_main.py::test_report_fails_without_ollama -v"
-      - criterion: "OLLAMA_BASE_URL で指定した接続先に接続できない場合もエラーで終了する"
-        verification: "pytest tests/test_main.py::test_report_fails_with_invalid_ollama_url -v"
-    technical_notes: |
-      ## 実装方針
-      - ollama.py に check_ollama_connection() -> bool 関数を追加
-        - OLLAMA_BASE_URL への接続を試行し、成功可否を返す
-      - __init__.py の start_command() を修正
-        - 起動時に check_ollama_connection() を呼び出し
-        - 接続不可の場合は警告（Warning）を表示して続行
-      - __init__.py の report_command() を修正
-        - 実行時に check_ollama_connection() を呼び出し
-        - 接続不可の場合はエラーメッセージを表示して終了（sys.exit(1)）
-
-      ## エラーメッセージ例
-      - 警告: "Warning: Ollama is not available at {url}. Report generation will not work."
-      - エラー: "Error: Cannot connect to Ollama at {url}. Please ensure Ollama is running."
-
-      ## 挙動の変更
-      - 現在: Ollama 未起動 → アプリ起動失敗
-      - 変更後: Ollama 未起動 → 警告表示してアプリ起動成功、report コマンドのみエラー
-    story_points: 3
-    dependencies:
-      - PBI-005
-      - PBI-015
-    status: draft
-
-  - id: PBI-022
-    story:
-      role: "Mac ユーザー"
-      capability: "LM Studio を使って日報を生成できる"
-      benefit: "Ollama 以外の選択肢があり、好みのツールで日報生成ができる"
-    acceptance_criteria:
-      - criterion: "LMStudioClient が LLMClient プロトコルを実装している"
-        verification: "pytest tests/test_llm_client.py::test_lm_studio_implements_protocol -v"
-      - criterion: "AI_BACKEND=lm_studio で LM Studio を使用できる"
-        verification: "pytest tests/test_llm_client.py::test_lm_studio_backend -v"
-      - criterion: "LM_STUDIO_BASE_URL 環境変数で接続先を設定できる"
-        verification: "pytest tests/test_config.py::test_lm_studio_base_url_from_env -v"
-    technical_notes: |
-      ## LM Studio API
-      LM Studio は OpenAI 互換 API を提供する。
-      - デフォルト URL: http://localhost:1234
-      - エンドポイント: /v1/chat/completions
-
-      ## 実装
-      ```python
-      # llm/lm_studio.py
-      class LMStudioClient:
-          def __init__(self, base_url: str = "http://localhost:1234"):
-              self.base_url = base_url
-
-          async def generate(self, prompt: str) -> str:
-              # OpenAI 互換 API を使用
-              async with httpx.AsyncClient() as client:
-                  response = await client.post(
-                      f"{self.base_url}/v1/chat/completions",
-                      json={
-                          "messages": [{"role": "user", "content": prompt}],
-                          "temperature": 0.7,
-                      },
-                  )
-                  return response.json()["choices"][0]["message"]["content"]
-      ```
-
-      ## 環境変数
-      - LM_STUDIO_BASE_URL: "http://localhost:1234" (default)
-    story_points: 3
-    dependencies:
-      - PBI-021
-    status: draft
 
   - id: PBI-029
     story:
@@ -308,7 +225,7 @@ product_backlog:
     dependencies:
       - PBI-023
       - PBI-028
-    status: draft
+    status: done
 
   - id: PBI-023
     story:
@@ -333,10 +250,9 @@ product_backlog:
       ```
       src/auto_daily/
         ocr/
-          __init__.py       # get_ocr_backend() ファクトリ
+          __init__.py       # get_ocr_backend() ファクトリ、後方互換 perform_ocr()
           protocol.py       # OCRBackend Protocol 定義
           apple_vision.py   # Apple Vision Framework 実装
-          ai_vision.py      # (PBI-024で追加)
       ```
 
       ## Protocol 定義
@@ -351,14 +267,16 @@ product_backlog:
       ```
 
       ## 環境変数
-      - OCR_BACKEND: "apple" (default) | "ai_vision"
+      - OCR_BACKEND: "apple" (default) | "openai" (PBI-029で追加)
 
       ## 後方互換性
       - 既存の perform_ocr() 関数は維持（内部でファクトリを使用）
+      - 現在の ocr.py を ocr/apple_vision.py に移動
+      - ocr/__init__.py で perform_ocr() をエクスポート
     story_points: 3
     dependencies:
       - PBI-002
-    status: draft
+    status: done
 
   - id: PBI-024
     story:
@@ -678,7 +596,7 @@ product_backlog:
     story_points: 2
     dependencies:
       - PBI-020
-    status: ready
+    status: done
 
   - id: PBI-034
     story:
@@ -734,7 +652,7 @@ product_backlog:
     dependencies:
       - PBI-012
       - PBI-013
-    status: ready
+    status: done
 ```
 
 ### Definition of Ready
@@ -758,90 +676,72 @@ definition_of_ready:
 ## 2. Current Sprint
 
 ```yaml
-sprint_20:
-  number: 20
-  pbi_id: PBI-021
-  story: "LLM クライアントを抽象化して複数のバックエンド（Ollama、LM Studio）を統一的に扱える"
+sprint_29:
+  number: 29
+  pbi_id: PBI-029
+  story: "OpenAI Vision API（GPT-4o）を使って OCR を実行できる"
   status: done
 
   sprint_goal:
-    statement: "LLM クライアントの Protocol を定義し、既存の OllamaClient をリファクタリングすることで、将来の LM Studio 対応を可能にする"
+    statement: "OpenAI Vision OCR バックエンドを実装し、高精度なクラウドベース OCR を提供する"
     success_criteria:
-      - "LLMClient Protocol が定義されている"
-      - "既存の OllamaClient がプロトコルを実装している"
-      - "AI_BACKEND 環境変数でバックエンドを切り替えられる"
-      - "get_llm_client() ファクトリ関数が環境変数に応じたクライアントを返す"
-    stakeholder_value: "新しい LLM バックエンドを追加する際のコード変更を最小限に抑えられる"
+      - "OpenAIVisionOCR が OCRBackend Protocol を実装している"
+      - "OCR_BACKEND=openai で OpenAI Vision を使用できる"
+      - "画像を Base64 エンコードして GPT-4o に送信できる"
+      - "OCR_MODEL 環境変数で Vision モデルを指定できる"
+    stakeholder_value: "高精度なクラウドベースの画像認識で文脈を理解した OCR ができる"
 
   subtasks:
     - id: ST-001
-      test: "test_llm_protocol: LLMClient Protocol が generate() メソッドを定義している"
+      test: "test_ocr_model_openai_from_env: OCR_MODEL 環境変数テスト"
       implementation: |
-        新規ファイル src/auto_daily/llm/__init__.py と protocol.py を作成:
-        - typing.Protocol を使用して LLMClient を定義
-        - generate(prompt: str, model: str) -> str メソッドを定義
+        config.py に get_ocr_model() を追加:
+        - OCR_MODEL 環境変数から取得
+        - デフォルト: "gpt-4o-mini"
       type: behavioral
       status: completed
       commits: []
 
     - id: ST-002
-      test: "test_ollama_implements_protocol: OllamaClient が LLMClient プロトコルを実装している"
+      test: "test_openai_vision_implements_protocol: OpenAIVisionOCR がプロトコル実装"
       implementation: |
-        既存の OllamaClient を llm/ollama.py に移動:
-        - async def generate(self, prompt: str, model: str) -> str を維持
-        - Protocol の型チェックを通過することを確認
+        ocr/openai_vision.py に OpenAIVisionOCR クラスを作成:
+        - OCRBackend Protocol を実装
+        - perform_ocr(image_path: str) -> str メソッド
       type: behavioral
       status: completed
       commits: []
 
     - id: ST-003
-      test: "test_ai_backend_from_env: AI_BACKEND 環境変数でバックエンドを設定できる"
+      test: "test_openai_vision_image_encoding: Base64 エンコーディングテスト"
       implementation: |
-        config.py に get_ai_backend() を追加:
-        - AI_BACKEND 環境変数を読み取る
-        - デフォルト: "ollama"
+        画像ファイルを Base64 エンコードして OpenAI API に送信:
+        - 画像ファイルを読み込み
+        - Base64 エンコード
+        - data:image/png;base64,{data} 形式で送信
       type: behavioral
       status: completed
       commits: []
 
     - id: ST-004
-      test: "test_get_llm_client_factory: get_llm_client() が環境変数に応じたクライアントを返す"
+      test: "test_openai_vision_backend: OCR_BACKEND=openai テスト"
       implementation: |
-        llm/__init__.py に get_llm_client() を追加:
-        - AI_BACKEND に応じて適切なクライアントをインスタンス化
-        - "ollama" -> OllamaClient を返す
-        - 未知のバックエンド -> ValueError
+        ocr/__init__.py の get_ocr_backend() を拡張:
+        - OCR_BACKEND=openai で OpenAIVisionOCR を返す
       type: behavioral
       status: completed
       commits: []
 
   notes: |
-    ## 新規ファイル構成
-    ```
-    src/auto_daily/
-      llm/
-        __init__.py       # get_llm_client() ファクトリ
-        protocol.py       # LLMClient Protocol 定義
-        ollama.py         # OllamaClient 実装（移動）
-    ```
+    ## 実装方針
+    - PBI-023 で作成した OCRBackend Protocol を実装
+    - 既存の llm/openai.py パターンを踏襲
+    - OpenAI Vision API の multimodal 機能を使用
 
-    ## Protocol 定義
-    ```python
-    from typing import Protocol
-
-    class LLMClient(Protocol):
-        async def generate(self, prompt: str, model: str) -> str:
-            """テキストを生成する"""
-            ...
-    ```
-
-    ## 環境変数
-    - AI_BACKEND: "ollama" (default) | "lm_studio" (PBI-022で追加)
-
-    ## 後方互換性
-    - 既存の ollama.py から OllamaClient を llm/ollama.py に移動
-    - generate_daily_report_prompt, save_daily_report は ollama.py に維持
-    - 既存のインポート (from auto_daily.ollama import OllamaClient) は維持
+    ## テスト方針
+    - Protocol の runtime_checkable を使用してインスタンス検証
+    - monkeypatch.setenv で環境変数をテスト
+    - API 呼び出しはモックでテスト
 ```
 
 ### Impediment Registry
@@ -1045,6 +945,42 @@ completed:
   - sprint: 20
     pbi_id: PBI-021
     story: "LLM クライアントを抽象化して複数のバックエンド（Ollama、LM Studio）を統一的に扱える"
+    subtasks_completed: 4
+    commits: []
+
+  - sprint: 24
+    pbi_id: PBI-033
+    story: "アプリケーション起動時に macOS の必要な権限（画面収録・アクセシビリティ）が確認され、不足時に警告が表示される"
+    subtasks_completed: 3
+    commits: []
+
+  - sprint: 25
+    pbi_id: PBI-034
+    story: "Slack ウィンドウのキャプチャ時にチャンネル情報がログに自動記録される"
+    subtasks_completed: 3
+    commits: []
+
+  - sprint: 26
+    pbi_id: PBI-016
+    story: "Ollama がインストールされていなくてもアプリケーションを起動できる"
+    subtasks_completed: 4
+    commits: []
+
+  - sprint: 27
+    pbi_id: PBI-022
+    story: "LM Studio を使って日報を生成できる"
+    subtasks_completed: 3
+    commits: []
+
+  - sprint: 28
+    pbi_id: PBI-023
+    story: "OCR バックエンドを抽象化して複数の方式を統一的に扱える"
+    subtasks_completed: 4
+    commits: []
+
+  - sprint: 29
+    pbi_id: PBI-029
+    story: "OpenAI Vision API（GPT-4o）を使って OCR を実行できる"
     subtasks_completed: 4
     commits: []
 ```
@@ -1273,6 +1209,77 @@ retrospectives:
     action_items:
       - "モジュール移動時はテストのモックパスも確認する"
       - "PBI-022（LM Studio 対応）は Protocol の上に実装可能"
+
+  - sprint: 24
+    what_went_well:
+      - "既存の permissions.py モジュールを活用して効率的に実装"
+      - "PBI-020 で実装した check_all_permissions() をそのまま統合"
+      - "TDD サイクル（Red-Green）がスムーズに回った"
+      - "3つのサブタスクをすべて完了"
+    what_to_improve:
+      - "特になし - シンプルな統合タスクがスムーズに完了"
+    action_items:
+      - "次は PBI-034（Slack コンテキストのログ記録）を実装"
+
+  - sprint: 25
+    what_went_well:
+      - "既存の slack_parser.py と parse_slack_title() を活用して効率的に実装"
+      - "processor.py への統合が最小限の変更で完了"
+      - "logger.py への slack_context 追加が後方互換性を維持"
+      - "TDD サイクル（Red-Green）がスムーズに回った"
+      - "3つのサブタスクをすべて完了"
+    what_to_improve:
+      - "TypedDict と dict の型互換性に注意が必要（Any 型での回避）"
+    action_items:
+      - "次の ready な PBI を確認して実装を進める"
+
+  - sprint: 26
+    what_went_well:
+      - "llm/ollama.py に check_ollama_connection() を追加し、接続チェック機能を実装"
+      - "httpx.get() を使用したシンプルな同期接続チェック"
+      - "start コマンドでは警告のみ、report コマンドではエラー終了という適切な動作分離"
+      - "TDD サイクル（Red-Green）がスムーズに回った"
+      - "4つのサブタスクをすべて完了"
+    what_to_improve:
+      - "特になし - シンプルな機能追加がスムーズに完了"
+    action_items:
+      - "次の ready な PBI（PBI-022 LM Studio 対応など）を確認して実装を進める"
+
+  - sprint: 27
+    what_went_well:
+      - "OpenAI SDK を再利用して LM Studio クライアントを効率的に実装"
+      - "OpenAI 互換 API なので base_url のオーバーライドのみで動作"
+      - "既存の llm/ パッケージ構造を踏襲し、スムーズに追加"
+      - "TDD サイクル（Red-Green）がスムーズに回った"
+      - "3つのサブタスクをすべて完了"
+    what_to_improve:
+      - "特になし - 既存パターンを活用してシンプルに完了"
+    action_items:
+      - "次の draft PBI をリファインメントして ready にする"
+
+  - sprint: 28
+    what_went_well:
+      - "LLM クライアント抽象化（PBI-021）と同じパターンを踏襲して効率的に実装"
+      - "既存の ocr.py を ocr/ パッケージに再編成"
+      - "後方互換性を維持（perform_ocr() 関数を維持）"
+      - "TDD サイクル（Red-Green）がスムーズに回った"
+      - "4つのサブタスクをすべて完了"
+    what_to_improve:
+      - "特になし - 既存パターンを活用してシンプルに完了"
+    action_items:
+      - "PBI-029（OpenAI Vision OCR）の実装を進める"
+
+  - sprint: 29
+    what_went_well:
+      - "OCR 抽象化（PBI-023）と同じパターンを踏襲して効率的に実装"
+      - "OpenAI SDK の multimodal 機能（Vision API）をシンプルに活用"
+      - "Base64 エンコードとメディアタイプ自動検出を実装"
+      - "TDD サイクル（Red-Green）がスムーズに回った"
+      - "4つのサブタスクをすべて完了"
+    what_to_improve:
+      - "特になし - 既存パターンを活用してシンプルに完了"
+    action_items:
+      - "次の draft PBI をリファインメントして ready にする"
 ```
 
 ---
