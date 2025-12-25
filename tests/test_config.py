@@ -501,3 +501,141 @@ def test_openai_model_from_env() -> None:
     with patch.dict(os.environ, env_without_var, clear=True):
         result = get_openai_model()
         assert result == "gpt-4o-mini"
+
+
+# ============================================================
+# PBI-030: 日報保存先ディレクトリの設定
+# ============================================================
+
+
+def test_reports_dir_from_env(tmp_path: Path) -> None:
+    """Test that AUTO_DAILY_REPORTS_DIR environment variable sets reports directory.
+
+    The config should:
+    1. Read AUTO_DAILY_REPORTS_DIR from environment
+    2. Return that path as the reports directory
+    3. Work with absolute paths
+    """
+    from auto_daily.config import get_reports_dir
+
+    # Arrange: Set environment variable to custom directory
+    custom_reports_dir = tmp_path / "custom_reports"
+    custom_reports_dir.mkdir()
+
+    # Clear project root influence by using tmp_path without reports/
+    original_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+
+        with patch.dict(
+            os.environ, {"AUTO_DAILY_REPORTS_DIR": str(custom_reports_dir)}
+        ):
+            # Act: Get reports directory
+            result = get_reports_dir()
+
+            # Assert: Should return the environment variable value
+            assert result == custom_reports_dir
+    finally:
+        os.chdir(original_cwd)
+
+
+def test_reports_dir_default(tmp_path: Path) -> None:
+    """Test that default directory is used when env var is not set.
+
+    When AUTO_DAILY_REPORTS_DIR is not set and no project reports/ exists,
+    the config should:
+    1. Return ~/.auto-daily/reports/ as the default
+    2. Use the user's home directory
+    """
+    from auto_daily.config import get_reports_dir
+
+    # Arrange: Create empty project root (no reports/ directory)
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+
+    # Ensure environment variable is NOT set
+    env_without_var = {
+        k: v for k, v in os.environ.items() if k != "AUTO_DAILY_REPORTS_DIR"
+    }
+
+    original_cwd = os.getcwd()
+    try:
+        os.chdir(project_root)
+
+        with patch.dict(os.environ, env_without_var, clear=True):
+            # Act: Get reports directory
+            result = get_reports_dir()
+
+            # Assert: Should return default path
+            expected = Path.home() / ".auto-daily" / "reports"
+            assert result == expected
+    finally:
+        os.chdir(original_cwd)
+
+
+def test_reports_dir_auto_create(tmp_path: Path) -> None:
+    """Test that reports directory is automatically created if it doesn't exist.
+
+    The config should:
+    1. Check if the directory exists
+    2. Create it (including parents) if missing
+    3. Return the path that now exists
+    """
+    from auto_daily.config import get_reports_dir
+
+    # Arrange: Set environment variable to non-existent directory
+    new_reports_dir = tmp_path / "new_reports" / "nested"
+    assert not new_reports_dir.exists()
+
+    # Create empty project root (no reports/ directory)
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+
+    original_cwd = os.getcwd()
+    try:
+        os.chdir(project_root)
+
+        with patch.dict(os.environ, {"AUTO_DAILY_REPORTS_DIR": str(new_reports_dir)}):
+            # Act: Get reports directory
+            result = get_reports_dir()
+
+            # Assert: Directory should now exist
+            assert result == new_reports_dir
+            assert new_reports_dir.exists()
+            assert new_reports_dir.is_dir()
+    finally:
+        os.chdir(original_cwd)
+
+
+def test_reports_dir_from_project_root(tmp_path: Path) -> None:
+    """Test that project root reports/ directory is used when it exists.
+
+    The config should:
+    1. Check for reports/ directory in the current working directory
+    2. If exists, return that path (highest priority)
+    3. Take priority over AUTO_DAILY_REPORTS_DIR environment variable
+    """
+    from auto_daily.config import get_reports_dir
+
+    # Arrange: Create reports/ directory in project root
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    project_reports = project_root / "reports"
+    project_reports.mkdir()
+
+    # Also set environment variable (should be ignored due to project priority)
+    env_reports_dir = tmp_path / "env_reports"
+    env_reports_dir.mkdir()
+
+    original_cwd = os.getcwd()
+    try:
+        os.chdir(project_root)
+
+        with patch.dict(os.environ, {"AUTO_DAILY_REPORTS_DIR": str(env_reports_dir)}):
+            # Act: Get reports directory
+            result = get_reports_dir()
+
+            # Assert: Should return project root reports/ (highest priority)
+            assert result == project_reports
+    finally:
+        os.chdir(original_cwd)

@@ -75,12 +75,29 @@ def get_prompt_template() -> str:
 def get_reports_dir() -> Path:
     """Get the reports directory path.
 
-    Returns ~/.auto-daily/reports/.
-    Creates the directory if it doesn't exist.
+    Priority order:
+    1. Project root's reports/ directory (if exists)
+    2. AUTO_DAILY_REPORTS_DIR environment variable
+    3. Default: ~/.auto-daily/reports/
+
+    Creates the directory if it doesn't exist (except for project root).
 
     Returns:
         Path to the reports directory.
     """
+    # 1. Check for project root reports/ directory
+    project_reports = Path.cwd() / "reports"
+    if project_reports.exists() and project_reports.is_dir():
+        return project_reports
+
+    # 2. Check environment variable
+    env_value = os.environ.get("AUTO_DAILY_REPORTS_DIR")
+    if env_value:
+        reports_dir = Path(env_value)
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        return reports_dir
+
+    # 3. Use default
     reports_dir = DEFAULT_REPORTS_DIR
     reports_dir.mkdir(parents=True, exist_ok=True)
     return reports_dir
