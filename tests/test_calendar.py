@@ -1,7 +1,7 @@
-"""Tests for calendar module (PBI-031)."""
+"""Tests for calendar module (PBI-031, PBI-032)."""
 
 import os
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -325,3 +325,219 @@ END:VCALENDAR"""
                 assert events == []
         finally:
             os.chdir(original_cwd)
+
+
+class TestMatchEventsWithLogs:
+    """Tests for matching calendar events with activity logs (PBI-032)."""
+
+    def test_match_events_with_logs(self) -> None:
+        """Test that events and logs are matched by time.
+
+        The function should:
+        1. Compare event time ranges with log timestamps
+        2. Match logs that fall within event time ± tolerance
+        3. Return MatchResult with matched, unstarted, and unplanned lists
+        """
+        from auto_daily.calendar import (
+            CalendarEvent,
+            LogEntry,
+            MatchResult,
+            match_events_with_logs,
+        )
+
+        # Arrange: Create events and logs
+        events = [
+            CalendarEvent(
+                summary="Morning Meeting",
+                start=datetime(2025, 12, 25, 9, 0, tzinfo=UTC),
+                end=datetime(2025, 12, 25, 10, 0, tzinfo=UTC),
+                calendar_name="Work",
+            ),
+            CalendarEvent(
+                summary="Lunch Break",
+                start=datetime(2025, 12, 25, 12, 0, tzinfo=UTC),
+                end=datetime(2025, 12, 25, 13, 0, tzinfo=UTC),
+                calendar_name="Personal",
+            ),
+        ]
+
+        logs = [
+            LogEntry(
+                timestamp=datetime(2025, 12, 25, 9, 15, tzinfo=UTC),
+                app_name="Zoom",
+                window_title="Morning Meeting",
+            ),
+            LogEntry(
+                timestamp=datetime(2025, 12, 25, 9, 45, tzinfo=UTC),
+                app_name="Zoom",
+                window_title="Morning Meeting",
+            ),
+            LogEntry(
+                timestamp=datetime(2025, 12, 25, 12, 30, tzinfo=UTC),
+                app_name="Safari",
+                window_title="News",
+            ),
+        ]
+
+        # Act: Match events with logs
+        result = match_events_with_logs(events, logs)
+
+        # Assert: Should return MatchResult
+        assert isinstance(result, MatchResult)
+        assert len(result.matched) == 2  # Both events have matching logs
+        # First event matched with 2 logs
+        assert result.matched[0][0].summary == "Morning Meeting"
+        assert len(result.matched[0][1]) == 2
+        # Second event matched with 1 log
+        assert result.matched[1][0].summary == "Lunch Break"
+        assert len(result.matched[1][1]) == 1
+
+    def test_detect_unstarted_events(self) -> None:
+        """Test that events without logs are marked as unstarted.
+
+        When an event has no matching logs within its time range,
+        it should be added to the unstarted list.
+        """
+        from auto_daily.calendar import (
+            CalendarEvent,
+            LogEntry,
+            match_events_with_logs,
+        )
+
+        # Arrange: Event with no matching logs
+        events = [
+            CalendarEvent(
+                summary="Skipped Meeting",
+                start=datetime(2025, 12, 25, 14, 0, tzinfo=UTC),
+                end=datetime(2025, 12, 25, 15, 0, tzinfo=UTC),
+                calendar_name="Work",
+            ),
+        ]
+
+        logs = [
+            LogEntry(
+                timestamp=datetime(2025, 12, 25, 9, 0, tzinfo=UTC),
+                app_name="Code",
+                window_title="main.py",
+            ),
+        ]
+
+        # Act: Match events with logs
+        result = match_events_with_logs(events, logs)
+
+        # Assert: Event should be in unstarted list
+        assert len(result.unstarted) == 1
+        assert result.unstarted[0].summary == "Skipped Meeting"
+        assert len(result.matched) == 0
+
+    def test_detect_unplanned_work(self) -> None:
+        """Test that logs without matching events are marked as unplanned.
+
+        When a log doesn't fall within any event's time range,
+        it should be added to the unplanned list.
+        """
+        from auto_daily.calendar import (
+            CalendarEvent,
+            LogEntry,
+            match_events_with_logs,
+        )
+
+        # Arrange: Log with no matching event
+        events = [
+            CalendarEvent(
+                summary="Morning Meeting",
+                start=datetime(2025, 12, 25, 9, 0, tzinfo=UTC),
+                end=datetime(2025, 12, 25, 10, 0, tzinfo=UTC),
+                calendar_name="Work",
+            ),
+        ]
+
+        logs = [
+            LogEntry(
+                timestamp=datetime(2025, 12, 25, 11, 0, tzinfo=UTC),
+                app_name="Code",
+                window_title="Bug fix",
+            ),
+            LogEntry(
+                timestamp=datetime(2025, 12, 25, 16, 0, tzinfo=UTC),
+                app_name="Slack",
+                window_title="Urgent issue",
+            ),
+        ]
+
+        # Act: Match events with logs
+        result = match_events_with_logs(events, logs)
+
+        # Assert: Logs should be in unplanned list
+        assert len(result.unplanned) == 2
+        assert result.unplanned[0].app_name == "Code"
+        assert result.unplanned[1].app_name == "Slack"
+
+
+class TestCalendarInReportPrompt:
+    """Tests for calendar information in report prompt (PBI-032)."""
+
+    def test_calendar_in_report_prompt(self, tmp_path: Path) -> None:
+        """Test that calendar info and match results are included in prompt.
+
+        The prompt should contain:
+        1. List of today's events
+        2. Matched events with logs
+        3. Unstarted events
+        4. Unplanned work
+        """
+        from auto_daily.calendar import CalendarEvent, LogEntry, MatchResult
+        from auto_daily.ollama import generate_daily_report_prompt_with_calendar
+
+        # Arrange: Create log file and match result
+        log_file = tmp_path / "activity_2025-12-25.jsonl"
+        log_file.write_text(
+            '{"timestamp": "2025-12-25T09:15:00", "window_info": {"app_name": "Zoom"}, "ocr_text": "Meeting"}\n'
+        )
+
+        match_result = MatchResult(
+            matched=[
+                (
+                    CalendarEvent(
+                        summary="Morning Meeting",
+                        start=datetime(2025, 12, 25, 9, 0, tzinfo=UTC),
+                        end=datetime(2025, 12, 25, 10, 0, tzinfo=UTC),
+                        calendar_name="Work",
+                    ),
+                    [
+                        LogEntry(
+                            timestamp=datetime(2025, 12, 25, 9, 15, tzinfo=UTC),
+                            app_name="Zoom",
+                            window_title="Meeting",
+                        )
+                    ],
+                )
+            ],
+            unstarted=[
+                CalendarEvent(
+                    summary="1on1",
+                    start=datetime(2025, 12, 25, 16, 0, tzinfo=UTC),
+                    end=datetime(2025, 12, 25, 17, 0, tzinfo=UTC),
+                    calendar_name="Work",
+                )
+            ],
+            unplanned=[
+                LogEntry(
+                    timestamp=datetime(2025, 12, 25, 11, 0, tzinfo=UTC),
+                    app_name="Code",
+                    window_title="Bug fix",
+                )
+            ],
+        )
+
+        # Act: Generate prompt with calendar
+        prompt = generate_daily_report_prompt_with_calendar(log_file, match_result)
+
+        # Assert: Prompt should contain calendar sections
+        assert "今日の予定" in prompt or "Today's Schedule" in prompt
+        assert "Morning Meeting" in prompt
+        assert "予定通り実施" in prompt or "Completed as Planned" in prompt
+        assert "未着手" in prompt or "Unstarted" in prompt
+        assert "1on1" in prompt
+        assert "予定外" in prompt or "Unplanned" in prompt
+        assert "Bug fix" in prompt

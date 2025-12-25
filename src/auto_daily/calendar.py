@@ -1,7 +1,7 @@
-"""Calendar module for iCal integration (PBI-031)."""
+"""Calendar module for iCal integration (PBI-031, PBI-032)."""
 
-from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from dataclasses import dataclass, field
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import httpx
@@ -18,6 +18,81 @@ class CalendarEvent:
     end: datetime
     calendar_name: str
     is_all_day: bool = False
+
+
+@dataclass
+class LogEntry:
+    """Represents an activity log entry."""
+
+    timestamp: datetime
+    app_name: str
+    window_title: str
+    ocr_text: str = ""
+
+
+@dataclass
+class MatchResult:
+    """Result of matching calendar events with activity logs.
+
+    Attributes:
+        matched: List of (event, logs) tuples where event has matching logs
+        unstarted: Events that have no matching logs (scheduled but not worked on)
+        unplanned: Logs that don't match any event (work done outside schedule)
+    """
+
+    matched: list[tuple[CalendarEvent, list[LogEntry]]] = field(default_factory=list)
+    unstarted: list[CalendarEvent] = field(default_factory=list)
+    unplanned: list[LogEntry] = field(default_factory=list)
+
+
+def match_events_with_logs(
+    events: list[CalendarEvent],
+    logs: list[LogEntry],
+    tolerance_minutes: int = 0,
+) -> MatchResult:
+    """Match calendar events with activity logs by time.
+
+    Args:
+        events: List of calendar events for the day
+        logs: List of activity log entries
+        tolerance_minutes: Extra minutes before/after event to consider as match
+
+    Returns:
+        MatchResult containing matched events, unstarted events, and unplanned logs
+    """
+    result = MatchResult()
+    tolerance = timedelta(minutes=tolerance_minutes)
+
+    # Track which logs have been matched
+    matched_log_indices: set[int] = set()
+
+    for event in events:
+        event_start = event.start - tolerance
+        event_end = event.end + tolerance
+
+        matching_logs: list[LogEntry] = []
+        for i, log in enumerate(logs):
+            # Ensure log timestamp has timezone
+            log_ts = log.timestamp
+            if log_ts.tzinfo is None:
+                log_ts = log_ts.replace(tzinfo=UTC)
+
+            # Check if log falls within event time range
+            if event_start <= log_ts <= event_end:
+                matching_logs.append(log)
+                matched_log_indices.add(i)
+
+        if matching_logs:
+            result.matched.append((event, matching_logs))
+        else:
+            result.unstarted.append(event)
+
+    # Find unplanned logs (not matched to any event)
+    for i, log in enumerate(logs):
+        if i not in matched_log_indices:
+            result.unplanned.append(log)
+
+    return result
 
 
 def load_calendar_config() -> list[dict]:
