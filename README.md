@@ -20,14 +20,36 @@ macOS でウィンドウ切り替え時に作業コンテキストを自動キ�
 
 ## インストール
 
-### 1. リポジトリのクローン
+### 1. Nix のインストール
+
+開発に必要なすべてのツールは [flake.nix](./flake.nix) で定義されており、Nix 経由で提供されます。
+
+```bash
+# Nix のインストール（未インストールの場合）
+curl --proto '=https' --tlsv1.2 -sSf -L https://artifacts.nixos.org/experimental-installer | \
+  sh -s -- install
+```
+
+#### 開発環境の有効化
+
+```bash
+# direnv を使った自動有効化（推奨）
+echo use flake > .envrc && direnv allow
+
+# または手動で有効化
+nix develop
+```
+
+
+
+### 2. リポジトリのクローン
 
 ```bash
 git clone https://github.com/staticWagomU/auto-daily.git
 cd auto-daily
 ```
 
-### 2. 依存関係のインストール
+### 3. 依存関係のインストール
 
 ```bash
 # pip を使用する場合
@@ -37,7 +59,7 @@ pip install -e .
 uv sync
 ```
 
-### 3. Ollama のセットアップ
+### 4. Ollama のセットアップ
 
 ```bash
 # Ollama をインストール（未インストールの場合）
@@ -50,7 +72,7 @@ ollama serve
 ollama pull llama3.2
 ```
 
-### 4. macOS 権限設定
+### 5. macOS 権限設定
 
 アプリケーションを動作させるには、以下の権限が必要です：
 
