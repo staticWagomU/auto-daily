@@ -1,0 +1,25 @@
+# Google カレンダー iCal 連携設定
+# このファイルを calendar_config.yaml にコピーして使用してください。
+#
+# 使い方:
+#   1. このファイルを calendar_config.yaml にリネームまたはコピー
+#   2. カレンダー名と iCal URL を実際の値に置き換え
+#   3. プロジェクトルートに配置（チームで共有する場合）
+#      または ~/.auto-daily/ に配置（個人設定として使用する場合）
+#
+# iCal URL の取得方法（Google カレンダー）:
+#   1. Google カレンダーを開く（https://calendar.google.com）
+#   2. 設定（歯車アイコン）→「設定」を選択
+#   3. 左側のメニューから対象のカレンダーを選択
+#   4. 「カレンダーの統合」セクションまでスクロール
+#   5. 「秘密のアドレス（iCal 形式）」をコピー
+#
+# 注意:
+#   - iCal URL は秘密のアドレスを使用してください（公開アドレスでは予定が取得できない場合があります）
+#   - プロジェクトルートの設定が ~/.auto-daily/ より優先されます
+
+calendars:
+  - name: "仕事"
+    ical_url: "https://calendar.google.com/calendar/ical/your-email%40gmail.com/private-xxxxxxxxxxxx/basic.ics"
+  - name: "個人"
+    ical_url: "https://calendar.google.com/calendar/ical/your-email%40gmail.com/private-yyyyyyyyyyyy/basic.ics"

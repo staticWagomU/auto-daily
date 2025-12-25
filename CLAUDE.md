@@ -16,14 +16,30 @@ macOS でウィンドウ切り替え時に作業コンテキストを自動キ�
 auto-daily/
 ├── src/
 │   └── auto_daily/
-│       ├── __init__.py
+│       ├── __init__.py        # エントリーポイント
 │       ├── window_monitor.py  # ウィンドウ切り替え検知
 │       ├── capture.py         # スクリーンキャプチャ
 │       ├── ocr.py             # Vision Framework OCR
 │       ├── logger.py          # JSONL ログ保存
-│       └── ollama.py          # Ollama 連携・日報生成
+│       ├── processor.py       # ウィンドウ変更処理パイプライン
+│       ├── scheduler.py       # 定期キャプチャ
+│       ├── config.py          # 設定管理
+│       ├── ollama.py          # Ollama 連携・日報生成
+│       ├── permissions.py     # macOS 権限チェック
+│       ├── slack_parser.py    # Slack コンテキスト抽出
+│       ├── calendar.py        # Google カレンダー iCal 連携
+│       └── llm/               # LLM クライアント抽象化
+│           ├── __init__.py
+│           ├── protocol.py    # LLMClient Protocol
+│           ├── ollama.py      # Ollama バックエンド
+│           └── openai.py      # OpenAI バックエンド
+├── scripts/
+│   ├── start.sh               # アプリ起動スクリプト
+│   ├── report.sh              # 日報生成スクリプト
+│   └── setup-permissions.sh   # 権限設定スクリプト
 ├── tests/
 ├── plan.md                    # AI-Agentic Scrum Dashboard
+├── plan-archive.md            # 完了した PBI のアーカイブ
 └── pyproject.toml
 ```
 
@@ -46,6 +62,9 @@ python -m auto_daily
 
 ## Development Notes
 
-- macOS の権限設定が必要: システム環境設定 > プライバシーとセキュリティ > 画面収録
-- Ollama がローカルで起動している必要がある
+- macOS の権限設定が必要:
+  - 画面収録: システム環境設定 > プライバシーとセキュリティ > 画面収録
+  - アクセシビリティ: システム環境設定 > プライバシーとセキュリティ > アクセシビリティ
+- Ollama または OpenAI API が必要
 - pyobjc を使用して macOS ネイティブ API にアクセス
+- 設定は `.env` ファイルまたは環境変数で管理
