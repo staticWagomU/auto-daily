@@ -123,8 +123,8 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 2
-  pbi: PBI-002
+  number: 3
+  pbi: PBI-003
   status: done
   subtasks_completed: 3
   subtasks_total: 3
@@ -199,7 +199,7 @@ product_backlog:
         verification: "pytest tests/test_capture.py::test_image_cleanup -v"
     dependencies:
       - PBI-002
-    status: draft
+    status: done
 
   - id: PBI-004
     story:
@@ -240,47 +240,45 @@ definition_of_ready:
 
 ```yaml
 sprint:
-  number: 2
-  pbi_id: PBI-002
-  story: "Mac ユーザーとして、ウィンドウ切り替え時に画面全体をキャプチャし、OCR でテキストを抽出できる"
+  number: 3
+  pbi_id: PBI-003
+  story: "Mac ユーザーとして、取得した情報を JSONL 形式でログ保存し、使用済みのキャプチャ画像を自動削除できる"
   status: done
 
   subtasks:
     - id: ST-001
-      test: "test_screen_capture: macOS の screencapture コマンドで画面全体をキャプチャできる"
-      implementation: "capture_screen() 関数を実装"
+      test: "test_jsonl_append: ウィンドウ名、OCR テキスト、タイムスタンプを含む JSON を JSONL ファイルに追記できる"
+      implementation: "append_log() 関数を実装"
       type: behavioral
       status: completed
       commits:
         - phase: red
-          hash: d2f5ea6
+          hash: beaad54
         - phase: green
-          hash: eea2e47
+          hash: 2e28cd2
 
     - id: ST-002
-      test: "test_japanese_ocr: Vision Framework を使って画像から日本語テキストを抽出できる"
-      implementation: "perform_ocr() 関数を実装"
+      test: "test_daily_rotation: JSONL ファイルは日付ごとにローテーションされる"
+      implementation: "日付ベースのファイル名生成ロジックを実装"
       type: behavioral
       status: completed
       commits:
-        - phase: red
-          hash: 2239d8d
         - phase: green
-          hash: f4b866d
+          hash: 205e639
 
     - id: ST-003
-      test: "test_ocr_returns_text: OCR 結果が空でない限り、有効なテキストを返す"
-      implementation: "OCR 結果のバリデーション処理を実装"
+      test: "test_image_cleanup: OCR 処理完了後にキャプチャ画像を削除する"
+      implementation: "cleanup_image() 関数を実装"
       type: behavioral
       status: completed
       commits:
         - phase: red
-          hash: c12c6fd
+          hash: 0fdb573
         - phase: green
-          hash: 73db59a
+          hash: e4b30c3
 
   notes: |
-    Sprint 2 開始。PBI-002 の画面キャプチャと OCR 機能を TDD で実装する。
+    Sprint 3 開始。PBI-003 の JSONL ログ保存と画像クリーンアップ機能を TDD で実装する。
 ```
 
 ### Impediment Registry
@@ -336,6 +334,17 @@ completed:
       - f4b866d  # feat: implement perform_ocr using Vision Framework
       - c12c6fd  # test: add failing test for OCR validation
       - 73db59a  # feat: implement validate_ocr_result function
+
+  - sprint: 3
+    pbi_id: PBI-003
+    story: "取得した情報を JSONL 形式でログ保存し、使用済みのキャプチャ画像を自動削除できる"
+    subtasks_completed: 3
+    commits:
+      - beaad54  # test: add failing test for JSONL log append
+      - 2e28cd2  # feat: implement append_log for JSONL logging
+      - 205e639  # test: add test for daily log file rotation
+      - 0fdb573  # test: add failing test for image cleanup
+      - e4b30c3  # feat: implement cleanup_image function
 ```
 
 ---
@@ -363,6 +372,16 @@ retrospectives:
       - "ty の設定形式の調査に時間がかかった"
     action_items:
       - "新しいツールの設定は事前にドキュメントを確認する"
+
+  - sprint: 3
+    what_went_well:
+      - "JSONL ログ保存が効率的に実装できた"
+      - "日付ローテーションは既存実装でカバーされていた"
+      - "画像クリーンアップ機能がシンプルに実装できた"
+    what_to_improve:
+      - "ST-002 のテストが既に Green の状態だった（実装先行）"
+    action_items:
+      - "複数のサブタスクで共通する機能は事前に整理する"
 ```
 
 ---
