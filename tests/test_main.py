@@ -101,6 +101,8 @@ def test_report_command(tmp_path, monkeypatch) -> None:
     from datetime import date
     from unittest.mock import AsyncMock, patch
 
+    import auto_daily
+
     # Arrange: Create a temporary log directory with a log file
     log_dir = tmp_path / "logs"
     log_dir.mkdir()
@@ -121,14 +123,12 @@ def test_report_command(tmp_path, monkeypatch) -> None:
     mock_client.generate.return_value = "# 日報\n\n今日の作業内容..."
 
     with (
-        patch("auto_daily.ollama.OllamaClient", return_value=mock_client),
-        patch("auto_daily.get_reports_dir", return_value=reports_dir),
+        patch.object(auto_daily, "OllamaClient", return_value=mock_client),
+        patch.object(auto_daily, "get_reports_dir", return_value=reports_dir),
         patch("sys.argv", ["auto-daily", "report"]),
     ):
-        from auto_daily import main
-
         # Act: Call main with report command
-        main()
+        auto_daily.main()
 
     # Assert: Ollama should have been called
     mock_client.generate.assert_called_once()
@@ -144,6 +144,8 @@ def test_report_with_date_option(tmp_path, monkeypatch) -> None:
     """
     import json
     from unittest.mock import AsyncMock, patch
+
+    import auto_daily
 
     # Arrange: Create a log file for a specific date
     log_dir = tmp_path / "logs"
@@ -164,14 +166,12 @@ def test_report_with_date_option(tmp_path, monkeypatch) -> None:
     mock_client.generate.return_value = "# 日報 2024-12-24\n\n..."
 
     with (
-        patch("auto_daily.ollama.OllamaClient", return_value=mock_client),
-        patch("auto_daily.get_reports_dir", return_value=reports_dir),
+        patch.object(auto_daily, "OllamaClient", return_value=mock_client),
+        patch.object(auto_daily, "get_reports_dir", return_value=reports_dir),
         patch("sys.argv", ["auto-daily", "report", "--date", target_date]),
     ):
-        from auto_daily import main
-
         # Act: Call main with report command and --date option
-        main()
+        auto_daily.main()
 
     # Assert: Ollama should have been called
     mock_client.generate.assert_called_once()
@@ -187,6 +187,8 @@ def test_report_saves_to_reports_dir(tmp_path, monkeypatch) -> None:
     import json
     from datetime import date
     from unittest.mock import AsyncMock, patch
+
+    import auto_daily
 
     # Arrange: Setup directories
     log_dir = tmp_path / "logs"
@@ -208,14 +210,12 @@ def test_report_saves_to_reports_dir(tmp_path, monkeypatch) -> None:
     mock_client.generate.return_value = "# 日報\n\n今日の作業内容..."
 
     with (
-        patch("auto_daily.ollama.OllamaClient", return_value=mock_client),
-        patch("auto_daily.get_reports_dir", return_value=reports_dir),
+        patch.object(auto_daily, "OllamaClient", return_value=mock_client),
+        patch.object(auto_daily, "get_reports_dir", return_value=reports_dir),
         patch("sys.argv", ["auto-daily", "report"]),
     ):
-        from auto_daily import main
-
         # Act: Call main with report command
-        main()
+        auto_daily.main()
 
     # Assert: Report file should exist in reports directory
     expected_file = reports_dir / f"daily_report_{today.isoformat()}.md"
@@ -234,6 +234,8 @@ def test_report_outputs_path(tmp_path, monkeypatch, capsys) -> None:
     from datetime import date
     from unittest.mock import AsyncMock, patch
 
+    import auto_daily
+
     # Arrange: Setup directories
     log_dir = tmp_path / "logs"
     log_dir.mkdir()
@@ -254,16 +256,14 @@ def test_report_outputs_path(tmp_path, monkeypatch, capsys) -> None:
     mock_client.generate.return_value = "# 日報\n\n今日の作業内容..."
 
     with (
-        patch("auto_daily.ollama.OllamaClient", return_value=mock_client),
-        patch("auto_daily.get_reports_dir", return_value=reports_dir),
+        patch.object(auto_daily, "OllamaClient", return_value=mock_client),
+        patch.object(auto_daily, "get_reports_dir", return_value=reports_dir),
         patch("sys.argv", ["auto-daily", "report"]),
     ):
-        from auto_daily import main
-
         # Act: Call main with report command
-        main()
+        auto_daily.main()
 
     # Assert: The output should contain the file path
     captured = capsys.readouterr()
     expected_file = reports_dir / f"daily_report_{today.isoformat()}.md"
-    assert str(expected_file) in captured.stdout
+    assert str(expected_file) in captured.out

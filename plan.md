@@ -123,11 +123,11 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 13
-  pbi: PBI-013
-  status: done
-  subtasks_completed: 3
-  subtasks_total: 3
+  number: 14
+  pbi: PBI-014
+  status: in_progress
+  subtasks_completed: 0
+  subtasks_total: 4
   impediments: 0
 ```
 
@@ -417,7 +417,20 @@ product_backlog:
         verification: "pytest tests/test_main.py::test_report_outputs_path -v"
     dependencies:
       - PBI-004
-    status: draft
+    technical_notes: |
+      ## 実装方針
+      - 既存の argparse に `report` サブコマンドを追加
+      - OllamaClient と generate_daily_report_prompt() を活用
+      - save_daily_report() で ~/.auto-daily/reports/ に保存
+      - ログファイルは get_log_dir() から日付ベースで取得
+
+      ## 新規関数
+      - __init__.py: report_command(date_str: str | None) -> None
+        - 日報生成のメインロジック
+        - date_str が None なら今日の日付を使用
+        - ログファイルが存在しない場合はエラーメッセージを表示
+    story_points: 5
+    status: ready
 ```
 
 ### Definition of Ready
@@ -441,78 +454,64 @@ definition_of_ready:
 ## 2. Current Sprint
 
 ```yaml
-sprint_13:
-  number: 13
-  pbi_id: PBI-013
-  story: "YAML設定でワークスペースごとのユーザー名を設定し、自分のメッセージを識別できる"
-  status: done
+sprint_14:
+  number: 14
+  pbi_id: PBI-014
+  story: "コマンドラインから日報生成を実行できる"
+  status: in_progress
 
   sprint_goal:
-    statement: "Slack の会話から自分のメッセージを識別し、日報に反映できるようにする"
+    statement: "任意のタイミングでコマンドラインから日報を生成できるようにする"
     success_criteria:
-      - "slack_config.yaml でワークスペースごとのユーザー名を設定できる"
-      - "OCR テキストから会話を抽出できる"
-      - "自分のメッセージのみをフィルタできる"
-    stakeholder_value: "複数ワークスペースで自分の発言を正確に記録し、日報の精度を向上"
+      - "python -m auto_daily report で今日のログから日報を生成できる"
+      - "--date オプションで過去の日付のログから日報を生成できる"
+      - "生成された日報が ~/.auto-daily/reports/ に保存される"
+      - "日報生成後にファイルパスが標準出力に表示される"
+    stakeholder_value: "ユーザーが任意のタイミングで日報を生成でき、作業フローに柔軟に対応"
 
   subtasks:
     - id: ST-001
-      test: "test_slack_username_config: slack_config.yaml からワークスペースごとのユーザー名を読み込める"
+      test: "test_report_command: python -m auto_daily report で今日のログから日報を生成できる"
       implementation: |
-        config.py に get_slack_username(workspace: str) -> str | None を追加
-        - パス: ~/.auto-daily/slack_config.yaml
-        - PyYAML で YAML を読み込み
-        - ワークスペース名からユーザー名を取得
-        - 設定ファイルがない場合は None を返す
+        __init__.py の argparse に report サブコマンドを追加
+        - report_command() 関数を実装
+        - get_log_dir() から今日のログファイルを取得
+        - OllamaClient.generate() で日報を生成
+        - save_daily_report() で保存
       type: behavioral
-      status: completed
-      commits:
-        - hash: 7de7f83
-          phase: red
-          message: "test: add failing tests for Slack username config (PBI-013)"
-        - hash: 81ae895
-          phase: green
-          message: "feat: implement get_slack_username for YAML config (PBI-013)"
+      status: pending
+      commits: []
 
     - id: ST-002
-      test: "test_conversation_extraction: OCR テキストから会話全体を抽出できる"
+      test: "test_report_with_date_option: --date オプションで過去の日付のログから日報を生成できる"
       implementation: |
-        slack_parser.py に extract_conversations(ocr_text: str) -> list[Message] を追加
-        - Message = TypedDict with username, timestamp, content
-        - パターン: "username  HH:MM" または "username  HH:MM AM/PM"
-        - 正規表現で OCR テキストからメッセージを抽出
+        report サブコマンドに --date オプションを追加
+        - フォーマット: YYYY-MM-DD
+        - 指定された日付のログファイルを読み込む
       type: behavioral
-      status: completed
-      commits:
-        - hash: 84b91b1
-          phase: red
-          message: "test: add failing tests for conversation extraction (PBI-013)"
-        - hash: de6da01
-          phase: green
-          message: "feat: implement extract_conversations for OCR text (PBI-013)"
+      status: pending
+      commits: []
 
     - id: ST-003
-      test: "test_my_message_filter: ユーザー名で自分のメッセージをフィルタできる"
+      test: "test_report_saves_to_reports_dir: 生成された日報が ~/.auto-daily/reports/ に保存される"
       implementation: |
-        slack_parser.py に filter_my_messages(conversations: list[Message], username: str) -> list[Message] を追加
-        - 指定されたユーザー名のメッセージのみを返す
+        save_daily_report() を使用して ~/.auto-daily/reports/ に保存
+        - ファイル名: daily_report_YYYY-MM-DD.md
       type: behavioral
-      status: completed
-      commits:
-        - hash: f1a60d6
-          phase: red
-          message: "test: add failing tests for my message filter (PBI-013)"
-        - hash: 50e81e3
-          phase: green
-          message: "feat: implement filter_my_messages function (PBI-013)"
+      status: pending
+      commits: []
 
-  dependencies_added:
-    - package: pyyaml
-      location: pyproject.toml
+    - id: ST-004
+      test: "test_report_outputs_path: 日報生成後にファイルパスが標準出力に表示される"
+      implementation: |
+        report_command() で日報生成後にファイルパスを print()
+      type: behavioral
+      status: pending
+      commits: []
 
   notes: |
-    PBI-012 の slack_parser.py を拡張し、会話抽出とフィルタ機能を追加。
-    config.py に YAML 設定読み込み機能を追加（get_prompt_template() パターンを踏襲）。
+    既存の OllamaClient, generate_daily_report_prompt(), save_daily_report() を活用。
+    argparse のサブコマンド構造を導入して CLI を拡張。
 ```
 
 ### Impediment Registry

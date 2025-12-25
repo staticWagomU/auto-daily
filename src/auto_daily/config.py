@@ -7,6 +7,7 @@ import yaml
 
 ENV_LOG_DIR = "AUTO_DAILY_LOG_DIR"
 DEFAULT_LOG_DIR = Path.home() / ".auto-daily" / "logs"
+DEFAULT_REPORTS_DIR = Path.home() / ".auto-daily" / "reports"
 
 DEFAULT_PROMPT_TEMPLATE = """以下のアクティビティログに基づいて、日報を作成してください。
 
@@ -57,6 +58,20 @@ def get_prompt_template() -> str:
         return prompt_file.read_text()
 
     return DEFAULT_PROMPT_TEMPLATE
+
+
+def get_reports_dir() -> Path:
+    """Get the reports directory path.
+
+    Returns ~/.auto-daily/reports/.
+    Creates the directory if it doesn't exist.
+
+    Returns:
+        Path to the reports directory.
+    """
+    reports_dir = DEFAULT_REPORTS_DIR
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    return reports_dir
 
 
 def get_slack_username(workspace: str) -> str | None:

@@ -1,13 +1,21 @@
 """auto-daily: macOS window context capture and daily report generator."""
 
 import argparse
+import asyncio
 import signal
+import sys
 import time
+from datetime import date
 from pathlib import Path
 
 __version__ = "0.1.0"
 
-from auto_daily.config import get_log_dir
+from auto_daily.config import get_log_dir, get_reports_dir
+from auto_daily.ollama import (
+    OllamaClient,
+    generate_daily_report_prompt,
+    save_daily_report,
+)
 from auto_daily.processor import process_window_change
 from auto_daily.scheduler import PeriodicCapture, process_periodic_capture
 from auto_daily.window_monitor import WindowMonitor
@@ -25,6 +33,42 @@ def on_periodic_capture(log_dir: Path) -> None:
         print("⏱ Periodic capture: ✗ Processing failed")
 
 
+async def report_command(date_str: str | None = None) -> None:
+    """Generate a daily report from logs.
+
+    Args:
+        date_str: Optional date string in YYYY-MM-DD format.
+                  If None, uses today's date.
+    """
+    # Determine the target date
+    if date_str:
+        target_date = date.fromisoformat(date_str)
+    else:
+        target_date = date.today()
+
+    # Get log file path
+    log_dir = get_log_dir()
+    log_file = log_dir / f"{target_date.isoformat()}.jsonl"
+
+    if not log_file.exists():
+        print(f"Error: No log file found for {target_date.isoformat()}")
+        print(f"Expected: {log_file}")
+        sys.exit(1)
+
+    # Generate report using Ollama
+    print(f"Generating report for {target_date.isoformat()}...")
+    prompt = generate_daily_report_prompt(log_file)
+
+    client = OllamaClient()
+    content = await client.generate(model="llama3.2", prompt=prompt)
+
+    # Save report
+    reports_dir = get_reports_dir()
+    report_path = save_daily_report(reports_dir, content, target_date)
+
+    print(f"Report saved: {report_path}")
+
+
 def main() -> None:
     """Main entry point for auto-daily."""
     parser = argparse.ArgumentParser(
@@ -36,13 +80,33 @@ def main() -> None:
         action="version",
         version=f"%(prog)s {__version__}",
     )
+
+    subparsers = parser.add_subparsers(dest="command")
+
+    # Start command (legacy --start flag support)
     parser.add_argument(
         "--start",
         action="store_true",
         help="Start window monitoring",
     )
 
+    # Report subcommand
+    report_parser = subparsers.add_parser(
+        "report",
+        help="Generate a daily report from logs",
+    )
+    report_parser.add_argument(
+        "--date",
+        type=str,
+        help="Date to generate report for (YYYY-MM-DD format)",
+    )
+
     args = parser.parse_args()
+
+    # Handle report subcommand
+    if args.command == "report":
+        asyncio.run(report_command(args.date))
+        return
 
     if args.start:
         print(f"auto-daily v{__version__} - Starting window monitor...")
