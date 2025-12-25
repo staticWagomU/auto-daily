@@ -280,6 +280,22 @@ product_backlog:
     dependencies:
       - PBI-005
     status: ready
+
+  - id: PBI-009
+    story:
+      role: "Mac ユーザー"
+      capability: "シェルスクリプトを実行するだけでアプリケーションを起動できる"
+      benefit: "複雑なコマンドを覚えなくても簡単にアプリを起動できる"
+    acceptance_criteria:
+      - criterion: "scripts/start.sh を実行するとアプリケーションが起動する"
+        verification: "bash scripts/start.sh --help でヘルプが表示される"
+      - criterion: "Ollama が起動していない場合はエラーメッセージを表示する"
+        verification: "Ollama 停止状態で scripts/start.sh を実行しエラーを確認"
+      - criterion: "スクリプトに実行権限が付与されている"
+        verification: "ls -la scripts/start.sh で実行権限を確認"
+    dependencies:
+      - PBI-005
+    status: ready
 ```
 
 ### Definition of Ready
