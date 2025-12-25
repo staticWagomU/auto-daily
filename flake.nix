@@ -23,6 +23,8 @@
             pkgs.python312
             pkgs.uv
             pkgs.ruff
+            pkgs.ty
+            pkgs.direnv
             pkgs.lefthook
           ];
 
@@ -47,6 +49,7 @@
             echo "Python: $(python --version)"
             echo "uv:     $(uv --version)"
             echo "Ruff:   $(ruff --version)"
+            echo "ty:     $(ty --version)"
             echo ""
             echo "Available commands:"
             echo "  uv sync               # Sync dependencies"

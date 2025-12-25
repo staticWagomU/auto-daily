@@ -20,25 +20,114 @@ macOS でウィンドウ切り替え時に作業コンテキストを自動キ�
 
 ## インストール
 
-### 1. Nix のインストール
+### 1. Nix 開発環境のセットアップ
 
 開発に必要なすべてのツールは [flake.nix](./flake.nix) で定義されており、Nix 経由で提供されます。
 
+#### Nix のインストール（未インストールの場合）
+
 ```bash
-# Nix のインストール（未インストールの場合）
+# Nix のインストール
 curl --proto '=https' --tlsv1.2 -sSf -L https://artifacts.nixos.org/experimental-installer | \
   sh -s -- install
+
+# インストールの確認
+nix --version
 ```
+
+#### direnv のインストールとシェル設定（推奨）
+
+[direnv](https://direnv.net/) を使うと、ディレクトリに入るだけで開発環境が自動的に有効化されます。
+
+シェルの設定ファイルに以下を追加してください：
+
+```bash
+# bash (~/.bashrc)
+eval "$(direnv hook bash)"
+
+# zsh (~/.zshrc)
+eval "$(direnv hook zsh)"
+
+# fish (~/.config/fish/config.fish)
+direnv hook fish | source
+```
+
+設定後、シェルを再起動してください。
 
 #### 開発環境の有効化
 
 ```bash
 # direnv を使った自動有効化（推奨）
-echo use flake > .envrc && direnv allow
+# .envrc はリポジトリに含まれています
+direnv allow
 
 # または手動で有効化
 nix develop
 ```
+
+初回実行時は依存関係のダウンロードに時間がかかる場合があります。
+
+#### flake.nix で提供されるツール
+
+| ツール | 説明 |
+|--------|------|
+| Python 3.12 | Python インタープリター |
+| uv | Python パッケージマネージャー |
+| ruff | Linter & Formatter |
+| ty | 型チェッカー |
+| direnv | 自動環境有効化 |
+| lefthook | Git フック管理 |
+
+**注**: Python パッケージ（pyobjc, httpx など）は `uv sync` で `.venv` にインストールされます。
+
+#### 開発環境の検証
+
+開発環境が正しくセットアップされたか確認するには：
+
+```bash
+# 各ツールのバージョンを確認
+python --version   # Python 3.12.x
+uv --version       # uv x.x.x
+ruff --version     # ruff x.x.x
+ty --version       # ty x.x.x
+
+# テストを実行して動作確認
+pytest tests/ -v
+```
+
+#### トラブルシューティング
+
+**Q: `direnv: error ... is blocked` と表示される**
+
+```bash
+# .envrc を許可する
+direnv allow
+```
+
+**Q: `nix develop` が遅い**
+
+初回実行時はパッケージのダウンロードが必要なため時間がかかります。2回目以降はキャッシュが効くため高速です。
+
+**Q: `.venv` が作成されない**
+
+```bash
+# 手動で依存関係をインストール
+uv sync
+```
+
+**Q: `ty` コマンドが見つからない**
+
+```bash
+# Nix 開発環境が有効か確認
+which ty
+
+# 有効でない場合は開発環境を再度有効化
+direnv allow  # または nix develop
+```
+
+**Q: macOS 権限エラーが発生する**
+
+[macOS 権限設定](#5-macos-権限設定) セクションを参照してください。
 
 
 
