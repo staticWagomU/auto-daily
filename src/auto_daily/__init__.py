@@ -3,12 +3,26 @@
 import argparse
 import signal
 import time
+from pathlib import Path
 
 __version__ = "0.1.0"
 
 from auto_daily.config import get_log_dir
 from auto_daily.processor import process_window_change
+from auto_daily.scheduler import PeriodicCapture, process_periodic_capture
 from auto_daily.window_monitor import WindowMonitor
+
+# Default interval for periodic capture (30 seconds)
+PERIODIC_CAPTURE_INTERVAL = 30.0
+
+
+def on_periodic_capture(log_dir: Path) -> None:
+    """Callback for periodic capture events."""
+    success = process_periodic_capture(log_dir)
+    if success:
+        print("⏱ Periodic capture: ✓ Captured, OCR'd, and logged")
+    else:
+        print("⏱ Periodic capture: ✗ Processing failed")
 
 
 def main() -> None:
@@ -46,13 +60,24 @@ def main() -> None:
             else:
                 print("  ✗ Processing failed")
 
+        # Start window change monitor
         monitor = WindowMonitor(on_window_change)
         monitor.start()
 
+        # Start periodic capture scheduler (every 30 seconds)
+        periodic = PeriodicCapture(
+            callback=on_periodic_capture,
+            log_dir=log_dir,
+            interval=PERIODIC_CAPTURE_INTERVAL,
+        )
+        periodic.start()
+        print(f"Periodic capture: every {PERIODIC_CAPTURE_INTERVAL:.0f} seconds")
+
         # Handle graceful shutdown
         def signal_handler(sig: int, frame: object) -> None:
-            print("\nStopping monitor...")
+            print("\nStopping...")
             monitor.stop()
+            periodic.stop()
             raise SystemExit(0)
 
         signal.signal(signal.SIGINT, signal_handler)
