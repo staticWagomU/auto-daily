@@ -1,5 +1,7 @@
 """Ollama API integration for daily report generation."""
 
+import httpx
+
 
 class OllamaClient:
     """Client for interacting with the Ollama API."""
@@ -22,4 +24,15 @@ class OllamaClient:
         Returns:
             Generated text response.
         """
-        raise NotImplementedError("generate is not yet implemented")
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{self.base_url}/api/generate",
+                json={
+                    "model": model,
+                    "prompt": prompt,
+                    "stream": False,
+                },
+                timeout=120.0,
+            )
+            response.raise_for_status()
+            return response.json()["response"]

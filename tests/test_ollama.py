@@ -1,6 +1,6 @@
 """Tests for Ollama API integration."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -18,11 +18,22 @@ async def test_scheduled_call() -> None:
     """
     # Arrange
     client = OllamaClient(base_url="http://localhost:11434")
-    mock_response = {"response": "This is a test response from Ollama."}
+    mock_response_data = {"response": "This is a test response from Ollama."}
 
-    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
-        mock_post.return_value.json.return_value = mock_response
-        mock_post.return_value.status_code = 200
+    # Create a mock response object
+    mock_response = MagicMock()
+    mock_response.json.return_value = mock_response_data
+    mock_response.raise_for_status = MagicMock()
+
+    # Mock the AsyncClient context manager and post method
+    mock_post = AsyncMock(return_value=mock_response)
+
+    with patch("auto_daily.ollama.httpx.AsyncClient") as mock_client_class:
+        mock_client_instance = AsyncMock()
+        mock_client_instance.post = mock_post
+        mock_client_instance.__aenter__.return_value = mock_client_instance
+        mock_client_instance.__aexit__.return_value = None
+        mock_client_class.return_value = mock_client_instance
 
         # Act
         result = await client.generate(
