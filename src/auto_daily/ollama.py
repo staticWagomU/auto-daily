@@ -1,5 +1,8 @@
 """Ollama API integration for daily report generation."""
 
+import json
+from pathlib import Path
+
 import httpx
 
 
@@ -36,3 +39,54 @@ class OllamaClient:
             )
             response.raise_for_status()
             return response.json()["response"]
+
+
+def generate_daily_report_prompt(log_file: Path) -> str:
+    """Generate a prompt for daily report from JSONL log file.
+
+    Args:
+        log_file: Path to the JSONL log file.
+
+    Returns:
+        Formatted prompt for LLM to generate daily report.
+    """
+    entries = []
+    with open(log_file) as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                entries.append(json.loads(line))
+
+    # Format activity entries
+    activity_lines = []
+    for entry in entries:
+        timestamp = entry.get("timestamp", "不明")
+        window_info = entry.get("window_info", {})
+        app_name = window_info.get("app_name", "不明")
+        window_title = window_info.get("window_title", "")
+        ocr_text = entry.get("ocr_text", "")
+
+        activity_lines.append(
+            f"- {timestamp}: {app_name} ({window_title})\n  内容: {ocr_text[:100]}..."
+            if len(ocr_text) > 100
+            else f"- {timestamp}: {app_name} ({window_title})\n  内容: {ocr_text}"
+        )
+
+    activities = "\n".join(activity_lines)
+
+    prompt = f"""以下のアクティビティログに基づいて、日報を作成してください。
+
+## 今日のアクティビティ
+{activities}
+
+## 日報フォーマット
+以下の形式で日報を作成してください：
+
+1. 今日の作業内容（箇条書き）
+2. 進捗・成果
+3. 課題・問題点
+4. 明日の予定
+
+日本語で簡潔に記述してください。"""
+
+    return prompt
