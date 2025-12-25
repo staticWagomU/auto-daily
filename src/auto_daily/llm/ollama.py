@@ -5,6 +5,24 @@ import httpx
 from auto_daily.config import get_ollama_base_url
 
 
+def check_ollama_connection(base_url: str | None = None) -> bool:
+    """Check if Ollama server is available.
+
+    Args:
+        base_url: Base URL of the Ollama server.
+                 Uses OLLAMA_BASE_URL env var or default if not specified.
+
+    Returns:
+        True if Ollama is available, False otherwise.
+    """
+    url = base_url if base_url is not None else get_ollama_base_url()
+    try:
+        response = httpx.get(f"{url}/api/tags", timeout=5.0)
+        return response.status_code == 200
+    except (httpx.ConnectError, httpx.TimeoutException, httpx.RequestError):
+        return False
+
+
 class OllamaClient:
     """Client for interacting with the Ollama API.
 
