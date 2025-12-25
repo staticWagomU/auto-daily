@@ -123,11 +123,11 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 31
-  pbi: PBI-024
+  number: 32
+  pbi: PBI-026
   status: done
-  subtasks_completed: 4
-  subtasks_total: 4
+  subtasks_completed: 5
+  subtasks_total: 5
   impediments: 0
 ```
 
@@ -416,7 +416,7 @@ product_backlog:
     dependencies:
       - PBI-025
       - PBI-004
-    status: draft
+    status: done
 
   - id: PBI-027
     story:
@@ -697,71 +697,83 @@ definition_of_ready:
 ## 2. Current Sprint
 
 ```yaml
-sprint_31:
-  number: 31
-  pbi_id: PBI-024
-  story: "Ollama の Vision モデル（llava 等）を使って OCR を実行できる"
+sprint_32:
+  number: 32
+  pbi_id: PBI-026
+  story: "1時間ごとにログを要約して保存できる"
   status: done
 
   sprint_goal:
-    statement: "Ollama Vision を OCR バックエンドとして追加し、AI ベースの画像認識を可能にする"
+    statement: "1時間単位でログを要約し、長時間作業でもコンテキスト溢れを防ぐ"
     success_criteria:
-      - "OllamaVisionOCR が OCRBackend プロトコルを実装している"
-      - "OCR_BACKEND=ollama で Ollama Vision を使用できる"
-      - "OCR_MODEL 環境変数で Vision モデルを指定できる"
-      - "画像を Base64 エンコードして Ollama Vision API に送信できる"
-    stakeholder_value: "ローカル AI による文脈理解可能な OCR で、プライバシーを保ちながら高精度な認識が可能"
+      - "python -m auto_daily summarize で現在の時間のログを要約できる"
+      - "日付ディレクトリ summaries/YYYY-MM-DD/ が自動作成される"
+      - "要約が summaries/YYYY-MM-DD/summary_HH.md として保存される"
+      - "スケジューラーで1時間ごとに自動的に要約が生成される"
+      - "--hour オプションで特定の時間の要約を生成できる"
+    stakeholder_value: "長時間の作業でもコンテキストが溢れず、効率的に日報を生成できる"
 
   subtasks:
     - id: ST-001
-      test: "test_ollama_vision_implements_protocol: OllamaVisionOCR が OCRBackend を実装"
+      test: "test_summarize_command: python -m auto_daily summarize が動作する"
       implementation: |
-        ocr/ollama_vision.py に OllamaVisionOCR クラスを作成:
-        - OCRBackend プロトコルを満たす perform_ocr() メソッド
-        - base_url と model を初期化パラメータで受け取る
+        __init__.py に summarize サブコマンドを追加:
+        - argparse にサブコマンドを追加
+        - summarize_command() 関数を作成
       type: behavioral
       status: completed
       commits: []
 
     - id: ST-002
-      test: "test_ollama_vision_backend: OCR_BACKEND=ollama で動作確認"
+      test: "test_summary_date_directory: summaries/YYYY-MM-DD/ が作成される"
       implementation: |
-        ocr/__init__.py の get_ocr_backend() を拡張:
-        - backend_name == "ollama" の場合に OllamaVisionOCR を返す
+        config.py に get_summaries_dir() を追加:
+        - AUTO_DAILY_SUMMARIES_DIR 環境変数または ~/.auto-daily/summaries/
+        summarize.py に get_summary_dir_for_date() を追加
       type: behavioral
       status: completed
       commits: []
 
     - id: ST-003
-      test: "test_ocr_model_ollama_from_env: OCR_MODEL 環境変数でモデル指定"
+      test: "test_summary_file_format: summary_HH.md 形式で保存される"
       implementation: |
-        config.py の get_ocr_model() がデフォルト "llava" を返すことを確認
-        （既存実装で対応可能な場合はテストのみ）
+        summarize.py に:
+        - get_summary_filename(hour) -> "summary_HH.md"
+        - save_summary(date, hour, content) で保存
       type: behavioral
       status: completed
       commits: []
 
     - id: ST-004
-      test: "test_ollama_vision_image_encoding: Base64 エンコードで API 呼び出し"
+      test: "test_hourly_summary_scheduler: スケジューラーで1時間ごとに要約"
       implementation: |
-        OllamaVisionOCR.perform_ocr() で:
-        - 画像ファイルを読み込み Base64 エンコード
-        - Ollama API の /api/generate に images 配列で送信
-        - レスポンスの response フィールドを返す
+        scheduler.py に HourlySummaryScheduler クラスを追加:
+        - PeriodicCapture と同様のパターン
+        - trigger_summary() で手動トリガー
+      type: behavioral
+      status: completed
+      commits: []
+
+    - id: ST-005
+      test: "test_summarize_with_hour_option: --hour オプションで時間指定"
+      implementation: |
+        summarize コマンドに --date と --hour オプションを追加:
+        - --date: YYYY-MM-DD 形式
+        - --hour: 0-23 の整数
       type: behavioral
       status: completed
       commits: []
 
   notes: |
     ## 実装方針
-    - openai_vision.py のパターンを踏襲（同期 HTTP クライアント）
-    - 既存の OllamaClient と同様に httpx を使用
-    - config.py の get_ollama_base_url(), get_ocr_model() を再利用
+    - 既存の logger.py パターンを踏襲（日付ディレクトリ構造）
+    - Ollama を使用して要約を生成
+    - PeriodicCapture と同様のスケジューラーパターン
 
     ## テスト方針
-    - httpx.post をモックして API レスポンスをシミュレート
-    - Protocol 実装確認は isinstance() でチェック
-    - Base64 エンコードは実ファイルでテスト
+    - Ollama API をモックして要約生成をテスト
+    - ファイルシステム操作は tmp_path fixture を使用
+    - スケジューラーは threading.Event で同期
 ```
 
 ### Impediment Registry
@@ -1014,6 +1026,12 @@ completed:
     pbi_id: PBI-024
     story: "Ollama の Vision モデル（llava 等）を使って OCR を実行できる"
     subtasks_completed: 4
+    commits: []
+
+  - sprint: 32
+    pbi_id: PBI-026
+    story: "1時間ごとにログを要約して保存できる"
+    subtasks_completed: 5
     commits: []
 ```
 
@@ -1337,6 +1355,18 @@ retrospectives:
       - "特になし - 既存パターンを活用してシンプルに完了"
     action_items:
       - "次の draft PBI（PBI-026 要約機能など）をリファインメントして ready にする"
+
+  - sprint: 32
+    what_went_well:
+      - "既存の logger.py と scheduler.py のパターンを踏襲して効率的に実装"
+      - "summarize サブコマンドと HourlySummaryScheduler を追加"
+      - "config.py に get_summaries_dir() を追加して設定を統一"
+      - "TDD サイクル（Red-Green）がスムーズに回った"
+      - "5つのサブタスクをすべて完了"
+    what_to_improve:
+      - "特になし - 既存パターンを活用してシンプルに完了"
+    action_items:
+      - "PBI-027（要約を使った日報生成）をリファインメントして ready にする"
 ```
 
 ---
