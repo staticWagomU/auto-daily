@@ -141,23 +141,38 @@ def test_slack_username_config(tmp_path: Path) -> None:
 def test_slack_username_config_file_not_found(tmp_path: Path) -> None:
     """Test that None is returned when slack_config.yaml doesn't exist.
 
-    When the config file is missing:
+    When the config file is missing from both project root and home directory:
     1. Should not raise an error
     2. Should return None for any workspace
     """
+    import os
+
     from auto_daily.config import get_slack_username
 
-    # Arrange: Create config directory without slack_config.yaml
-    config_dir = tmp_path / ".auto-daily"
-    config_dir.mkdir()
+    # Arrange: Create empty project root (no slack_config.yaml)
+    project_root = tmp_path / "project"
+    project_root.mkdir()
 
-    # Mock Path.home() to return tmp_path
-    with patch("auto_daily.config.Path.home", return_value=tmp_path):
-        # Act: Get username when file doesn't exist
-        result = get_slack_username("Any Workspace")
+    # Create home directory without slack_config.yaml
+    home_dir = tmp_path / "home"
+    config_dir = home_dir / ".auto-daily"
+    config_dir.mkdir(parents=True)
 
-        # Assert: Should return None
-        assert result is None
+    # Save current directory and change to project_root
+    original_cwd = os.getcwd()
+    try:
+        os.chdir(project_root)
+
+        # Mock Path.home() to return our simulated home directory
+        with patch("auto_daily.config.Path.home", return_value=home_dir):
+            # Act: Get username when neither file exists
+            result = get_slack_username("Any Workspace")
+
+            # Assert: Should return None
+            assert result is None
+    finally:
+        # Restore original directory
+        os.chdir(original_cwd)
 
 
 # ============================================================
@@ -296,6 +311,89 @@ def test_prompt_template_from_project_root(tmp_path: Path) -> None:
         assert result == custom_template
         assert "{activities}" in result
         assert "プロジェクト固有" in result
+    finally:
+        # Restore original directory
+        os.chdir(original_cwd)
+
+
+# ============================================================
+# PBI-019: プロジェクトルートの slack_config.yaml から読み込む
+# ============================================================
+
+
+def test_slack_config_from_project_root(tmp_path: Path) -> None:
+    """Test that slack_config.yaml is loaded from project root first.
+
+    The config should:
+    1. Check for slack_config.yaml in the current working directory (project root)
+    2. If exists, return the username from that file
+    3. Take priority over ~/.auto-daily/slack_config.yaml
+    """
+    import os
+
+    from auto_daily.config import get_slack_username
+
+    # Arrange: Create slack_config.yaml in tmp_path (simulating project root)
+    slack_config_file = tmp_path / "slack_config.yaml"
+    slack_config_content = """workspaces:
+  "Project Workspace":
+    username: "project-user"
+"""
+    slack_config_file.write_text(slack_config_content)
+
+    # Save current directory and change to tmp_path
+    original_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+
+        # Act: Get username from project root config
+        result = get_slack_username("Project Workspace")
+
+        # Assert: Should return the project root username
+        assert result == "project-user"
+    finally:
+        # Restore original directory
+        os.chdir(original_cwd)
+
+
+def test_slack_config_fallback_to_home(tmp_path: Path) -> None:
+    """Test that slack_config.yaml falls back to home directory when not in project root.
+
+    When slack_config.yaml is not found in project root, the config should:
+    1. Fall back to ~/.auto-daily/slack_config.yaml
+    2. Return the username from the home directory config
+    """
+    import os
+
+    from auto_daily.config import get_slack_username
+
+    # Arrange: Create empty project root (no slack_config.yaml)
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+
+    # Create slack_config.yaml in simulated home directory
+    home_dir = tmp_path / "home"
+    config_dir = home_dir / ".auto-daily"
+    config_dir.mkdir(parents=True)
+    slack_config_file = config_dir / "slack_config.yaml"
+    slack_config_content = """workspaces:
+  "Home Workspace":
+    username: "home-user"
+"""
+    slack_config_file.write_text(slack_config_content)
+
+    # Save current directory and change to project_root
+    original_cwd = os.getcwd()
+    try:
+        os.chdir(project_root)
+
+        # Mock Path.home() to return our simulated home directory
+        with patch("auto_daily.config.Path.home", return_value=home_dir):
+            # Act: Get username (should fall back to home directory)
+            result = get_slack_username("Home Workspace")
+
+            # Assert: Should return the home directory username
+            assert result == "home-user"
     finally:
         # Restore original directory
         os.chdir(original_cwd)

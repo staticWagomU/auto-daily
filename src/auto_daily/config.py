@@ -83,8 +83,11 @@ def get_reports_dir() -> Path:
 def get_slack_username(workspace: str) -> str | None:
     """Get the Slack username for a given workspace.
 
-    Reads from ~/.auto-daily/slack_config.yaml if it exists.
-    Returns None if the file doesn't exist or workspace is not found.
+    Reads from slack_config.yaml in the following order:
+    1. Current working directory (project root) - slack_config.yaml
+    2. Home directory - ~/.auto-daily/slack_config.yaml
+
+    Returns None if neither file exists or workspace is not found.
 
     Args:
         workspace: The Slack workspace name to look up.
@@ -92,19 +95,25 @@ def get_slack_username(workspace: str) -> str | None:
     Returns:
         Username string if found, None otherwise.
     """
-    config_file = Path.home() / ".auto-daily" / "slack_config.yaml"
+    # 1. Check project root first
+    project_config = Path.cwd() / "slack_config.yaml"
+    if project_config.exists():
+        config = yaml.safe_load(project_config.read_text())
+        workspaces = config.get("workspaces", {})
+        workspace_config = workspaces.get(workspace)
+        if workspace_config is not None:
+            return workspace_config.get("username")
 
-    if not config_file.exists():
-        return None
+    # 2. Fall back to home directory
+    home_config = Path.home() / ".auto-daily" / "slack_config.yaml"
+    if home_config.exists():
+        config = yaml.safe_load(home_config.read_text())
+        workspaces = config.get("workspaces", {})
+        workspace_config = workspaces.get(workspace)
+        if workspace_config is not None:
+            return workspace_config.get("username")
 
-    config = yaml.safe_load(config_file.read_text())
-    workspaces = config.get("workspaces", {})
-    workspace_config = workspaces.get(workspace)
-
-    if workspace_config is None:
-        return None
-
-    return workspace_config.get("username")
+    return None
 
 
 def load_env() -> None:

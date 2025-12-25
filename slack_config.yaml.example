@@ -1,0 +1,18 @@
+# Slack ワークスペースごとのユーザー名設定
+# このファイルを slack_config.yaml にコピーして使用してください。
+#
+# 使い方:
+#   1. このファイルを slack_config.yaml にリネームまたはコピー
+#   2. ワークスペース名とユーザー名を実際の値に置き換え
+#   3. プロジェクトルートに配置（チームで共有する場合）
+#      または ~/.auto-daily/ に配置（個人設定として使用する場合）
+#
+# 注意:
+#   - ワークスペース名は Slack ウィンドウタイトルに表示される名前と一致させてください
+#   - プロジェクトルートの設定が ~/.auto-daily/ より優先されます
+
+workspaces:
+  "Your Workspace Name":
+    username: "your-username"
+  "Another Workspace":
+    username: "another-username"
