@@ -123,10 +123,10 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 4
-  pbi: PBI-004
-  status: done
-  subtasks_completed: 3
+  number: 5
+  pbi: PBI-005
+  status: in_progress
+  subtasks_completed: 0
   subtasks_total: 3
   impediments: 0
 ```
@@ -296,7 +296,40 @@ sprint:
           hash: 031f845
 
   notes: |
-    Sprint 4 開始。PBI-004 の Ollama 連携と日報自動生成機能を TDD で実装する。
+    Sprint 5 開始。PBI-005 のメインエントリーポイントを TDD で実装する。
+
+sprint_5:
+  number: 5
+  pbi_id: PBI-005
+  story: "auto-daily コマンドでアプリケーションを起動し、ウィンドウ監視から日報生成までの一連の処理を実行できる"
+  status: in_progress
+
+  subtasks:
+    - id: ST-001
+      test: "test_module_execution: python -m auto_daily でアプリケーションを起動できる"
+      implementation: "__main__.py を作成し、main() を呼び出す"
+      type: behavioral
+      status: red
+      commits:
+        - phase: red
+          hash: pending
+
+    - id: ST-002
+      test: "test_cli_entrypoint: auto-daily コマンドで起動できる"
+      implementation: "__init__.py に main() を追加し、pyproject.toml と整合させる"
+      type: behavioral
+      status: pending
+      commits: []
+
+    - id: ST-003
+      test: "test_main_starts_monitoring: 起動後、ウィンドウ監視ループが開始される"
+      implementation: "main() で WindowMonitor を起動する"
+      type: behavioral
+      status: pending
+      commits: []
+
+  notes: |
+    ルートの main.py を削除し、パッケージ内に適切なエントリーポイントを実装する。
 ```
 
 ### Impediment Registry
