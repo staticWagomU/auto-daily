@@ -9,6 +9,7 @@ from auto_daily.capture import capture_screen, cleanup_image
 from auto_daily.config import get_capture_interval
 from auto_daily.logger import append_log
 from auto_daily.ocr import perform_ocr
+from auto_daily.system import is_system_active
 from auto_daily.window_monitor import get_active_window
 
 type CaptureCallback = Callable[[Path], None]
@@ -74,7 +75,8 @@ class PeriodicCapture:
     def _capture_loop(self) -> None:
         """Background loop that triggers captures at regular intervals."""
         while self._running:
-            self._callback(self._log_dir)
+            if is_system_active():
+                self._callback(self._log_dir)
             # Use a loop with short sleeps to allow faster stop
             elapsed = 0.0
             while self._running and elapsed < self._interval:

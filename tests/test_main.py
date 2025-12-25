@@ -72,6 +72,10 @@ def test_main_starts_monitoring() -> None:
     mock_monitor_class = MagicMock(return_value=mock_monitor_instance)
 
     with (
+        patch(
+            "auto_daily.check_all_permissions",
+            return_value={"screen_recording": True, "accessibility": True},
+        ),
         patch("auto_daily.WindowMonitor", mock_monitor_class),
         patch("sys.argv", ["auto-daily", "--start"]),
         patch("time.sleep", side_effect=KeyboardInterrupt),  # Stop loop immediately

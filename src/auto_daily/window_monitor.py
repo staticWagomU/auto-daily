@@ -5,6 +5,8 @@ import threading
 import time
 from collections.abc import Callable
 
+from auto_daily.system import is_system_active
+
 type WindowInfo = dict[str, str]
 type WindowChangeCallback = Callable[[WindowInfo, WindowInfo], None]
 
@@ -76,8 +78,9 @@ class WindowMonitor:
             interval: Time in seconds between window checks.
         """
         while self._running:
-            new_window = get_active_window()
-            self._check_window_change(new_window)
+            if is_system_active():
+                new_window = get_active_window()
+                self._check_window_change(new_window)
             time.sleep(interval)
 
     def start(self, interval: float = 1.0) -> None:
