@@ -55,3 +55,10 @@ known-first-party = ["auto_daily"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+
+# PyObjC modules are dynamically generated and not supported by static type checkers
+[[tool.ty.overrides]]
+include = ["src/auto_daily/ocr.py"]
+[tool.ty.overrides.rules]
+unresolved-import = "ignore"
+unresolved-attribute = "ignore"
