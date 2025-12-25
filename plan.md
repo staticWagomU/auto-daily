@@ -123,8 +123,8 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 11
-  pbi: PBI-011
+  number: 12
+  pbi: PBI-012
   status: done
   subtasks_completed: 3
   subtasks_total: 3
@@ -332,6 +332,62 @@ product_backlog:
     dependencies:
       - PBI-010
     status: done
+
+  - id: PBI-012
+    story:
+      role: "Mac ユーザー"
+      capability: "Slack ウィンドウ表示時にチャンネル名とワークスペース名を自動抽出できる"
+      benefit: "どのチャンネルで作業していたかが日報に反映される"
+    acceptance_criteria:
+      - criterion: "ウィンドウタイトルからチャンネル名を抽出できる"
+        verification: "pytest tests/test_slack_parser.py::test_channel_extraction -v"
+      - criterion: "ウィンドウタイトルからワークスペース名を抽出できる"
+        verification: "pytest tests/test_slack_parser.py::test_workspace_extraction -v"
+      - criterion: "Slack コンテキストがログエントリに追加される"
+        verification: "pytest tests/test_slack_parser.py::test_slack_context_in_log -v"
+    technical_notes: |
+      Slack macOS ウィンドウタイトルの一般的なフォーマット:
+      - チャンネル: "#channel-name | Workspace Name" または "#channel-name - Workspace Name"
+      - DM: "@username | Workspace Name"
+      - スレッド: "Thread in #channel-name | Workspace Name"
+      新規ファイル: src/auto_daily/slack_parser.py
+    dependencies:
+      - PBI-010
+    status: done
+
+  - id: PBI-013
+    story:
+      role: "Mac ユーザー"
+      capability: "YAML設定でワークスペースごとのユーザー名を設定し、自分のメッセージを識別できる"
+      benefit: "複数ワークスペースで自分の発言を正確に記録できる"
+    acceptance_criteria:
+      - criterion: "slack_config.yaml からワークスペースごとのユーザー名を読み込める"
+        verification: "pytest tests/test_config.py::test_slack_username_config -v"
+      - criterion: "OCR テキストから会話全体を抽出できる"
+        verification: "pytest tests/test_slack_parser.py::test_conversation_extraction -v"
+      - criterion: "ユーザー名で自分のメッセージをフィルタできる"
+        verification: "pytest tests/test_slack_parser.py::test_my_message_filter -v"
+    dependencies:
+      - PBI-012
+    status: draft
+
+  - id: PBI-014
+    story:
+      role: "Mac ユーザー"
+      capability: "コマンドラインから日報生成を実行できる"
+      benefit: "任意のタイミングで蓄積されたログから日報を生成できる"
+    acceptance_criteria:
+      - criterion: "python -m auto_daily report で今日のログから日報を生成できる"
+        verification: "pytest tests/test_main.py::test_report_command -v"
+      - criterion: "--date オプションで過去の日付のログから日報を生成できる"
+        verification: "pytest tests/test_main.py::test_report_with_date_option -v"
+      - criterion: "生成された日報が ~/.auto-daily/reports/ に保存される"
+        verification: "pytest tests/test_main.py::test_report_saves_to_reports_dir -v"
+      - criterion: "日報生成後にファイルパスが標準出力に表示される"
+        verification: "pytest tests/test_main.py::test_report_outputs_path -v"
+    dependencies:
+      - PBI-004
+    status: draft
 ```
 
 ### Definition of Ready
@@ -355,47 +411,47 @@ definition_of_ready:
 ## 2. Current Sprint
 
 ```yaml
-sprint_11:
-  number: 11
-  pbi_id: PBI-011
-  story: "ウィンドウ切り替えとは別に、30秒ごとに定期的に画面キャプチャとOCRが実行される"
+sprint_12:
+  number: 12
+  pbi_id: PBI-012
+  story: "Slack ウィンドウ表示時にチャンネル名とワークスペース名を自動抽出できる"
   status: done
 
   subtasks:
     - id: ST-001
-      test: "test_periodic_capture: 30秒間隔で定期的にキャプチャが実行される"
-      implementation: "PeriodicCapture クラスを作成し、スケジューラを実装"
+      test: "test_channel_extraction: ウィンドウタイトルからチャンネル名を抽出できる"
+      implementation: "parse_slack_title() 関数でチャンネル名を抽出"
       type: behavioral
       status: completed
       commits:
         - phase: red
-          hash: c13eda6
+          hash: e78dc2d
         - phase: green
-          hash: 77b3f3c
+          hash: 7e93ed7
 
     - id: ST-002
-      test: "test_coexistence_with_window_trigger: ウィンドウ切り替えと定期トリガーが共存する"
-      implementation: "メインループで両方のトリガーを起動"
+      test: "test_workspace_extraction: ウィンドウタイトルからワークスペース名を抽出できる"
+      implementation: "parse_slack_title() 関数でワークスペース名を抽出"
       type: behavioral
       status: completed
       commits:
         - phase: green
-          hash: 0196a16
+          hash: 7e93ed7
+          note: "ST-001 の実装でカバー済み"
 
     - id: ST-003
-      test: "test_stop_periodic_capture: アプリ停止時に定期実行も停止する"
-      implementation: "stop() メソッドでスケジューラを停止"
+      test: "test_slack_context_in_log: Slack コンテキストがログエントリに追加される"
+      implementation: "SlackContext TypedDict でログ用構造を提供"
       type: behavioral
       status: completed
       commits:
         - phase: green
-          hash: 77b3f3c
+          hash: 7e93ed7
           note: "ST-001 の実装でカバー済み"
 
   notes: |
-    scheduler.py を新規作成し、PeriodicCapture クラスを実装。
-    30秒間隔でキャプチャ・OCR・ログ保存を自動実行。
-    ウィンドウ切り替えと定期実行が独立して動作する。
+    slack_parser.py を新規作成し、Slack ウィンドウタイトルのパース機能を実装。
+    Slack アプリのウィンドウタイトルからチャンネル名・ワークスペース名を抽出。
 ```
 
 ### Impediment Registry
@@ -533,6 +589,14 @@ completed:
       - c13eda6  # test: add failing tests for periodic capture scheduler (PBI-011)
       - 77b3f3c  # feat: implement PeriodicCapture scheduler (PBI-011)
       - 0196a16  # feat: integrate periodic capture into main loop (PBI-011)
+
+  - sprint: 12
+    pbi_id: PBI-012
+    story: "Slack ウィンドウ表示時にチャンネル名とワークスペース名を自動抽出できる"
+    subtasks_completed: 3
+    commits:
+      - e78dc2d  # test: add failing tests for Slack parser (PBI-012)
+      - 7e93ed7  # feat: implement Slack window title parser (PBI-012)
 ```
 
 ---
@@ -654,6 +718,18 @@ retrospectives:
     action_items:
       - "定期キャプチャ間隔を環境変数でカスタマイズ可能にする"
       - "Ollama 日報生成の定期実行を検討"
+
+  - sprint: 12
+    what_went_well:
+      - "TypedDict で型安全な Slack コンテキスト構造を実装"
+      - "正規表現で複数のウィンドウタイトルフォーマットに対応"
+      - "1つの実装で3つのサブタスクを効率的にカバー"
+      - "TDD サイクルが順調に回った"
+    what_to_improve:
+      - "特になし - シンプルなパーサー実装がスムーズに完了"
+    action_items:
+      - "processor.py に Slack コンテキスト統合を検討"
+      - "PBI-013 で Slack ユーザー名設定機能を追加"
 ```
 
 ---
