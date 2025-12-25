@@ -800,6 +800,126 @@ product_backlog:
       - PBI-021
     status: draft
 
+  - id: PBI-028
+    story:
+      role: "Mac ユーザー"
+      capability: "OpenAI API を使って日報を生成できる"
+      benefit: "クラウドベースの高性能 LLM で高品質な日報を生成できる"
+    acceptance_criteria:
+      - criterion: "OpenAIClient が LLMClient プロトコルを実装している"
+        verification: "pytest tests/test_llm_client.py::test_openai_implements_protocol -v"
+      - criterion: "AI_BACKEND=openai で OpenAI API を使用できる"
+        verification: "pytest tests/test_llm_client.py::test_openai_backend -v"
+      - criterion: "OPENAI_API_KEY 環境変数で API キーを設定できる"
+        verification: "pytest tests/test_config.py::test_openai_api_key_from_env -v"
+      - criterion: "OPENAI_MODEL 環境変数でモデル（gpt-4o, gpt-4o-mini 等）を指定できる"
+        verification: "pytest tests/test_config.py::test_openai_model_from_env -v"
+    technical_notes: |
+      ## OpenAI API
+      公式の openai Python SDK を使用する。
+      - パッケージ: openai (pyproject.toml の dependencies に追加)
+      - エンドポイント: https://api.openai.com/v1/chat/completions
+
+      ## 実装
+      ```python
+      # llm/openai_client.py
+      from openai import AsyncOpenAI
+
+      class OpenAIClient:
+          def __init__(self, api_key: str | None = None, model: str = "gpt-4o-mini"):
+              self.client = AsyncOpenAI(api_key=api_key)
+              self.model = model
+
+          async def generate(self, prompt: str, model: str | None = None) -> str:
+              response = await self.client.chat.completions.create(
+                  model=model or self.model,
+                  messages=[{"role": "user", "content": prompt}],
+              )
+              return response.choices[0].message.content
+      ```
+
+      ## 環境変数
+      - OPENAI_API_KEY: OpenAI API キー（必須）
+      - OPENAI_MODEL: 使用するモデル（デフォルト: "gpt-4o-mini"）
+      - OPENAI_BASE_URL: カスタムエンドポイント（オプション、Azure OpenAI 等）
+
+      ## コスト意識
+      - デフォルトは gpt-4o-mini（低コスト）
+      - 高品質が必要な場合は gpt-4o を指定
+    story_points: 3
+    dependencies:
+      - PBI-021
+    status: ready
+
+  - id: PBI-029
+    story:
+      role: "Mac ユーザー"
+      capability: "OpenAI Vision API（GPT-4o）を使って OCR を実行できる"
+      benefit: "高精度なクラウドベースの画像認識で文脈を理解した OCR ができる"
+    acceptance_criteria:
+      - criterion: "OpenAIVisionOCR が OCRBackend プロトコルを実装している"
+        verification: "pytest tests/test_ocr.py::test_openai_vision_implements_protocol -v"
+      - criterion: "OCR_BACKEND=openai で OpenAI Vision を使用できる"
+        verification: "pytest tests/test_ocr.py::test_openai_vision_backend -v"
+      - criterion: "画像を Base64 エンコードして GPT-4o に送信できる"
+        verification: "pytest tests/test_ocr.py::test_openai_vision_image_encoding -v"
+      - criterion: "OCR_MODEL 環境変数で Vision モデルを指定できる"
+        verification: "pytest tests/test_config.py::test_ocr_model_openai_from_env -v"
+    technical_notes: |
+      ## OpenAI Vision API
+      GPT-4o / GPT-4o-mini の Vision 機能を使用して画像からテキストを抽出する。
+
+      ## 実装
+      ```python
+      # ocr/openai_vision.py
+      import base64
+      from openai import AsyncOpenAI
+
+      class OpenAIVisionOCR:
+          def __init__(self, api_key: str | None = None, model: str = "gpt-4o-mini"):
+              self.client = AsyncOpenAI(api_key=api_key)
+              self.model = model
+
+          async def perform_ocr(self, image_path: str) -> str:
+              with open(image_path, "rb") as f:
+                  image_data = base64.b64encode(f.read()).decode("utf-8")
+
+              response = await self.client.chat.completions.create(
+                  model=self.model,
+                  messages=[{
+                      "role": "user",
+                      "content": [
+                          {"type": "text", "text": "この画像に含まれるすべてのテキストを抽出してください。"},
+                          {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_data}"}}
+                      ]
+                  }],
+              )
+              return response.choices[0].message.content
+      ```
+
+      ## 環境変数
+      - OPENAI_API_KEY: API キー（PBI-028 と共有）
+      - OCR_MODEL: Vision モデル（デフォルト: "gpt-4o-mini"）
+      - OCR_BACKEND: "openai" で有効化
+
+      ## Apple Vision との比較
+      | 項目 | Apple Vision | OpenAI Vision |
+      |------|--------------|---------------|
+      | 速度 | 高速（ローカル） | 中速（API）|
+      | コスト | 無料 | 従量課金 |
+      | 精度 | 高（日本語◎） | 非常に高 |
+      | 文脈理解 | なし | あり |
+
+      ## 注意点
+      - API 呼び出しごとにコストが発生
+      - 大量の画像処理には不向き（Apple Vision を推奨）
+      - 日本語テキストの抽出精度は非常に高い
+    story_points: 5
+    dependencies:
+      - PBI-023
+      - PBI-028
+    status: draft
+
   - id: PBI-023
     story:
       role: "開発者"
