@@ -123,8 +123,8 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 6
-  pbi: PBI-006
+  number: 7
+  pbi: PBI-007
   status: done
   subtasks_completed: 3
   subtasks_total: 3
@@ -263,7 +263,7 @@ product_backlog:
         verification: "pytest tests/test_config.py::test_prompt_template_default -v"
     dependencies:
       - PBI-006
-    status: ready
+    status: done
 
   - id: PBI-008
     story:
@@ -319,46 +319,47 @@ definition_of_ready:
 ## 2. Current Sprint
 
 ```yaml
-sprint_6:
-  number: 6
-  pbi_id: PBI-006
-  story: "環境変数 AUTO_DAILY_LOG_DIR でログの出力先ディレクトリを設定できる"
+sprint_7:
+  number: 7
+  pbi_id: PBI-007
+  story: "Ollama に渡すプロンプトをテキストファイルで自由にカスタマイズできる"
   status: done
 
   subtasks:
     - id: ST-001
-      test: "test_log_dir_from_env: 環境変数でログ出力先を指定できる"
-      implementation: "get_log_dir() 関数を config モジュールに実装"
+      test: "test_prompt_template_from_file: 外部ファイルからプロンプトテンプレートを読み込める"
+      implementation: "get_prompt_template() 関数を config モジュールに実装"
       type: behavioral
       status: completed
       commits:
         - phase: red
-          hash: 8571baf
+          hash: 602dc59
         - phase: green
-          hash: b9e65ab
+          hash: 8522ce8
 
     - id: ST-002
-      test: "test_log_dir_default: 未設定時のデフォルトディレクトリを使用する"
-      implementation: "DEFAULT_LOG_DIR 定数を使用"
+      test: "test_prompt_template_placeholder: {activities} プレースホルダーにログが埋め込まれる"
+      implementation: "generate_daily_report_prompt() をテンプレート対応に拡張"
       type: behavioral
       status: completed
       commits:
         - phase: green
-          hash: b9e65ab
+          hash: 8522ce8
           note: "ST-001 の実装でカバー済み"
 
     - id: ST-003
-      test: "test_log_dir_auto_create: ディレクトリを自動作成する"
-      implementation: "mkdir(parents=True, exist_ok=True) で自動作成"
+      test: "test_prompt_template_default: テンプレートファイルがない場合はデフォルトを使用"
+      implementation: "DEFAULT_PROMPT_TEMPLATE 定数を追加"
       type: behavioral
       status: completed
       commits:
         - phase: green
-          hash: b9e65ab
+          hash: 8522ce8
           note: "ST-001 の実装でカバー済み"
 
   notes: |
-    config モジュールを新規作成し、環境変数による設定機能を実装。
+    config モジュールにプロンプトテンプレート機能を追加。
+    ~/.auto-daily/prompt.txt でカスタマイズ可能。
     3つのテストを同時に書き、1つの実装ですべてをカバー。
 ```
 
@@ -457,6 +458,14 @@ completed:
     commits:
       - 8571baf  # test: add failing tests for config module (PBI-006)
       - b9e65ab  # feat: implement config module with log directory setting
+
+  - sprint: 7
+    pbi_id: PBI-007
+    story: "Ollama に渡すプロンプトをテキストファイルで自由にカスタマイズできる"
+    subtasks_completed: 3
+    commits:
+      - 602dc59  # test: add failing tests for prompt template feature (PBI-007)
+      - 8522ce8  # feat: implement prompt template customization (PBI-007)
 ```
 
 ---
@@ -524,6 +533,16 @@ retrospectives:
       - "特になし - シンプルな機能を TDD で実装完了"
     action_items:
       - "今後の設定項目も config モジュールに追加していく"
+
+  - sprint: 7
+    what_went_well:
+      - "PBI-006 のパターンを踏襲し、効率的に実装できた"
+      - "config モジュールへの機能追加がスムーズだった"
+      - "テンプレートのプレースホルダー置換が Python の str.format() で簡潔に実装"
+    what_to_improve:
+      - "特になし - TDD サイクルがスムーズに回った"
+    action_items:
+      - "プロンプトテンプレート機能を README に記載する"
 ```
 
 ---
