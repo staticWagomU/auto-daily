@@ -125,8 +125,8 @@ Sprint Cycle:
 sprint:
   number: 21
   pbi: PBI-028
-  status: in_progress
-  subtasks_completed: 0
+  status: done
+  subtasks_completed: 4
   subtasks_total: 4
   impediments: 0
 ```
@@ -849,7 +849,7 @@ product_backlog:
     story_points: 3
     dependencies:
       - PBI-021
-    status: ready
+    status: done
 
   - id: PBI-029
     story:
