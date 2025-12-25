@@ -52,13 +52,13 @@ def get_log_dir() -> Path:
 def get_prompt_template() -> str:
     """Get the prompt template for daily report generation.
 
-    Reads from ~/.auto-daily/prompt.txt if it exists.
-    Falls back to DEFAULT_PROMPT_TEMPLATE if not set.
+    Reads from prompt.txt in the current working directory (project root).
+    Falls back to DEFAULT_PROMPT_TEMPLATE if not found.
 
     Returns:
         Prompt template string with {activities} placeholder.
     """
-    prompt_file = Path.home() / ".auto-daily" / "prompt.txt"
+    prompt_file = Path.cwd() / "prompt.txt"
 
     if prompt_file.exists():
         return prompt_file.read_text()

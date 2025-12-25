@@ -123,8 +123,8 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 16
-  pbi: PBI-017
+  number: 17
+  pbi: PBI-018
   status: done
   subtasks_completed: 2
   subtasks_total: 2
@@ -545,6 +545,38 @@ product_backlog:
     dependencies:
       - PBI-014
     status: done
+
+  - id: PBI-018
+    story:
+      role: "Mac ユーザー"
+      capability: "プロジェクトルートの prompt.txt からプロンプトテンプレートを読み込める"
+      benefit: "プロジェクトごとに異なるプロンプトを Git 管理できる"
+    acceptance_criteria:
+      - criterion: "プロジェクトルートの prompt.txt からプロンプトを読み込める"
+        verification: "pytest tests/test_config.py::test_prompt_template_from_project_root -v"
+      - criterion: "prompt.txt が存在しない場合はデフォルトテンプレートを使用する"
+        verification: "pytest tests/test_config.py::test_prompt_template_default -v"
+    technical_notes: |
+      ## 変更内容
+      .env の読み込みと同様に、プロジェクトルートの prompt.txt を優先的に読み込む。
+
+      ## 修正箇所
+      config.py: get_prompt_template() を修正
+      - 現在: ~/.auto-daily/prompt.txt を読み込み
+      - 変更後: カレントディレクトリの prompt.txt を読み込み
+
+      ## 実装方針
+      ```python
+      def get_prompt_template() -> str:
+          prompt_file = Path.cwd() / "prompt.txt"
+          if prompt_file.exists():
+              return prompt_file.read_text()
+          return DEFAULT_PROMPT_TEMPLATE
+      ```
+    story_points: 1
+    dependencies:
+      - PBI-007
+    status: done
 ```
 
 ### Definition of Ready
@@ -568,43 +600,42 @@ definition_of_ready:
 ## 2. Current Sprint
 
 ```yaml
-sprint_16:
-  number: 16
-  pbi_id: PBI-017
-  story: "report コマンドで正しいログファイルを参照して日報を生成できる"
+sprint_17:
+  number: 17
+  pbi_id: PBI-018
+  story: "プロジェクトルートの prompt.txt からプロンプトテンプレートを読み込める"
   status: done
 
   sprint_goal:
-    statement: "report コマンドが logger.py と同じログファイル名形式を参照するようバグを修正する"
+    statement: "プロジェクトルートの prompt.txt を優先的に読み込む機能を実装する"
     success_criteria:
-      - "report コマンドが logger.py の get_log_filename() と同じ形式のファイルを参照する"
-      - "ログファイルが存在する場合に日報生成が成功する"
-    stakeholder_value: "蓄積したログから確実に日報を生成できる"
+      - "プロジェクトルートの prompt.txt からプロンプトを読み込める"
+      - "prompt.txt が存在しない場合はデフォルトテンプレートを使用する"
+    stakeholder_value: "プロジェクトごとに異なるプロンプトを Git 管理できる"
 
   subtasks:
     - id: ST-001
-      test: "test_report_uses_correct_log_filename: report コマンドが activity_YYYY-MM-DD.jsonl 形式を参照する"
+      test: "test_prompt_template_from_project_root: プロジェクトルートの prompt.txt からプロンプトを読み込む"
       implementation: |
-        __init__.py の report_command() を修正:
-        - logger.py から get_log_filename() をインポート
-        - datetime.combine(target_date, datetime.min.time()) で date を datetime に変換
-        - log_file = log_dir / get_log_filename(datetime.combine(...))
+        config.py の get_prompt_template() を修正:
+        - Path.cwd() / "prompt.txt" を最優先でチェック
+        - 存在しない場合は DEFAULT_PROMPT_TEMPLATE を返す
       type: behavioral
       status: completed
       commits: []
 
     - id: ST-002
-      test: "test_report_with_existing_log: ログファイルが存在する場合に日報生成が成功する"
+      test: "test_prompt_template_default: prompt.txt が存在しない場合はデフォルトを使用"
       implementation: |
+        既存テスト test_prompt_template_default を更新
         ST-001 の実装で自動的にカバーされる
-        activity_YYYY-MM-DD.jsonl 形式のファイルで日報生成が成功することを検証
       type: behavioral
       status: completed
       commits: []
 
   notes: |
-    バグ修正のため、小規模な変更。
-    get_log_filename() を再利用することで、コードの一貫性を保つ。
+    PBI-007 の仕様変更。
+    .env と同様にプロジェクトルートからの読み込みを優先する。
 ```
 
 ### Impediment Registry
@@ -784,6 +815,12 @@ completed:
     subtasks_completed: 2
     commits:
       - db7a2e6  # fix: use correct log filename format in report command (PBI-017)
+
+  - sprint: 17
+    pbi_id: PBI-018
+    story: "プロジェクトルートの prompt.txt からプロンプトテンプレートを読み込める"
+    subtasks_completed: 2
+    commits: []
 ```
 
 ---
@@ -963,6 +1000,17 @@ retrospectives:
       - "PBI-014 のテスト作成時に logger.py のファイル名形式を考慮すべきだった"
     action_items:
       - "新規機能追加時は既存モジュールとの整合性をより意識する"
+
+  - sprint: 17
+    what_went_well:
+      - "Path.cwd() でプロジェクトルートの prompt.txt を読み込む実装がシンプル"
+      - "既存の test_prompt_template_from_file を削除し、新しいテストに置き換え"
+      - "test_prompt_template_default も os.chdir() を使うように更新"
+      - "TDD サイクル（Red-Green）がスムーズに回った"
+    what_to_improve:
+      - "特になし - シンプルな仕様変更がスムーズに完了"
+    action_items:
+      - "README.md を更新して prompt.txt の読み込み先を明記する"
 ```
 
 ---

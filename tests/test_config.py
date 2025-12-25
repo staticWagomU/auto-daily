@@ -72,56 +72,23 @@ def test_log_dir_auto_create(tmp_path: Path) -> None:
         assert new_log_dir.is_dir()
 
 
-def test_prompt_template_from_file(tmp_path: Path) -> None:
-    """Test that prompt template is loaded from ~/.auto-daily/prompt.txt.
-
-    The config should:
-    1. Read prompt template from the specified file path
-    2. Return the file content as the template string
-    3. Support custom prompts defined by the user
-    """
-    from auto_daily.config import get_prompt_template
-
-    # Arrange: Create a custom prompt template file
-    config_dir = tmp_path / ".auto-daily"
-    config_dir.mkdir()
-    prompt_file = config_dir / "prompt.txt"
-    custom_template = """カスタムプロンプトテンプレートです。
-
-## アクティビティ
-{activities}
-
-## 出力形式
-- 作業内容を要約してください
-"""
-    prompt_file.write_text(custom_template)
-
-    # Mock Path.home() to return tmp_path
-    with patch("auto_daily.config.Path.home", return_value=tmp_path):
-        # Act: Get prompt template
-        result = get_prompt_template()
-
-        # Assert: Should return the custom template content
-        assert result == custom_template
-        assert "{activities}" in result
-
-
 def test_prompt_template_default(tmp_path: Path) -> None:
     """Test that default template is used when prompt.txt doesn't exist.
 
-    When ~/.auto-daily/prompt.txt doesn't exist, the config should:
+    When prompt.txt doesn't exist in the current directory, the config should:
     1. Return the default prompt template
     2. Include {activities} placeholder
     3. Include standard daily report instructions
     """
+    import os
+
     from auto_daily.config import DEFAULT_PROMPT_TEMPLATE, get_prompt_template
 
-    # Arrange: Ensure no prompt.txt exists (use tmp_path as home)
-    config_dir = tmp_path / ".auto-daily"
-    config_dir.mkdir()  # Create the directory but not the prompt.txt file
+    # Arrange: Use tmp_path as current working directory (no prompt.txt)
+    original_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
 
-    # Mock Path.home() to return tmp_path
-    with patch("auto_daily.config.Path.home", return_value=tmp_path):
         # Act: Get prompt template
         result = get_prompt_template()
 
@@ -129,6 +96,8 @@ def test_prompt_template_default(tmp_path: Path) -> None:
         assert result == DEFAULT_PROMPT_TEMPLATE
         assert "{activities}" in result
         assert "日報" in result
+    finally:
+        os.chdir(original_cwd)
 
 
 def test_slack_username_config(tmp_path: Path) -> None:
@@ -284,6 +253,52 @@ def test_capture_interval_from_env() -> None:
         # Assert: Should return the integer value
         assert result == 60
         assert isinstance(result, int)
+
+
+# ============================================================
+# PBI-018: プロジェクトルートの prompt.txt からプロンプトを読み込む
+# ============================================================
+
+
+def test_prompt_template_from_project_root(tmp_path: Path) -> None:
+    """Test that prompt template is loaded from project root prompt.txt.
+
+    The config should:
+    1. Check for prompt.txt in the current working directory (project root)
+    2. If exists, return its content as the template
+    3. Use Path.cwd() to find the project root
+    """
+    import os
+
+    from auto_daily.config import get_prompt_template
+
+    # Arrange: Create a custom prompt.txt in tmp_path (simulating project root)
+    prompt_file = tmp_path / "prompt.txt"
+    custom_template = """プロジェクト固有のプロンプトです。
+
+## アクティビティ
+{activities}
+
+## 出力
+- プロジェクト固有の日報を作成してください
+"""
+    prompt_file.write_text(custom_template)
+
+    # Save current directory and change to tmp_path
+    original_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+
+        # Act: Get prompt template
+        result = get_prompt_template()
+
+        # Assert: Should return the project root template
+        assert result == custom_template
+        assert "{activities}" in result
+        assert "プロジェクト固有" in result
+    finally:
+        # Restore original directory
+        os.chdir(original_cwd)
 
 
 def test_env_defaults() -> None:
