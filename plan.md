@@ -123,8 +123,8 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 7
-  pbi: PBI-007
+  number: 8
+  pbi: PBI-008
   status: done
   subtasks_completed: 3
   subtasks_total: 3
@@ -279,7 +279,7 @@ product_backlog:
         verification: "README.md の使用方法セクションを確認"
     dependencies:
       - PBI-005
-    status: ready
+    status: done
 
   - id: PBI-009
     story:
@@ -319,48 +319,46 @@ definition_of_ready:
 ## 2. Current Sprint
 
 ```yaml
-sprint_7:
-  number: 7
-  pbi_id: PBI-007
-  story: "Ollama に渡すプロンプトをテキストファイルで自由にカスタマイズできる"
+sprint_8:
+  number: 8
+  pbi_id: PBI-008
+  story: "README.md を読んでアプリケーションの概要、インストール方法、使い方を理解できる"
   status: done
 
   subtasks:
     - id: ST-001
-      test: "test_prompt_template_from_file: 外部ファイルからプロンプトテンプレートを読み込める"
-      implementation: "get_prompt_template() 関数を config モジュールに実装"
+      test: "README.md にプロジェクトの概要と機能一覧が記載されている"
+      implementation: "README.md を作成し、概要セクションを記述"
       type: behavioral
       status: completed
       commits:
-        - phase: red
-          hash: 602dc59
         - phase: green
-          hash: 8522ce8
+          hash: 5ca9d12
 
     - id: ST-002
-      test: "test_prompt_template_placeholder: {activities} プレースホルダーにログが埋め込まれる"
-      implementation: "generate_daily_report_prompt() をテンプレート対応に拡張"
+      test: "インストール手順が記載されている"
+      implementation: "README.md にインストールセクションを追加"
       type: behavioral
       status: completed
       commits:
         - phase: green
-          hash: 8522ce8
-          note: "ST-001 の実装でカバー済み"
+          hash: 5ca9d12
+          note: "ST-001 のコミットでカバー済み"
 
     - id: ST-003
-      test: "test_prompt_template_default: テンプレートファイルがない場合はデフォルトを使用"
-      implementation: "DEFAULT_PROMPT_TEMPLATE 定数を追加"
+      test: "使用方法が記載されている"
+      implementation: "README.md に使用方法セクションを追加"
       type: behavioral
       status: completed
       commits:
         - phase: green
-          hash: 8522ce8
-          note: "ST-001 の実装でカバー済み"
+          hash: 5ca9d12
+          note: "ST-001 のコミットでカバー済み"
 
   notes: |
-    config モジュールにプロンプトテンプレート機能を追加。
-    ~/.auto-daily/prompt.txt でカスタマイズ可能。
-    3つのテストを同時に書き、1つの実装ですべてをカバー。
+    ドキュメンテーションタスクのためテストファイルは不要。
+    README.md に概要、インストール手順、使用方法、設定、開発コマンドを記載。
+    1つのコミットですべてのサブタスクをカバー。
 ```
 
 ### Impediment Registry
@@ -466,6 +464,13 @@ completed:
     commits:
       - 602dc59  # test: add failing tests for prompt template feature (PBI-007)
       - 8522ce8  # feat: implement prompt template customization (PBI-007)
+
+  - sprint: 8
+    pbi_id: PBI-008
+    story: "README.md を読んでアプリケーションの概要、インストール方法、使い方を理解できる"
+    subtasks_completed: 3
+    commits:
+      - 5ca9d12  # docs: add comprehensive README with install and usage guide (PBI-008)
 ```
 
 ---
@@ -543,6 +548,16 @@ retrospectives:
       - "特になし - TDD サイクルがスムーズに回った"
     action_items:
       - "プロンプトテンプレート機能を README に記載する"
+
+  - sprint: 8
+    what_went_well:
+      - "Sprint 7 のアクションアイテム（README にプロンプトテンプレート記載）を完遂"
+      - "README.md に必要な情報（概要、インストール、使用方法、設定）を網羅的に記載"
+      - "ドキュメンテーションタスクでもスプリント構造を維持できた"
+    what_to_improve:
+      - "特になし - シンプルなドキュメント作成タスクがスムーズに完了"
+    action_items:
+      - "PBI-009（起動スクリプト）を次スプリントで対応"
 ```
 
 ---
