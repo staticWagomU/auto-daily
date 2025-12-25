@@ -123,11 +123,11 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 0
-  pbi: null
-  status: not_started
+  number: 1
+  pbi: PBI-001
+  status: in_progress
   subtasks_completed: 0
-  subtasks_total: 0
+  subtasks_total: 3
   impediments: 0
 ```
 
@@ -167,7 +167,7 @@ product_backlog:
       - criterion: "バックグラウンドで常駐し、ウィンドウ変更を監視し続ける"
         verification: "pytest tests/test_window_monitor.py::test_background_monitoring -v"
     dependencies: []
-    status: draft
+    status: ready
 
   - id: PBI-002
     story:
@@ -240,15 +240,35 @@ definition_of_ready:
 
 ```yaml
 sprint:
-  number: 0
-  pbi_id: null
-  story: null
-  status: not_started
+  number: 1
+  pbi_id: PBI-001
+  story: "Mac ユーザーとして、ウィンドウを切り替えたタイミングでアクティブウィンドウの名前を自動取得できる"
+  status: in_progress
 
-  subtasks: []
+  subtasks:
+    - id: ST-001
+      test: "test_get_active_window: AppleScript でアクティブウィンドウのアプリ名とウィンドウタイトルを取得できる"
+      implementation: "get_active_window() 関数を実装"
+      type: behavioral
+      status: red
+      commits: []
+
+    - id: ST-002
+      test: "test_window_change_detection: ウィンドウ切り替えを検知してイベントを発火できる"
+      implementation: "ウィンドウ変更検知のコールバック機能を実装"
+      type: behavioral
+      status: pending
+      commits: []
+
+    - id: ST-003
+      test: "test_background_monitoring: バックグラウンドで常駐し、ウィンドウ変更を監視し続ける"
+      implementation: "バックグラウンド監視ループを実装"
+      type: behavioral
+      status: pending
+      commits: []
 
   notes: |
-    No sprint started yet. Run Sprint Planning to begin.
+    Sprint 1 開始。PBI-001 のウィンドウ監視機能を TDD で実装する。
 ```
 
 ### Impediment Registry
