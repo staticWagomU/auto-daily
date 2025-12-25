@@ -6,6 +6,8 @@ from pathlib import Path
 
 import httpx
 
+from auto_daily.config import get_prompt_template
+
 
 class OllamaClient:
     """Client for interacting with the Ollama API."""
@@ -75,20 +77,9 @@ def generate_daily_report_prompt(log_file: Path) -> str:
 
     activities = "\n".join(activity_lines)
 
-    prompt = f"""以下のアクティビティログに基づいて、日報を作成してください。
-
-## 今日のアクティビティ
-{activities}
-
-## 日報フォーマット
-以下の形式で日報を作成してください：
-
-1. 今日の作業内容（箇条書き）
-2. 進捗・成果
-3. 課題・問題点
-4. 明日の予定
-
-日本語で簡潔に記述してください。"""
+    # Use template from config
+    template = get_prompt_template()
+    prompt = template.format(activities=activities)
 
     return prompt
 
