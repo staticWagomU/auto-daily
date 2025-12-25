@@ -37,6 +37,11 @@ def get_ocr_backend() -> OCRBackend:
 
         return OpenAIVisionOCR()
 
+    if backend_name == "ollama":
+        from auto_daily.ocr.ollama_vision import OllamaVisionOCR
+
+        return OllamaVisionOCR()
+
     raise ValueError(f"Unknown OCR backend: {backend_name}")
 
 

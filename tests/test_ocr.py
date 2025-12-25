@@ -228,3 +228,98 @@ def test_openai_vision_backend() -> None:
     ):
         backend = get_ocr_backend()
         assert isinstance(backend, OpenAIVisionOCR)
+
+
+# ============================================================
+# PBI-024: Ollama Vision OCR
+# ============================================================
+
+
+def test_ollama_vision_implements_protocol() -> None:
+    """Test that OllamaVisionOCR implements the OCRBackend protocol.
+
+    The OllamaVisionOCR should:
+    1. Have a perform_ocr(image_path: str) -> str method
+    2. Be structurally compatible with OCRBackend Protocol
+    """
+    from auto_daily.ocr.ollama_vision import OllamaVisionOCR
+    from auto_daily.ocr.protocol import OCRBackend
+
+    # Create an instance
+    backend = OllamaVisionOCR(base_url="http://localhost:11434", model="llava")
+
+    # Verify the method signature exists
+    assert hasattr(backend, "perform_ocr")
+    assert callable(backend.perform_ocr)
+
+    # Type checking verification using runtime_checkable
+    assert isinstance(backend, OCRBackend)
+
+
+def test_ollama_vision_backend() -> None:
+    """Test that OCR_BACKEND=ollama returns OllamaVisionOCR.
+
+    The factory should:
+    1. Return OllamaVisionOCR when OCR_BACKEND is "ollama"
+    """
+    import os
+    from unittest.mock import patch
+
+    from auto_daily.ocr import get_ocr_backend
+    from auto_daily.ocr.ollama_vision import OllamaVisionOCR
+
+    # Mock environment
+    with patch.dict(os.environ, {"OCR_BACKEND": "ollama"}):
+        backend = get_ocr_backend()
+        assert isinstance(backend, OllamaVisionOCR)
+
+
+def test_ollama_vision_image_encoding(tmp_path: Path) -> None:
+    """Test that OllamaVisionOCR correctly encodes images as Base64.
+
+    The OCR should:
+    1. Read the image file
+    2. Encode it as Base64
+    3. Send it to Ollama with the images array
+    """
+    import base64
+    from unittest.mock import MagicMock, patch
+
+    from auto_daily.ocr.ollama_vision import OllamaVisionOCR
+
+    # Create a test image file
+    test_image = tmp_path / "test.png"
+    test_content = b"fake image data"
+    test_image.write_bytes(test_content)
+    expected_base64 = base64.b64encode(test_content).decode("utf-8")
+
+    # Mock httpx.post
+    mock_response = MagicMock()
+    mock_response.json.return_value = {"response": "Extracted text from image"}
+
+    with patch(
+        "auto_daily.ocr.ollama_vision.httpx.post", return_value=mock_response
+    ) as mock_post:
+        backend = OllamaVisionOCR(base_url="http://localhost:11434", model="llava")
+        result = backend.perform_ocr(str(test_image))
+
+    # Verify the API was called
+    mock_post.assert_called_once()
+
+    # Get the call arguments
+    call_args = mock_post.call_args
+
+    # Verify URL
+    assert call_args[0][0] == "http://localhost:11434/api/generate"
+
+    # Verify JSON payload
+    json_data = call_args.kwargs["json"]
+    assert json_data["model"] == "llava"
+    assert "テキストを抽出" in json_data["prompt"]
+    assert json_data["stream"] is False
+    assert "images" in json_data
+    assert len(json_data["images"]) == 1
+    assert json_data["images"][0] == expected_base64
+
+    # Verify the result
+    assert result == "Extracted text from image"

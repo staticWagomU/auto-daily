@@ -720,3 +720,28 @@ def test_ocr_model_openai_from_env() -> None:
     with patch.dict(os.environ, env_without_var, clear=True):
         result = get_ocr_model()
         assert result == "gpt-4o-mini"
+
+
+# ============================================================
+# PBI-024: Ollama Vision OCR
+# ============================================================
+
+
+def test_ocr_model_ollama_from_env() -> None:
+    """Test that OCR_MODEL environment variable sets the Ollama Vision model.
+
+    The config should:
+    1. Allow setting OCR_MODEL to Ollama Vision models like "llava"
+    2. OllamaVisionOCR should use this model
+    """
+    from auto_daily.ocr.ollama_vision import OllamaVisionOCR
+
+    # Test with custom Ollama Vision model
+    with patch.dict(os.environ, {"OCR_MODEL": "llava"}):
+        backend = OllamaVisionOCR()
+        assert backend.model == "llava"
+
+    # Test with llama3.2-vision
+    with patch.dict(os.environ, {"OCR_MODEL": "llama3.2-vision"}):
+        backend = OllamaVisionOCR()
+        assert backend.model == "llama3.2-vision"
