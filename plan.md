@@ -126,7 +126,7 @@ sprint:
   number: 1
   pbi: PBI-001
   status: in_progress
-  subtasks_completed: 1
+  subtasks_completed: 2
   subtasks_total: 3
   impediments: 0
 ```
@@ -261,16 +261,18 @@ sprint:
       test: "test_window_change_detection: ウィンドウ切り替えを検知してイベントを発火できる"
       implementation: "ウィンドウ変更検知のコールバック機能を実装"
       type: behavioral
-      status: green
+      status: completed
       commits:
         - phase: red
           hash: ce4ab41
+        - phase: green
+          hash: 2701c0c
 
     - id: ST-003
       test: "test_background_monitoring: バックグラウンドで常駐し、ウィンドウ変更を監視し続ける"
       implementation: "バックグラウンド監視ループを実装"
       type: behavioral
-      status: pending
+      status: red
       commits: []
 
   notes: |
