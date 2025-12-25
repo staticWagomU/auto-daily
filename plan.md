@@ -123,8 +123,8 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 5
-  pbi: PBI-005
+  number: 6
+  pbi: PBI-006
   status: done
   subtasks_completed: 3
   subtasks_total: 3
@@ -247,7 +247,7 @@ product_backlog:
         verification: "pytest tests/test_config.py::test_log_dir_auto_create -v"
     dependencies:
       - PBI-005
-    status: ready
+    status: done
 
   - id: PBI-007
     story:
@@ -319,90 +319,47 @@ definition_of_ready:
 ## 2. Current Sprint
 
 ```yaml
-sprint:
-  number: 4
-  pbi_id: PBI-004
-  story: "Mac ユーザーとして、数分間隔で Ollama を呼び出し、蓄積されたログから日報を自動生成できる"
-  status: in_progress
+sprint_6:
+  number: 6
+  pbi_id: PBI-006
+  story: "環境変数 AUTO_DAILY_LOG_DIR でログの出力先ディレクトリを設定できる"
+  status: done
 
   subtasks:
     - id: ST-001
-      test: "test_scheduled_call: 設定された間隔で Ollama API を呼び出せる"
-      implementation: "OllamaClient クラスを実装"
+      test: "test_log_dir_from_env: 環境変数でログ出力先を指定できる"
+      implementation: "get_log_dir() 関数を config モジュールに実装"
       type: behavioral
       status: completed
       commits:
         - phase: red
-          hash: 2d9a421
+          hash: 8571baf
         - phase: green
-          hash: 0b4e3e3
+          hash: b9e65ab
 
     - id: ST-002
-      test: "test_prompt_generation: JSONL ログを読み込み、日報用のプロンプトを生成できる"
-      implementation: "generate_daily_report_prompt() 関数を実装"
-      type: behavioral
-      status: completed
-      commits:
-        - phase: red
-          hash: ad8b6f9
-        - phase: green
-          hash: e835661
-
-    - id: ST-003
-      test: "test_save_daily_report: Ollama からの応答を日報ファイルとして保存できる"
-      implementation: "save_daily_report() 関数を実装"
-      type: behavioral
-      status: completed
-      commits:
-        - phase: red
-          hash: e46e839
-        - phase: green
-          hash: 031f845
-
-  notes: |
-    Sprint 5 開始。PBI-005 のメインエントリーポイントを TDD で実装する。
-
-sprint_5:
-  number: 5
-  pbi_id: PBI-005
-  story: "auto-daily コマンドでアプリケーションを起動し、ウィンドウ監視から日報生成までの一連の処理を実行できる"
-  status: in_progress
-
-  subtasks:
-    - id: ST-001
-      test: "test_module_execution: python -m auto_daily でアプリケーションを起動できる"
-      implementation: "__main__.py を作成し、main() を呼び出す"
-      type: behavioral
-      status: completed
-      commits:
-        - phase: red
-          hash: d4d28a3
-        - phase: green
-          hash: a41c0be
-
-    - id: ST-002
-      test: "test_cli_entrypoint: auto-daily コマンドで起動できる"
-      implementation: "__init__.py に main() を追加し、pyproject.toml と整合させる"
+      test: "test_log_dir_default: 未設定時のデフォルトディレクトリを使用する"
+      implementation: "DEFAULT_LOG_DIR 定数を使用"
       type: behavioral
       status: completed
       commits:
         - phase: green
-          hash: a41c0be
+          hash: b9e65ab
           note: "ST-001 の実装でカバー済み"
 
     - id: ST-003
-      test: "test_main_starts_monitoring: 起動後、ウィンドウ監視ループが開始される"
-      implementation: "main() で WindowMonitor を起動する"
+      test: "test_log_dir_auto_create: ディレクトリを自動作成する"
+      implementation: "mkdir(parents=True, exist_ok=True) で自動作成"
       type: behavioral
       status: completed
       commits:
-        - phase: red
-          hash: f806654
         - phase: green
-          hash: b83f676
+          hash: b9e65ab
+          note: "ST-001 の実装でカバー済み"
 
   notes: |
-    ルートの main.py を削除し、パッケージ内に適切なエントリーポイントを実装する。
+    config モジュールを新規作成し、環境変数による設定機能を実装。
+    3つのテストを同時に書き、1つの実装ですべてをカバー。
 ```
 
 ### Impediment Registry
@@ -492,6 +449,14 @@ completed:
       - 1e85225  # test: add test for CLI entrypoint
       - f806654  # test: add failing test for monitoring startup
       - b83f676  # feat: implement --start flag for window monitoring
+
+  - sprint: 6
+    pbi_id: PBI-006
+    story: "環境変数 AUTO_DAILY_LOG_DIR でログの出力先ディレクトリを設定できる"
+    subtasks_completed: 3
+    commits:
+      - 8571baf  # test: add failing tests for config module (PBI-006)
+      - b9e65ab  # feat: implement config module with log directory setting
 ```
 
 ---
@@ -549,6 +514,16 @@ retrospectives:
       - "特になし - 3つのサブタスクがスムーズに完了"
     action_items:
       - "アプリケーションが python -m auto_daily --start で起動可能に"
+
+  - sprint: 6
+    what_went_well:
+      - "3つのテストを1つの実装でカバーでき、効率的だった"
+      - "config モジュールの責務が明確に分離されている"
+      - "Path クラスの mkdir(parents=True, exist_ok=True) が便利"
+    what_to_improve:
+      - "特になし - シンプルな機能を TDD で実装完了"
+    action_items:
+      - "今後の設定項目も config モジュールに追加していく"
 ```
 
 ---
