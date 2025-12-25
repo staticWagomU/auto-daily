@@ -123,11 +123,11 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 19
-  pbi: PBI-020
+  number: 20
+  pbi: PBI-021
   status: done
-  subtasks_completed: 6
-  subtasks_total: 6
+  subtasks_completed: 4
+  subtasks_total: 4
   impediments: 0
 ```
 
@@ -753,7 +753,7 @@ product_backlog:
     story_points: 5
     dependencies:
       - PBI-004
-    status: ready
+    status: done
 
   - id: PBI-022
     story:
@@ -1129,105 +1129,90 @@ definition_of_ready:
 ## 2. Current Sprint
 
 ```yaml
-sprint_19:
-  number: 19
-  pbi_id: PBI-020
-  story: "スクリプトを実行して必要な macOS 権限（画面収録・アクセシビリティ）の設定画面を開ける"
+sprint_20:
+  number: 20
+  pbi_id: PBI-021
+  story: "LLM クライアントを抽象化して複数のバックエンド（Ollama、LM Studio）を統一的に扱える"
   status: done
 
   sprint_goal:
-    statement: "macOS 権限設定スクリプトを実装し、ユーザーが必要な権限（画面収録・アクセシビリティ）の設定画面を簡単に開けるようにする"
+    statement: "LLM クライアントの Protocol を定義し、既存の OllamaClient をリファクタリングすることで、将来の LM Studio 対応を可能にする"
     success_criteria:
-      - "scripts/setup-permissions.sh を実行すると画面収録とアクセシビリティの設定画面が開く"
-      - "--check オプションで現在の権限状態を確認できる"
-      - "権限が不足している場合に警告メッセージを表示する"
-    stakeholder_value: "手動で設定画面を探す手間なく、アプリに必要な権限を簡単に設定できる"
+      - "LLMClient Protocol が定義されている"
+      - "既存の OllamaClient がプロトコルを実装している"
+      - "AI_BACKEND 環境変数でバックエンドを切り替えられる"
+      - "get_llm_client() ファクトリ関数が環境変数に応じたクライアントを返す"
+    stakeholder_value: "新しい LLM バックエンドを追加する際のコード変更を最小限に抑えられる"
 
   subtasks:
     - id: ST-001
-      test: "test_check_screen_recording_permission: check_screen_recording_permission() が画面収録権限の有無を正しく返す"
+      test: "test_llm_protocol: LLMClient Protocol が generate() メソッドを定義している"
       implementation: |
-        新規ファイル src/auto_daily/permissions.py を作成:
-        - Quartz.CGPreflightScreenCaptureAccess() を使用して権限状態を確認
-        - bool を返す関数として実装
+        新規ファイル src/auto_daily/llm/__init__.py と protocol.py を作成:
+        - typing.Protocol を使用して LLMClient を定義
+        - generate(prompt: str, model: str) -> str メソッドを定義
       type: behavioral
       status: completed
       commits: []
 
     - id: ST-002
-      test: "test_check_accessibility_permission: check_accessibility_permission() がアクセシビリティ権限の有無を正しく返す"
+      test: "test_ollama_implements_protocol: OllamaClient が LLMClient プロトコルを実装している"
       implementation: |
-        permissions.py に check_accessibility_permission() を追加:
-        - ctypes で ApplicationServices フレームワークの AXIsProcessTrusted() を呼び出し
-        - bool を返す関数として実装
+        既存の OllamaClient を llm/ollama.py に移動:
+        - async def generate(self, prompt: str, model: str) -> str を維持
+        - Protocol の型チェックを通過することを確認
       type: behavioral
       status: completed
       commits: []
 
     - id: ST-003
-      test: "test_check_all_permissions: check_all_permissions() が全権限の状態を辞書で返す"
+      test: "test_ai_backend_from_env: AI_BACKEND 環境変数でバックエンドを設定できる"
       implementation: |
-        permissions.py に check_all_permissions() を追加:
-        - {"screen_recording": bool, "accessibility": bool} 形式で返す
-        - ST-001, ST-002 の関数を内部で呼び出す
+        config.py に get_ai_backend() を追加:
+        - AI_BACKEND 環境変数を読み取る
+        - デフォルト: "ollama"
       type: behavioral
       status: completed
       commits: []
 
     - id: ST-004
-      test: "test_open_permissions_settings: open_permissions_settings() が設定画面を開くコマンドを実行する"
+      test: "test_get_llm_client_factory: get_llm_client() が環境変数に応じたクライアントを返す"
       implementation: |
-        permissions.py に open_permissions_settings() を追加:
-        - subprocess.run(["open", "x-apple.systempreferences:..."]) を実行
-        - 画面収録とアクセシビリティの両方の設定画面を開く
-      type: behavioral
-      status: completed
-      commits: []
-
-    - id: ST-005
-      test: "scripts/setup-permissions.sh --help がヘルプを表示する（手動検証）"
-      implementation: |
-        scripts/setup-permissions.sh を作成:
-        - デフォルト: 設定画面を開く
-        - --check: Python で権限チェックを実行
-        - --help: ヘルプを表示
-        - 実行権限を付与
-      type: behavioral
-      status: completed
-      commits: []
-
-    - id: ST-006
-      test: "start.sh で権限不足時に警告メッセージを表示（手動検証）"
-      implementation: |
-        scripts/start.sh を修正:
-        - 起動時に Python の check_all_permissions() を呼び出し
-        - 権限不足時に警告メッセージを表示
-        - setup-permissions.sh の実行を促すメッセージを追加
+        llm/__init__.py に get_llm_client() を追加:
+        - AI_BACKEND に応じて適切なクライアントをインスタンス化
+        - "ollama" -> OllamaClient を返す
+        - 未知のバックエンド -> ValueError
       type: behavioral
       status: completed
       commits: []
 
   notes: |
-    ## 新規ファイル
-    - src/auto_daily/permissions.py: 権限チェック機能
-    - scripts/setup-permissions.sh: 権限設定スクリプト
-    - tests/test_permissions.py: 権限チェックのテスト
+    ## 新規ファイル構成
+    ```
+    src/auto_daily/
+      llm/
+        __init__.py       # get_llm_client() ファクトリ
+        protocol.py       # LLMClient Protocol 定義
+        ollama.py         # OllamaClient 実装（移動）
+    ```
 
-    ## 必要な権限
-    1. **画面収録 (Screen Recording)**
-       - screencapture コマンドに必要
-       - 設定画面: x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture
-       - 確認方法: Quartz.CGPreflightScreenCaptureAccess()
+    ## Protocol 定義
+    ```python
+    from typing import Protocol
 
-    2. **アクセシビリティ (Accessibility)**
-       - System Events 経由のウィンドウ情報取得に必要
-       - 設定画面: x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility
-       - 確認方法: ApplicationServices.AXIsProcessTrusted()
+    class LLMClient(Protocol):
+        async def generate(self, prompt: str, model: str) -> str:
+            """テキストを生成する"""
+            ...
+    ```
 
-    ## 技術的な注意点
-    - pyobjc-framework-Quartz は既に依存関係に含まれている
-    - ApplicationServices も pyobjc 経由でアクセス可能
-    - macOS 以外の環境ではテストをスキップする
+    ## 環境変数
+    - AI_BACKEND: "ollama" (default) | "lm_studio" (PBI-022で追加)
+
+    ## 後方互換性
+    - 既存の ollama.py から OllamaClient を llm/ollama.py に移動
+    - generate_daily_report_prompt, save_daily_report は ollama.py に維持
+    - 既存のインポート (from auto_daily.ollama import OllamaClient) は維持
 ```
 
 ### Impediment Registry
@@ -1426,6 +1411,12 @@ completed:
     pbi_id: PBI-020
     story: "スクリプトを実行して必要な macOS 権限（画面収録・アクセシビリティ）の設定画面を開ける"
     subtasks_completed: 6
+    commits: []
+
+  - sprint: 20
+    pbi_id: PBI-021
+    story: "LLM クライアントを抽象化して複数のバックエンド（Ollama、LM Studio）を統一的に扱える"
+    subtasks_completed: 4
     commits: []
 ```
 
@@ -1640,6 +1631,19 @@ retrospectives:
       - "pyobjc の API 可用性を事前に確認すべきだった（ApplicationServices は直接インポート不可）"
     action_items:
       - "macOS ネイティブ API 使用時は ctypes フォールバックを検討する"
+
+  - sprint: 20
+    what_went_well:
+      - "typing.Protocol を使った抽象化で構造的サブタイピングを実現"
+      - "既存の OllamaClient を llm/ パッケージに移動し、後方互換性を維持"
+      - "get_llm_client() ファクトリパターンで柔軟なバックエンド切り替えを実装"
+      - "TDD サイクル（Red-Green）がスムーズに回った"
+      - "4つのサブタスクをすべて完了"
+    what_to_improve:
+      - "テストのパッチ先（httpx.AsyncClient）が OllamaClient の移動により変更されたことへの対応"
+    action_items:
+      - "モジュール移動時はテストのモックパスも確認する"
+      - "PBI-022（LM Studio 対応）は Protocol の上に実装可能"
 ```
 
 ---

@@ -28,7 +28,7 @@ async def test_scheduled_call() -> None:
     # Mock the AsyncClient context manager and post method
     mock_post = AsyncMock(return_value=mock_response)
 
-    with patch("auto_daily.ollama.httpx.AsyncClient") as mock_client_class:
+    with patch("auto_daily.llm.ollama.httpx.AsyncClient") as mock_client_class:
         mock_client_instance = AsyncMock()
         mock_client_instance.post = mock_post
         mock_client_instance.__aenter__.return_value = mock_client_instance

@@ -15,6 +15,9 @@ DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434"
 DEFAULT_OLLAMA_MODEL = "llama3.2"
 DEFAULT_CAPTURE_INTERVAL = 30
 
+# LLM backend settings
+DEFAULT_AI_BACKEND = "ollama"
+
 DEFAULT_PROMPT_TEMPLATE = """以下のアクティビティログに基づいて、日報を作成してください。
 
 ## 今日のアクティビティ
@@ -163,3 +166,15 @@ def get_capture_interval() -> int:
     if interval_str is None:
         return DEFAULT_CAPTURE_INTERVAL
     return int(interval_str)
+
+
+def get_ai_backend() -> str:
+    """Get the AI backend to use.
+
+    Reads from AI_BACKEND environment variable.
+    Falls back to default ("ollama") if not set.
+
+    Returns:
+        AI backend name ("ollama", "lm_studio", etc.).
+    """
+    return os.environ.get("AI_BACKEND", DEFAULT_AI_BACKEND)

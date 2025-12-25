@@ -425,3 +425,30 @@ def test_env_defaults() -> None:
         assert get_ollama_base_url() == "http://localhost:11434"
         assert get_ollama_model() == "llama3.2"
         assert get_capture_interval() == 30
+
+
+# ============================================================
+# PBI-021: LLM クライアント抽象化
+# ============================================================
+
+
+def test_ai_backend_from_env() -> None:
+    """Test that AI_BACKEND environment variable sets the LLM backend.
+
+    The config should:
+    1. Read AI_BACKEND from environment
+    2. Return the custom backend name when set
+    3. Return "ollama" as default when not set
+    """
+    from auto_daily.config import get_ai_backend
+
+    # Test custom backend
+    with patch.dict(os.environ, {"AI_BACKEND": "lm_studio"}):
+        result = get_ai_backend()
+        assert result == "lm_studio"
+
+    # Test default backend
+    env_without_var = {k: v for k, v in os.environ.items() if k != "AI_BACKEND"}
+    with patch.dict(os.environ, env_without_var, clear=True):
+        result = get_ai_backend()
+        assert result == "ollama"

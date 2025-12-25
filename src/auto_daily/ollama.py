@@ -1,48 +1,20 @@
-"""Ollama API integration for daily report generation."""
+"""Ollama API integration for daily report generation.
+
+This module provides utility functions for generating daily reports.
+The OllamaClient class is now located in auto_daily.llm.ollama but is
+re-exported here for backward compatibility.
+"""
 
 import json
 from datetime import date
 from pathlib import Path
 
-import httpx
+from auto_daily.config import get_prompt_template
 
-from auto_daily.config import get_ollama_base_url, get_prompt_template
+# Re-export OllamaClient for backward compatibility
+from auto_daily.llm.ollama import OllamaClient
 
-
-class OllamaClient:
-    """Client for interacting with the Ollama API."""
-
-    def __init__(self, base_url: str | None = None) -> None:
-        """Initialize the Ollama client.
-
-        Args:
-            base_url: Base URL of the Ollama server.
-                     Uses OLLAMA_BASE_URL env var or default if not specified.
-        """
-        self.base_url = base_url if base_url is not None else get_ollama_base_url()
-
-    async def generate(self, model: str, prompt: str) -> str:
-        """Generate text using the Ollama API.
-
-        Args:
-            model: Name of the model to use.
-            prompt: The prompt to send to the model.
-
-        Returns:
-            Generated text response.
-        """
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{self.base_url}/api/generate",
-                json={
-                    "model": model,
-                    "prompt": prompt,
-                    "stream": False,
-                },
-                timeout=120.0,
-            )
-            response.raise_for_status()
-            return response.json()["response"]
+__all__ = ["OllamaClient", "generate_daily_report_prompt", "save_daily_report"]
 
 
 def generate_daily_report_prompt(log_file: Path) -> str:
