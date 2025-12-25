@@ -23,6 +23,7 @@
             pkgs.python312
             pkgs.uv
             pkgs.ruff
+            pkgs.lefthook
           ];
 
           shellHook = ''
@@ -33,6 +34,12 @@
             fi
 
             source .venv/bin/activate
+
+            # Install lefthook if not installed
+            if [ ! -f .git/hooks/pre-commit ] || ! grep -q "lefthook" .git/hooks/pre-commit 2>/dev/null; then
+              echo "Installing lefthook..."
+              lefthook install
+            fi
 
             echo ""
             echo "🚀 auto-daily development environment"
