@@ -123,11 +123,11 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 14
-  pbi: PBI-014
+  number: 15
+  pbi: PBI-015
   status: done
-  subtasks_completed: 4
-  subtasks_total: 4
+  subtasks_completed: 5
+  subtasks_total: 5
   impediments: 0
 ```
 
@@ -431,6 +431,51 @@ product_backlog:
         - ログファイルが存在しない場合はエラーメッセージを表示
     story_points: 5
     status: done
+
+  - id: PBI-015
+    story:
+      role: "Mac ユーザー"
+      capability: ".env ファイルで Ollama の接続先やモデル名などの設定を管理できる"
+      benefit: "設定を一元管理でき、環境ごとに異なる設定を簡単に切り替えられる"
+    acceptance_criteria:
+      - criterion: ".env ファイルから環境変数を読み込める"
+        verification: "pytest tests/test_config.py::test_load_dotenv -v"
+      - criterion: "OLLAMA_BASE_URL 環境変数で Ollama の接続先を設定できる"
+        verification: "pytest tests/test_config.py::test_ollama_base_url_from_env -v"
+      - criterion: "OLLAMA_MODEL 環境変数で使用するモデルを設定できる"
+        verification: "pytest tests/test_config.py::test_ollama_model_from_env -v"
+      - criterion: "AUTO_DAILY_CAPTURE_INTERVAL 環境変数でキャプチャ間隔を設定できる"
+        verification: "pytest tests/test_config.py::test_capture_interval_from_env -v"
+      - criterion: "各環境変数が未設定の場合はデフォルト値を使用する"
+        verification: "pytest tests/test_config.py::test_env_defaults -v"
+    technical_notes: |
+      ## 新規依存関係
+      - python-dotenv を pyproject.toml の dependencies に追加
+
+      ## 新規設定項目とデフォルト値
+      - OLLAMA_BASE_URL: "http://localhost:11434"
+      - OLLAMA_MODEL: "llama3.2"
+      - AUTO_DAILY_CAPTURE_INTERVAL: 30 (秒)
+
+      ## 実装方針
+      - config.py の先頭で load_dotenv() を呼び出し
+      - .env ファイルのパス: プロジェクトルート or ~/.auto-daily/.env
+      - 新規関数:
+        - get_ollama_base_url() -> str
+        - get_ollama_model() -> str
+        - get_capture_interval() -> int
+
+      ## 既存コードの修正
+      - OllamaClient: base_url のデフォルトを get_ollama_base_url() から取得
+      - PeriodicCapture: interval を get_capture_interval() から取得
+
+      ## .env.example ファイル
+      - リポジトリに .env.example を追加してサンプル設定を提供
+      - .gitignore に .env を追加（まだなければ）
+    story_points: 5
+    dependencies:
+      - PBI-006
+    status: done
 ```
 
 ### Definition of Ready
@@ -454,89 +499,72 @@ definition_of_ready:
 ## 2. Current Sprint
 
 ```yaml
-sprint_14:
-  number: 14
-  pbi_id: PBI-014
-  story: "コマンドラインから日報生成を実行できる"
+sprint_15:
+  number: 15
+  pbi_id: PBI-015
+  story: ".env ファイルで Ollama の接続先やモデル名などの設定を管理できる"
   status: done
 
   sprint_goal:
-    statement: "任意のタイミングでコマンドラインから日報を生成できるようにする"
+    statement: ".env ファイルで設定を一元管理し、環境ごとの設定切り替えを簡単にする"
     success_criteria:
-      - "python -m auto_daily report で今日のログから日報を生成できる"
-      - "--date オプションで過去の日付のログから日報を生成できる"
-      - "生成された日報が ~/.auto-daily/reports/ に保存される"
-      - "日報生成後にファイルパスが標準出力に表示される"
-    stakeholder_value: "ユーザーが任意のタイミングで日報を生成でき、作業フローに柔軟に対応"
+      - ".env ファイルから環境変数を読み込める"
+      - "OLLAMA_BASE_URL 環境変数で Ollama の接続先を設定できる"
+      - "OLLAMA_MODEL 環境変数で使用するモデルを設定できる"
+      - "AUTO_DAILY_CAPTURE_INTERVAL 環境変数でキャプチャ間隔を設定できる"
+      - "各環境変数が未設定の場合はデフォルト値を使用する"
+    stakeholder_value: "設定を一元管理でき、環境ごとに異なる設定を簡単に切り替えられる"
 
   subtasks:
     - id: ST-001
-      test: "test_report_command: python -m auto_daily report で今日のログから日報を生成できる"
+      test: "test_load_dotenv: .env ファイルから環境変数を読み込める"
       implementation: |
-        __init__.py の argparse に report サブコマンドを追加
-        - report_command() 関数を実装
-        - get_log_dir() から今日のログファイルを取得
-        - OllamaClient.generate() で日報を生成
-        - save_daily_report() で保存
+        config.py の先頭で load_dotenv() を呼び出し
+        - python-dotenv を pyproject.toml に追加
+        - .env ファイルのパス: ~/.auto-daily/.env
       type: behavioral
       status: completed
-      commits:
-        - hash: 0209694
-          phase: red
-          message: "test: add failing tests for report command (PBI-014)"
-        - hash: 5d1eacd
-          phase: green
-          message: "feat: implement report command for CLI (PBI-014)"
+      commits: []
 
     - id: ST-002
-      test: "test_report_with_date_option: --date オプションで過去の日付のログから日報を生成できる"
+      test: "test_ollama_base_url_from_env: OLLAMA_BASE_URL 環境変数で Ollama の接続先を設定できる"
       implementation: |
-        report サブコマンドに --date オプションを追加
-        - フォーマット: YYYY-MM-DD
-        - 指定された日付のログファイルを読み込む
+        get_ollama_base_url() 関数を追加
+        - デフォルト: "http://localhost:11434"
       type: behavioral
       status: completed
-      commits:
-        - hash: 0209694
-          phase: red
-          message: "test: add failing tests for report command (PBI-014)"
-        - hash: 5d1eacd
-          phase: green
-          message: "feat: implement report command for CLI (PBI-014)"
+      commits: []
 
     - id: ST-003
-      test: "test_report_saves_to_reports_dir: 生成された日報が ~/.auto-daily/reports/ に保存される"
+      test: "test_ollama_model_from_env: OLLAMA_MODEL 環境変数で使用するモデルを設定できる"
       implementation: |
-        save_daily_report() を使用して ~/.auto-daily/reports/ に保存
-        - ファイル名: daily_report_YYYY-MM-DD.md
+        get_ollama_model() 関数を追加
+        - デフォルト: "llama3.2"
       type: behavioral
       status: completed
-      commits:
-        - hash: 0209694
-          phase: red
-          message: "test: add failing tests for report command (PBI-014)"
-        - hash: 5d1eacd
-          phase: green
-          message: "feat: implement report command for CLI (PBI-014)"
+      commits: []
 
     - id: ST-004
-      test: "test_report_outputs_path: 日報生成後にファイルパスが標準出力に表示される"
+      test: "test_capture_interval_from_env: AUTO_DAILY_CAPTURE_INTERVAL 環境変数でキャプチャ間隔を設定できる"
       implementation: |
-        report_command() で日報生成後にファイルパスを print()
+        get_capture_interval() 関数を追加
+        - デフォルト: 30 (秒)
       type: behavioral
       status: completed
-      commits:
-        - hash: 0209694
-          phase: red
-          message: "test: add failing tests for report command (PBI-014)"
-        - hash: 5d1eacd
-          phase: green
-          message: "feat: implement report command for CLI (PBI-014)"
+      commits: []
+
+    - id: ST-005
+      test: "test_env_defaults: 各環境変数が未設定の場合はデフォルト値を使用する"
+      implementation: |
+        すべての get_* 関数が環境変数未設定時にデフォルト値を返すことを検証
+      type: behavioral
+      status: completed
+      commits: []
 
   notes: |
-    既存の OllamaClient, generate_daily_report_prompt(), save_daily_report() を活用。
-    argparse のサブコマンド構造を導入して CLI を拡張。
-    4つのサブタスクを効率的に1つの Red-Green サイクルでカバー。
+    既存の config.py パターンを踏襲。
+    python-dotenv を追加して .env ファイルから環境変数を読み込む。
+    OllamaClient と PeriodicCapture は新設定を使用するように修正。
 ```
 
 ### Impediment Registry
