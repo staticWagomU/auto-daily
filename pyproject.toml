@@ -11,6 +11,7 @@ dependencies = [
     "pyobjc-framework-Vision",
     "pyobjc-framework-CoreML",
     "httpx",
+    "pyyaml",
 ]
 
 [dependency-groups]

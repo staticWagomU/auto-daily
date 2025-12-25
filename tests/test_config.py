@@ -129,3 +129,63 @@ def test_prompt_template_default(tmp_path: Path) -> None:
         assert result == DEFAULT_PROMPT_TEMPLATE
         assert "{activities}" in result
         assert "日報" in result
+
+
+def test_slack_username_config(tmp_path: Path) -> None:
+    """Test that Slack username can be loaded from slack_config.yaml.
+
+    The config should:
+    1. Read slack_config.yaml from ~/.auto-daily/ directory
+    2. Parse YAML structure with workspaces and usernames
+    3. Return the username for a given workspace
+    4. Return None if workspace is not found or file doesn't exist
+    """
+    from auto_daily.config import get_slack_username
+
+    # Arrange: Create a slack_config.yaml file
+    config_dir = tmp_path / ".auto-daily"
+    config_dir.mkdir()
+    slack_config_file = config_dir / "slack_config.yaml"
+    slack_config_content = """workspaces:
+  "My Company":
+    username: "taro.yamada"
+  "Side Project":
+    username: "taro_dev"
+"""
+    slack_config_file.write_text(slack_config_content)
+
+    # Mock Path.home() to return tmp_path
+    with patch("auto_daily.config.Path.home", return_value=tmp_path):
+        # Act & Assert: Get username for existing workspace
+        result = get_slack_username("My Company")
+        assert result == "taro.yamada"
+
+        # Act & Assert: Get username for another workspace
+        result = get_slack_username("Side Project")
+        assert result == "taro_dev"
+
+        # Act & Assert: Get username for non-existent workspace
+        result = get_slack_username("Unknown Workspace")
+        assert result is None
+
+
+def test_slack_username_config_file_not_found(tmp_path: Path) -> None:
+    """Test that None is returned when slack_config.yaml doesn't exist.
+
+    When the config file is missing:
+    1. Should not raise an error
+    2. Should return None for any workspace
+    """
+    from auto_daily.config import get_slack_username
+
+    # Arrange: Create config directory without slack_config.yaml
+    config_dir = tmp_path / ".auto-daily"
+    config_dir.mkdir()
+
+    # Mock Path.home() to return tmp_path
+    with patch("auto_daily.config.Path.home", return_value=tmp_path):
+        # Act: Get username when file doesn't exist
+        result = get_slack_username("Any Workspace")
+
+        # Assert: Should return None
+        assert result is None
