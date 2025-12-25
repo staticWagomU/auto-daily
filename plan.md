@@ -1226,6 +1226,65 @@ product_backlog:
     dependencies:
       - PBI-026
     status: draft
+
+  - id: PBI-030
+    story:
+      role: "Mac ユーザー"
+      capability: "日報の保存先ディレクトリを環境変数やプロジェクト設定で変更できる"
+      benefit: "日報をプロジェクトごとに管理したり、任意の場所に保存できる"
+    acceptance_criteria:
+      - criterion: "AUTO_DAILY_REPORTS_DIR 環境変数で日報の保存先を指定できる"
+        verification: "pytest tests/test_config.py::test_reports_dir_from_env -v"
+      - criterion: "環境変数が未設定の場合はデフォルトディレクトリ (~/.auto-daily/reports/) を使用する"
+        verification: "pytest tests/test_config.py::test_reports_dir_default -v"
+      - criterion: "指定されたディレクトリが存在しない場合は自動作成する"
+        verification: "pytest tests/test_config.py::test_reports_dir_auto_create -v"
+      - criterion: "プロジェクトルートに reports/ ディレクトリがある場合はそちらを優先する"
+        verification: "pytest tests/test_config.py::test_reports_dir_from_project_root -v"
+    technical_notes: |
+      ## 変更内容
+      PBI-006（ログ出力先設定）と同様のパターンで、日報の保存先をカスタマイズ可能にする。
+
+      ## 優先順位
+      1. プロジェクトルートの `reports/` ディレクトリ（存在する場合）
+      2. `AUTO_DAILY_REPORTS_DIR` 環境変数
+      3. デフォルト: `~/.auto-daily/reports/`
+
+      ## 修正箇所
+      config.py の get_reports_dir() を修正:
+      ```python
+      def get_reports_dir() -> Path:
+          # 1. プロジェクトルートの reports/ をチェック
+          project_reports = Path.cwd() / "reports"
+          if project_reports.exists() and project_reports.is_dir():
+              return project_reports
+
+          # 2. 環境変数をチェック
+          env_value = os.environ.get("AUTO_DAILY_REPORTS_DIR")
+          if env_value:
+              reports_dir = Path(env_value)
+              reports_dir.mkdir(parents=True, exist_ok=True)
+              return reports_dir
+
+          # 3. デフォルト
+          reports_dir = DEFAULT_REPORTS_DIR
+          reports_dir.mkdir(parents=True, exist_ok=True)
+          return reports_dir
+      ```
+
+      ## ユースケース
+      - プロジェクトごとに日報を管理: リポジトリ内の `reports/` に保存
+      - 共有フォルダに保存: Dropbox や Google Drive のパスを指定
+      - 複数プロジェクトで共通: ~/.auto-daily/reports/ を使用
+
+      ## .env ファイル例
+      ```
+      AUTO_DAILY_REPORTS_DIR=/Users/username/Documents/DailyReports
+      ```
+    story_points: 2
+    dependencies:
+      - PBI-006
+    status: ready
 ```
 
 ### Definition of Ready
