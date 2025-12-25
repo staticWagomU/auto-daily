@@ -264,6 +264,22 @@ product_backlog:
     dependencies:
       - PBI-006
     status: ready
+
+  - id: PBI-008
+    story:
+      role: "開発者・利用者"
+      capability: "README.md を読んでアプリケーションの概要、インストール方法、使い方を理解できる"
+      benefit: "新規ユーザーがスムーズに導入・利用を開始できる"
+    acceptance_criteria:
+      - criterion: "README.md にプロジェクトの概要と機能一覧が記載されている"
+        verification: "README.md ファイルの存在と内容を確認"
+      - criterion: "インストール手順（pip install、Ollama セットアップ、macOS 権限設定）が記載されている"
+        verification: "README.md のインストールセクションを確認"
+      - criterion: "使用方法（コマンド例、環境変数設定）が記載されている"
+        verification: "README.md の使用方法セクションを確認"
+    dependencies:
+      - PBI-005
+    status: ready
 ```
 
 ### Definition of Ready
