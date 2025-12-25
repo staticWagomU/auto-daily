@@ -123,11 +123,11 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 18
-  pbi: PBI-019
+  number: 19
+  pbi: PBI-020
   status: done
-  subtasks_completed: 3
-  subtasks_total: 3
+  subtasks_completed: 6
+  subtasks_total: 6
   impediments: 0
 ```
 
@@ -697,7 +697,7 @@ product_backlog:
     story_points: 3
     dependencies:
       - PBI-009
-    status: ready
+    status: done
 
   - id: PBI-021
     story:
@@ -1129,50 +1129,105 @@ definition_of_ready:
 ## 2. Current Sprint
 
 ```yaml
-sprint_18:
-  number: 18
-  pbi_id: PBI-019
-  story: "プロジェクトルートの slack_config.yaml から Slack 設定を読み込める"
+sprint_19:
+  number: 19
+  pbi_id: PBI-020
+  story: "スクリプトを実行して必要な macOS 権限（画面収録・アクセシビリティ）の設定画面を開ける"
   status: done
 
   sprint_goal:
-    statement: "プロジェクトルートの slack_config.yaml を優先的に読み込み、ホームディレクトリにフォールバックする機能を実装する"
+    statement: "macOS 権限設定スクリプトを実装し、ユーザーが必要な権限（画面収録・アクセシビリティ）の設定画面を簡単に開けるようにする"
     success_criteria:
-      - "プロジェクトルートの slack_config.yaml から Slack ユーザー名を読み込める"
-      - "プロジェクトルートにファイルがない場合は ~/.auto-daily/slack_config.yaml にフォールバック"
-      - "どちらにもファイルがない場合は None を返す"
-    stakeholder_value: "プロジェクトごとに異なる Slack 設定を Git 管理でき、チームで設定を共有できる"
+      - "scripts/setup-permissions.sh を実行すると画面収録とアクセシビリティの設定画面が開く"
+      - "--check オプションで現在の権限状態を確認できる"
+      - "権限が不足している場合に警告メッセージを表示する"
+    stakeholder_value: "手動で設定画面を探す手間なく、アプリに必要な権限を簡単に設定できる"
 
   subtasks:
     - id: ST-001
-      test: "test_slack_config_from_project_root: プロジェクトルートの slack_config.yaml から読み込む"
+      test: "test_check_screen_recording_permission: check_screen_recording_permission() が画面収録権限の有無を正しく返す"
       implementation: |
-        config.py の get_slack_username() を修正:
-        - Path.cwd() / "slack_config.yaml" を最優先でチェック
-        - 存在しない場合は ~/.auto-daily/slack_config.yaml にフォールバック
+        新規ファイル src/auto_daily/permissions.py を作成:
+        - Quartz.CGPreflightScreenCaptureAccess() を使用して権限状態を確認
+        - bool を返す関数として実装
       type: behavioral
       status: completed
       commits: []
 
     - id: ST-002
-      test: "test_slack_config_fallback_to_home: プロジェクトルートにない場合はホームディレクトリにフォールバック"
+      test: "test_check_accessibility_permission: check_accessibility_permission() がアクセシビリティ権限の有無を正しく返す"
       implementation: |
-        ST-001 の実装で自動的にカバーされる
+        permissions.py に check_accessibility_permission() を追加:
+        - ctypes で ApplicationServices フレームワークの AXIsProcessTrusted() を呼び出し
+        - bool を返す関数として実装
       type: behavioral
       status: completed
       commits: []
 
     - id: ST-003
-      test: "test_slack_username_config_file_not_found: どちらにもファイルがない場合は None を返す"
+      test: "test_check_all_permissions: check_all_permissions() が全権限の状態を辞書で返す"
       implementation: |
-        既存テストを更新して Path.cwd() もモックする
+        permissions.py に check_all_permissions() を追加:
+        - {"screen_recording": bool, "accessibility": bool} 形式で返す
+        - ST-001, ST-002 の関数を内部で呼び出す
+      type: behavioral
+      status: completed
+      commits: []
+
+    - id: ST-004
+      test: "test_open_permissions_settings: open_permissions_settings() が設定画面を開くコマンドを実行する"
+      implementation: |
+        permissions.py に open_permissions_settings() を追加:
+        - subprocess.run(["open", "x-apple.systempreferences:..."]) を実行
+        - 画面収録とアクセシビリティの両方の設定画面を開く
+      type: behavioral
+      status: completed
+      commits: []
+
+    - id: ST-005
+      test: "scripts/setup-permissions.sh --help がヘルプを表示する（手動検証）"
+      implementation: |
+        scripts/setup-permissions.sh を作成:
+        - デフォルト: 設定画面を開く
+        - --check: Python で権限チェックを実行
+        - --help: ヘルプを表示
+        - 実行権限を付与
+      type: behavioral
+      status: completed
+      commits: []
+
+    - id: ST-006
+      test: "start.sh で権限不足時に警告メッセージを表示（手動検証）"
+      implementation: |
+        scripts/start.sh を修正:
+        - 起動時に Python の check_all_permissions() を呼び出し
+        - 権限不足時に警告メッセージを表示
+        - setup-permissions.sh の実行を促すメッセージを追加
       type: behavioral
       status: completed
       commits: []
 
   notes: |
-    PBI-013 の拡張。
-    .env や prompt.txt と同様にプロジェクトルートからの読み込みを優先する。
+    ## 新規ファイル
+    - src/auto_daily/permissions.py: 権限チェック機能
+    - scripts/setup-permissions.sh: 権限設定スクリプト
+    - tests/test_permissions.py: 権限チェックのテスト
+
+    ## 必要な権限
+    1. **画面収録 (Screen Recording)**
+       - screencapture コマンドに必要
+       - 設定画面: x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture
+       - 確認方法: Quartz.CGPreflightScreenCaptureAccess()
+
+    2. **アクセシビリティ (Accessibility)**
+       - System Events 経由のウィンドウ情報取得に必要
+       - 設定画面: x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility
+       - 確認方法: ApplicationServices.AXIsProcessTrusted()
+
+    ## 技術的な注意点
+    - pyobjc-framework-Quartz は既に依存関係に含まれている
+    - ApplicationServices も pyobjc 経由でアクセス可能
+    - macOS 以外の環境ではテストをスキップする
 ```
 
 ### Impediment Registry
@@ -1363,6 +1418,14 @@ completed:
     pbi_id: PBI-019
     story: "プロジェクトルートの slack_config.yaml から Slack 設定を読み込める"
     subtasks_completed: 3
+    commits:
+      - e25bc39  # feat: load slack_config.yaml from project root instead of home (PBI-019)
+      - 969585d  # docs: complete Sprint 18 - PBI-019 slack config project root support
+
+  - sprint: 19
+    pbi_id: PBI-020
+    story: "スクリプトを実行して必要な macOS 権限（画面収録・アクセシビリティ）の設定画面を開ける"
+    subtasks_completed: 6
     commits: []
 ```
 
@@ -1565,6 +1628,18 @@ retrospectives:
       - "特になし - 既存パターンを活用してシンプルに完了"
     action_items:
       - "slack_config.yaml.example はすでにリポジトリに存在することを確認"
+
+  - sprint: 19
+    what_went_well:
+      - "ctypes を使って ApplicationServices の AXIsProcessTrusted にアクセスする方法を発見"
+      - "pyobjc の制限（一部 API が直接インポートできない）に対応"
+      - "6つのサブタスクをすべて完了し、権限チェック機能を実装"
+      - "シェルスクリプトと Python モジュールの連携が適切に動作"
+      - "TDD サイクル（Red-Green）がスムーズに回った"
+    what_to_improve:
+      - "pyobjc の API 可用性を事前に確認すべきだった（ApplicationServices は直接インポート不可）"
+    action_items:
+      - "macOS ネイティブ API 使用時は ctypes フォールバックを検討する"
 ```
 
 ---
