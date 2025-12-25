@@ -10,7 +10,7 @@ from pathlib import Path
 
 __version__ = "0.1.0"
 
-from auto_daily.config import get_log_dir, get_ollama_model, get_reports_dir
+from auto_daily.config import get_log_dir, get_ollama_model, get_reports_dir, load_env
 from auto_daily.logger import get_log_filename
 from auto_daily.ollama import (
     OllamaClient,
@@ -74,6 +74,9 @@ async def report_command(date_str: str | None = None) -> None:
 
 def main() -> None:
     """Main entry point for auto-daily."""
+    # Load environment variables from .env file
+    load_env()
+
     parser = argparse.ArgumentParser(
         prog="auto-daily",
         description="macOS window context capture and daily report generator",
