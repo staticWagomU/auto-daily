@@ -126,7 +126,7 @@ sprint:
   number: 5
   pbi: PBI-005
   status: in_progress
-  subtasks_completed: 0
+  subtasks_completed: 1
   subtasks_total: 3
   impediments: 0
 ```
@@ -309,9 +309,11 @@ sprint_5:
       test: "test_module_execution: python -m auto_daily でアプリケーションを起動できる"
       implementation: "__main__.py を作成し、main() を呼び出す"
       type: behavioral
-      status: red
+      status: completed
       commits:
         - phase: red
+          hash: d4d28a3
+        - phase: green
           hash: pending
 
     - id: ST-002
