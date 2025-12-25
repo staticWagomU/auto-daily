@@ -123,11 +123,11 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 10
-  pbi: PBI-010
-  status: done
-  subtasks_completed: 4
-  subtasks_total: 4
+  number: 11
+  pbi: PBI-011
+  status: in_progress
+  subtasks_completed: 0
+  subtasks_total: 3
   impediments: 0
 ```
 
@@ -316,6 +316,22 @@ product_backlog:
       - PBI-002
       - PBI-003
     status: done
+
+  - id: PBI-011
+    story:
+      role: "Mac ユーザー"
+      capability: "ウィンドウ切り替えとは別に、30秒ごとに定期的に画面キャプチャとOCRが実行される"
+      benefit: "長時間同じウィンドウで作業していても、作業内容が定期的に記録される"
+    acceptance_criteria:
+      - criterion: "30秒間隔で定期的にキャプチャ・OCR・ログ保存が実行される"
+        verification: "pytest tests/test_scheduler.py::test_periodic_capture -v"
+      - criterion: "ウィンドウ切り替えトリガーと定期トリガーが共存する"
+        verification: "pytest tests/test_scheduler.py::test_coexistence_with_window_trigger -v"
+      - criterion: "アプリケーション停止時に定期実行も停止する"
+        verification: "pytest tests/test_scheduler.py::test_stop_periodic_capture -v"
+    dependencies:
+      - PBI-010
+    status: ready
 ```
 
 ### Definition of Ready
@@ -339,58 +355,37 @@ definition_of_ready:
 ## 2. Current Sprint
 
 ```yaml
-sprint_10:
-  number: 10
-  pbi_id: PBI-010
-  story: "ウィンドウ切り替え時に自動的に画面キャプチャ、OCR、ログ保存が実行される"
-  status: done
+sprint_11:
+  number: 11
+  pbi_id: PBI-011
+  story: "ウィンドウ切り替えとは別に、30秒ごとに定期的に画面キャプチャとOCRが実行される"
+  status: in_progress
 
   subtasks:
     - id: ST-001
-      test: "test_capture_on_window_change: ウィンドウ切り替え時に画面キャプチャが実行される"
-      implementation: "processor.py の process_window_change() で capture_screen() を呼び出す"
+      test: "test_periodic_capture: 30秒間隔で定期的にキャプチャが実行される"
+      implementation: "PeriodicCapture クラスを作成し、スケジューラを実装"
       type: behavioral
-      status: completed
-      commits:
-        - phase: red
-          hash: 4d4a1be
-        - phase: green
-          hash: 4cdf8bb
+      status: pending
+      commits: []
 
     - id: ST-002
-      test: "test_ocr_on_capture: キャプチャ画像に対して OCR が実行される"
-      implementation: "キャプチャ後に perform_ocr() を呼び出す"
+      test: "test_coexistence_with_window_trigger: ウィンドウ切り替えと定期トリガーが共存する"
+      implementation: "メインループで両方のトリガーを起動"
       type: behavioral
-      status: completed
-      commits:
-        - phase: green
-          hash: 4cdf8bb
-          note: "ST-001 の実装でカバー済み"
+      status: pending
+      commits: []
 
     - id: ST-003
-      test: "test_log_on_window_change: ウィンドウ情報と OCR 結果がログに保存される"
-      implementation: "OCR 結果を append_log() で保存する"
+      test: "test_stop_periodic_capture: アプリ停止時に定期実行も停止する"
+      implementation: "stop() メソッドでスケジューラを停止"
       type: behavioral
-      status: completed
-      commits:
-        - phase: green
-          hash: 4cdf8bb
-          note: "ST-001 の実装でカバー済み"
-
-    - id: ST-004
-      test: "test_cleanup_after_processing: 処理完了後に画像が削除される"
-      implementation: "ログ保存後に cleanup_image() を呼び出す"
-      type: behavioral
-      status: completed
-      commits:
-        - phase: green
-          hash: 4cdf8bb
-          note: "ST-001 の実装でカバー済み"
+      status: pending
+      commits: []
 
   notes: |
-    processor.py を新規作成し、パイプライン処理を実装。
-    __init__.py を更新してメインループに統合。
-    TDD で統合テストを書き、すべてのテストがパス。
+    ウィンドウ切り替えトリガーに加えて、30秒間隔の定期実行を追加。
+    長時間同じウィンドウで作業していても記録が取れるようになる。
 ```
 
 ### Impediment Registry
