@@ -452,3 +452,52 @@ def test_ai_backend_from_env() -> None:
     with patch.dict(os.environ, env_without_var, clear=True):
         result = get_ai_backend()
         assert result == "ollama"
+
+
+# ============================================================
+# PBI-028: OpenAI API 対応
+# ============================================================
+
+
+def test_openai_api_key_from_env() -> None:
+    """Test that OPENAI_API_KEY environment variable sets the API key.
+
+    The config should:
+    1. Read OPENAI_API_KEY from environment
+    2. Return the API key when set
+    3. Return None when not set
+    """
+    from auto_daily.config import get_openai_api_key
+
+    # Test with API key set
+    with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test-key-12345"}):
+        result = get_openai_api_key()
+        assert result == "sk-test-key-12345"
+
+    # Test without API key (should return None)
+    env_without_var = {k: v for k, v in os.environ.items() if k != "OPENAI_API_KEY"}
+    with patch.dict(os.environ, env_without_var, clear=True):
+        result = get_openai_api_key()
+        assert result is None
+
+
+def test_openai_model_from_env() -> None:
+    """Test that OPENAI_MODEL environment variable sets the model name.
+
+    The config should:
+    1. Read OPENAI_MODEL from environment
+    2. Return the custom model name when set
+    3. Return "gpt-4o-mini" as default when not set
+    """
+    from auto_daily.config import get_openai_model
+
+    # Test with custom model
+    with patch.dict(os.environ, {"OPENAI_MODEL": "gpt-4o"}):
+        result = get_openai_model()
+        assert result == "gpt-4o"
+
+    # Test default model
+    env_without_var = {k: v for k, v in os.environ.items() if k != "OPENAI_MODEL"}
+    with patch.dict(os.environ, env_without_var, clear=True):
+        result = get_openai_model()
+        assert result == "gpt-4o-mini"

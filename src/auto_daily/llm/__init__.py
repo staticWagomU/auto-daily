@@ -5,9 +5,10 @@ This module provides a unified interface for interacting with different LLM back
 
 from auto_daily.config import get_ai_backend
 from auto_daily.llm.ollama import OllamaClient
+from auto_daily.llm.openai import OpenAIClient
 from auto_daily.llm.protocol import LLMClient
 
-__all__ = ["LLMClient", "OllamaClient", "get_llm_client"]
+__all__ = ["LLMClient", "OllamaClient", "OpenAIClient", "get_llm_client"]
 
 
 def get_llm_client() -> LLMClient:
@@ -25,5 +26,8 @@ def get_llm_client() -> LLMClient:
 
     if backend == "ollama":
         return OllamaClient()
+
+    if backend == "openai":
+        return OpenAIClient()
 
     raise ValueError(f"Unknown AI backend: {backend}")

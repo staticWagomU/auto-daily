@@ -102,3 +102,18 @@ def test_get_llm_client_factory() -> None:
     with patch.dict(os.environ, {"AI_BACKEND": "unknown_backend"}):
         with pytest.raises(ValueError, match="Unknown AI backend"):
             get_llm_client()
+
+
+def test_openai_backend() -> None:
+    """Test that AI_BACKEND=openai returns OpenAIClient.
+
+    The factory should:
+    1. Return OpenAIClient when AI_BACKEND is "openai"
+    2. Pass through the API key to the client
+    """
+    from auto_daily.llm import get_llm_client
+    from auto_daily.llm.openai import OpenAIClient
+
+    with patch.dict(os.environ, {"AI_BACKEND": "openai", "OPENAI_API_KEY": "test-key"}):
+        client = get_llm_client()
+        assert isinstance(client, OpenAIClient)
