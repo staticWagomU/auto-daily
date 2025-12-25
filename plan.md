@@ -123,8 +123,8 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 1
-  pbi: PBI-001
+  number: 2
+  pbi: PBI-002
   status: done
   subtasks_completed: 3
   subtasks_total: 3
@@ -183,7 +183,7 @@ product_backlog:
         verification: "pytest tests/test_ocr.py::test_ocr_returns_text -v"
     dependencies:
       - PBI-001
-    status: draft
+    status: done
 
   - id: PBI-003
     story:
@@ -240,47 +240,47 @@ definition_of_ready:
 
 ```yaml
 sprint:
-  number: 1
-  pbi_id: PBI-001
-  story: "Mac ユーザーとして、ウィンドウを切り替えたタイミングでアクティブウィンドウの名前を自動取得できる"
+  number: 2
+  pbi_id: PBI-002
+  story: "Mac ユーザーとして、ウィンドウ切り替え時に画面全体をキャプチャし、OCR でテキストを抽出できる"
   status: done
 
   subtasks:
     - id: ST-001
-      test: "test_get_active_window: AppleScript でアクティブウィンドウのアプリ名とウィンドウタイトルを取得できる"
-      implementation: "get_active_window() 関数を実装"
+      test: "test_screen_capture: macOS の screencapture コマンドで画面全体をキャプチャできる"
+      implementation: "capture_screen() 関数を実装"
       type: behavioral
       status: completed
       commits:
         - phase: red
-          hash: accfa9e
+          hash: d2f5ea6
         - phase: green
-          hash: 6eda581
+          hash: eea2e47
 
     - id: ST-002
-      test: "test_window_change_detection: ウィンドウ切り替えを検知してイベントを発火できる"
-      implementation: "ウィンドウ変更検知のコールバック機能を実装"
+      test: "test_japanese_ocr: Vision Framework を使って画像から日本語テキストを抽出できる"
+      implementation: "perform_ocr() 関数を実装"
       type: behavioral
       status: completed
       commits:
         - phase: red
-          hash: ce4ab41
+          hash: 2239d8d
         - phase: green
-          hash: 2701c0c
+          hash: f4b866d
 
     - id: ST-003
-      test: "test_background_monitoring: バックグラウンドで常駐し、ウィンドウ変更を監視し続ける"
-      implementation: "バックグラウンド監視ループを実装"
+      test: "test_ocr_returns_text: OCR 結果が空でない限り、有効なテキストを返す"
+      implementation: "OCR 結果のバリデーション処理を実装"
       type: behavioral
       status: completed
       commits:
         - phase: red
-          hash: cdaeae6
+          hash: c12c6fd
         - phase: green
-          hash: 3441b04
+          hash: 73db59a
 
   notes: |
-    Sprint 1 開始。PBI-001 のウィンドウ監視機能を TDD で実装する。
+    Sprint 2 開始。PBI-002 の画面キャプチャと OCR 機能を TDD で実装する。
 ```
 
 ### Impediment Registry
@@ -324,6 +324,18 @@ completed:
       - 2701c0c  # feat: implement WindowMonitor class
       - cdaeae6  # test: add failing test for background monitoring
       - 3441b04  # feat: implement background monitoring
+
+  - sprint: 2
+    pbi_id: PBI-002
+    story: "ウィンドウ切り替え時に画面全体をキャプチャし、OCR でテキストを抽出できる"
+    subtasks_completed: 3
+    commits:
+      - d2f5ea6  # test: add failing test for screen capture
+      - eea2e47  # feat: implement capture_screen function
+      - 2239d8d  # test: add failing test for Japanese OCR
+      - f4b866d  # feat: implement perform_ocr using Vision Framework
+      - c12c6fd  # test: add failing test for OCR validation
+      - 73db59a  # feat: implement validate_ocr_result function
 ```
 
 ---
@@ -331,7 +343,26 @@ completed:
 ## 5. Retrospective Log
 
 ```yaml
-retrospectives: []
+retrospectives:
+  - sprint: 1
+    what_went_well:
+      - "TDD サイクル（Red-Green）が順調に回った"
+      - "AppleScript による macOS API 連携が問題なく動作した"
+      - "3つのサブタスクすべてを完了できた"
+    what_to_improve:
+      - "Refactor フェーズをスキップしたが、コードは十分シンプルだった"
+    action_items:
+      - "次スプリントでは必要に応じて Refactor フェーズを活用する"
+
+  - sprint: 2
+    what_went_well:
+      - "Vision Framework の OCR が日本語・英語を正常に認識できた"
+      - "screencapture コマンドのラップが順調に動作した"
+      - "PyObjC の型エラーを ty 設定で適切に除外できた"
+    what_to_improve:
+      - "ty の設定形式の調査に時間がかかった"
+    action_items:
+      - "新しいツールの設定は事前にドキュメントを確認する"
 ```
 
 ---
