@@ -782,7 +782,8 @@ completed:
     pbi_id: PBI-017
     story: "report コマンドで正しいログファイルを参照して日報を生成できる"
     subtasks_completed: 2
-    commits: []  # コミット前
+    commits:
+      - db7a2e6  # fix: use correct log filename format in report command (PBI-017)
 ```
 
 ---
