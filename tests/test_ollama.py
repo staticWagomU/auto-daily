@@ -145,3 +145,56 @@ def test_save_daily_report(tmp_path) -> None:
     # The content should match
     saved_content = expected_path.read_text()
     assert saved_content == report_content
+
+
+def test_prompt_template_placeholder(tmp_path) -> None:
+    """Test that {activities} placeholder in template is replaced with log content.
+
+    The function should:
+    1. Use the prompt template from config
+    2. Replace {activities} placeholder with formatted activity entries
+    3. Preserve the rest of the template structure
+    """
+    import json
+    from unittest.mock import patch
+
+    from auto_daily.ollama import generate_daily_report_prompt
+
+    # Arrange: Create a sample JSONL log file
+    log_file = tmp_path / "activity_2024-12-25.jsonl"
+    entries = [
+        {
+            "timestamp": "2024-12-25T09:00:00",
+            "window_info": {"app_name": "VSCode", "window_title": "main.py"},
+            "ocr_text": "def hello_world():",
+        },
+    ]
+
+    with open(log_file, "w") as f:
+        for entry in entries:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+    # Create a custom template with {activities} placeholder
+    custom_template = """# カスタム日報
+
+## 今日のアクティビティ
+{activities}
+
+## 指示
+上記の内容を要約してください。
+"""
+
+    # Mock get_prompt_template to return our custom template
+    with patch("auto_daily.ollama.get_prompt_template", return_value=custom_template):
+        # Act
+        prompt = generate_daily_report_prompt(log_file)
+
+        # Assert: The {activities} placeholder should be replaced
+        assert "{activities}" not in prompt
+        # The activity content should be in the prompt
+        assert "VSCode" in prompt
+        assert "main.py" in prompt
+        # The template structure should be preserved
+        assert "# カスタム日報" in prompt
+        assert "## 指示" in prompt
+        assert "上記の内容を要約してください" in prompt
