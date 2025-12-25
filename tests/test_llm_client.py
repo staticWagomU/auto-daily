@@ -51,6 +51,32 @@ def test_ollama_implements_protocol() -> None:
     accepts_llm_client(client)
 
 
+def test_openai_implements_protocol() -> None:
+    """Test that OpenAIClient implements the LLMClient protocol.
+
+    The OpenAIClient should:
+    1. Have an async generate(prompt: str, model: str) -> str method
+    2. Be structurally compatible with LLMClient Protocol
+    """
+    from auto_daily.llm.openai import OpenAIClient
+    from auto_daily.llm.protocol import LLMClient
+
+    # Create an instance (uses mock API key for testing)
+    client = OpenAIClient(api_key="test-api-key")
+
+    # Verify the method signature exists
+    assert hasattr(client, "generate")
+    assert callable(client.generate)
+
+    # Type checking verification (this is for runtime, static checking happens via mypy/ty)
+    # The client should be usable where LLMClient is expected
+    def accepts_llm_client(c: LLMClient) -> None:
+        pass
+
+    # This should not raise - if OpenAIClient implements the protocol correctly
+    accepts_llm_client(client)
+
+
 def test_get_llm_client_factory() -> None:
     """Test that get_llm_client() returns the correct client based on AI_BACKEND.
 

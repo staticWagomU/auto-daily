@@ -18,6 +18,9 @@ DEFAULT_CAPTURE_INTERVAL = 30
 # LLM backend settings
 DEFAULT_AI_BACKEND = "ollama"
 
+# OpenAI settings
+DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
+
 DEFAULT_PROMPT_TEMPLATE = """以下のアクティビティログに基づいて、日報を作成してください。
 
 ## 今日のアクティビティ
@@ -175,6 +178,29 @@ def get_ai_backend() -> str:
     Falls back to default ("ollama") if not set.
 
     Returns:
-        AI backend name ("ollama", "lm_studio", etc.).
+        AI backend name ("ollama", "openai", etc.).
     """
     return os.environ.get("AI_BACKEND", DEFAULT_AI_BACKEND)
+
+
+def get_openai_api_key() -> str | None:
+    """Get the OpenAI API key.
+
+    Reads from OPENAI_API_KEY environment variable.
+
+    Returns:
+        OpenAI API key if set, None otherwise.
+    """
+    return os.environ.get("OPENAI_API_KEY")
+
+
+def get_openai_model() -> str:
+    """Get the OpenAI model name.
+
+    Reads from OPENAI_MODEL environment variable.
+    Falls back to default (gpt-4o-mini) if not set.
+
+    Returns:
+        OpenAI model name.
+    """
+    return os.environ.get("OPENAI_MODEL", DEFAULT_OPENAI_MODEL)

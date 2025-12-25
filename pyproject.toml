@@ -13,6 +13,7 @@ dependencies = [
     "httpx",
     "pyyaml",
     "python-dotenv",
+    "openai",
 ]
 
 [dependency-groups]
