@@ -123,8 +123,8 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 29
-  pbi: PBI-029
+  number: 31
+  pbi: PBI-024
   status: done
   subtasks_completed: 4
   subtasks_total: 4
@@ -281,55 +281,76 @@ product_backlog:
   - id: PBI-024
     story:
       role: "Mac ユーザー"
-      capability: "Ollama/LM Studio の Vision モデルを使って OCR を実行できる"
+      capability: "Ollama の Vision モデル（llava 等）を使って OCR を実行できる"
       benefit: "より高精度な文脈理解が可能な AI ベースの OCR を選択できる"
     acceptance_criteria:
-      - criterion: "AIVisionOCR が OCRBackend プロトコルを実装している"
-        verification: "pytest tests/test_ocr.py::test_ai_vision_implements_protocol -v"
-      - criterion: "OCR_BACKEND=ai_vision で AI Vision を使用できる"
-        verification: "pytest tests/test_ocr.py::test_ai_vision_backend -v"
-      - criterion: "OCR_MODEL 環境変数で使用する Vision モデルを指定できる"
-        verification: "pytest tests/test_config.py::test_ocr_model_from_env -v"
-      - criterion: "画像を Base64 エンコードして Vision モデルに送信できる"
-        verification: "pytest tests/test_ocr.py::test_ai_vision_image_encoding -v"
+      - criterion: "OllamaVisionOCR が OCRBackend プロトコルを実装している"
+        verification: "pytest tests/test_ocr.py::test_ollama_vision_implements_protocol -v"
+      - criterion: "OCR_BACKEND=ollama で Ollama Vision を使用できる"
+        verification: "pytest tests/test_ocr.py::test_ollama_vision_backend -v"
+      - criterion: "OCR_MODEL 環境変数で Vision モデルを指定できる（デフォルト: llava）"
+        verification: "pytest tests/test_config.py::test_ocr_model_ollama_from_env -v"
+      - criterion: "画像を Base64 エンコードして Ollama Vision API に送信できる"
+        verification: "pytest tests/test_ocr.py::test_ollama_vision_image_encoding -v"
     technical_notes: |
-      ## AI Vision OCR の仕組み
-      Ollama/LM Studio の Vision 対応モデル（llava, llama3.2-vision 等）を使用して
-      画像からテキストを抽出する。
-
-      ## 実装
-      ```python
-      # ocr/ai_vision.py
-      class AIVisionOCR:
-          def __init__(self, llm_client: LLMClient):
-              self.llm_client = llm_client
-
-          def perform_ocr(self, image_path: str) -> str:
-              prompt = "この画像に含まれるすべてのテキストを抽出してください。"
-              return await self.llm_client.generate_with_image(prompt, image_path)
-      ```
+      ## Ollama Vision OCR の仕組み
+      Ollama の Vision 対応モデル（llava, llama3.2-vision 等）を使用して画像からテキストを抽出する。
 
       ## Ollama Vision API
-      ```json
+      ```bash
+      POST /api/generate
       {
         "model": "llava",
         "prompt": "この画像のテキストを抽出してください",
-        "images": ["<base64 encoded image>"]
+        "images": ["<base64 encoded image>"],
+        "stream": false
       }
       ```
 
-      ## 環境変数
-      - OCR_MODEL: Vision モデル名（例: "llava", "llama3.2-vision"）
-      - OCR_BACKEND と AI_BACKEND の組み合わせで動作
+      ## 実装（openai_vision.py のパターンを踏襲）
+      ```python
+      # ocr/ollama_vision.py
+      import base64
+      import httpx
 
-      ## 注意点
-      - AI Vision OCR は LLM クライアントに依存するため、PBI-021 が前提
-      - Apple Vision より遅いがコンテキスト理解力が高い
-    story_points: 5
+      class OllamaVisionOCR:
+          def __init__(self, base_url: str | None = None, model: str | None = None):
+              self.base_url = base_url or get_ollama_base_url()
+              self.model = model or get_ocr_model()  # デフォルト: "llava"
+
+          def perform_ocr(self, image_path: str) -> str:
+              with open(image_path, "rb") as f:
+                  image_data = base64.b64encode(f.read()).decode("utf-8")
+
+              response = httpx.post(
+                  f"{self.base_url}/api/generate",
+                  json={
+                      "model": self.model,
+                      "prompt": "この画像に含まれるすべてのテキストを抽出してください。",
+                      "images": [image_data],
+                      "stream": False,
+                  },
+                  timeout=120.0,
+              )
+              return response.json()["response"]
+      ```
+
+      ## 環境変数
+      - OLLAMA_BASE_URL: Ollama サーバー URL（既存設定を共有）
+      - OCR_MODEL: Vision モデル名（デフォルト: "llava"）
+      - OCR_BACKEND: "ollama" で有効化
+
+      ## Apple Vision との比較
+      | 項目 | Apple Vision | Ollama Vision |
+      |------|--------------|---------------|
+      | 速度 | 高速（ローカル） | 中速（ローカル LLM）|
+      | コスト | 無料 | 無料（GPU 負荷） |
+      | 精度 | 高 | モデル依存 |
+      | 文脈理解 | なし | あり |
+    story_points: 3
     dependencies:
-      - PBI-021
       - PBI-023
-    status: draft
+    status: done
 
   - id: PBI-026
     story:
@@ -554,7 +575,7 @@ product_backlog:
     dependencies:
       - PBI-031
       - PBI-004
-    status: draft
+    status: done
 
   - id: PBI-033
     story:
@@ -676,72 +697,71 @@ definition_of_ready:
 ## 2. Current Sprint
 
 ```yaml
-sprint_29:
-  number: 29
-  pbi_id: PBI-029
-  story: "OpenAI Vision API（GPT-4o）を使って OCR を実行できる"
+sprint_31:
+  number: 31
+  pbi_id: PBI-024
+  story: "Ollama の Vision モデル（llava 等）を使って OCR を実行できる"
   status: done
 
   sprint_goal:
-    statement: "OpenAI Vision OCR バックエンドを実装し、高精度なクラウドベース OCR を提供する"
+    statement: "Ollama Vision を OCR バックエンドとして追加し、AI ベースの画像認識を可能にする"
     success_criteria:
-      - "OpenAIVisionOCR が OCRBackend Protocol を実装している"
-      - "OCR_BACKEND=openai で OpenAI Vision を使用できる"
-      - "画像を Base64 エンコードして GPT-4o に送信できる"
+      - "OllamaVisionOCR が OCRBackend プロトコルを実装している"
+      - "OCR_BACKEND=ollama で Ollama Vision を使用できる"
       - "OCR_MODEL 環境変数で Vision モデルを指定できる"
-    stakeholder_value: "高精度なクラウドベースの画像認識で文脈を理解した OCR ができる"
+      - "画像を Base64 エンコードして Ollama Vision API に送信できる"
+    stakeholder_value: "ローカル AI による文脈理解可能な OCR で、プライバシーを保ちながら高精度な認識が可能"
 
   subtasks:
     - id: ST-001
-      test: "test_ocr_model_openai_from_env: OCR_MODEL 環境変数テスト"
+      test: "test_ollama_vision_implements_protocol: OllamaVisionOCR が OCRBackend を実装"
       implementation: |
-        config.py に get_ocr_model() を追加:
-        - OCR_MODEL 環境変数から取得
-        - デフォルト: "gpt-4o-mini"
+        ocr/ollama_vision.py に OllamaVisionOCR クラスを作成:
+        - OCRBackend プロトコルを満たす perform_ocr() メソッド
+        - base_url と model を初期化パラメータで受け取る
       type: behavioral
       status: completed
       commits: []
 
     - id: ST-002
-      test: "test_openai_vision_implements_protocol: OpenAIVisionOCR がプロトコル実装"
+      test: "test_ollama_vision_backend: OCR_BACKEND=ollama で動作確認"
       implementation: |
-        ocr/openai_vision.py に OpenAIVisionOCR クラスを作成:
-        - OCRBackend Protocol を実装
-        - perform_ocr(image_path: str) -> str メソッド
+        ocr/__init__.py の get_ocr_backend() を拡張:
+        - backend_name == "ollama" の場合に OllamaVisionOCR を返す
       type: behavioral
       status: completed
       commits: []
 
     - id: ST-003
-      test: "test_openai_vision_image_encoding: Base64 エンコーディングテスト"
+      test: "test_ocr_model_ollama_from_env: OCR_MODEL 環境変数でモデル指定"
       implementation: |
-        画像ファイルを Base64 エンコードして OpenAI API に送信:
-        - 画像ファイルを読み込み
-        - Base64 エンコード
-        - data:image/png;base64,{data} 形式で送信
+        config.py の get_ocr_model() がデフォルト "llava" を返すことを確認
+        （既存実装で対応可能な場合はテストのみ）
       type: behavioral
       status: completed
       commits: []
 
     - id: ST-004
-      test: "test_openai_vision_backend: OCR_BACKEND=openai テスト"
+      test: "test_ollama_vision_image_encoding: Base64 エンコードで API 呼び出し"
       implementation: |
-        ocr/__init__.py の get_ocr_backend() を拡張:
-        - OCR_BACKEND=openai で OpenAIVisionOCR を返す
+        OllamaVisionOCR.perform_ocr() で:
+        - 画像ファイルを読み込み Base64 エンコード
+        - Ollama API の /api/generate に images 配列で送信
+        - レスポンスの response フィールドを返す
       type: behavioral
       status: completed
       commits: []
 
   notes: |
     ## 実装方針
-    - PBI-023 で作成した OCRBackend Protocol を実装
-    - 既存の llm/openai.py パターンを踏襲
-    - OpenAI Vision API の multimodal 機能を使用
+    - openai_vision.py のパターンを踏襲（同期 HTTP クライアント）
+    - 既存の OllamaClient と同様に httpx を使用
+    - config.py の get_ollama_base_url(), get_ocr_model() を再利用
 
     ## テスト方針
-    - Protocol の runtime_checkable を使用してインスタンス検証
-    - monkeypatch.setenv で環境変数をテスト
-    - API 呼び出しはモックでテスト
+    - httpx.post をモックして API レスポンスをシミュレート
+    - Protocol 実装確認は isinstance() でチェック
+    - Base64 エンコードは実ファイルでテスト
 ```
 
 ### Impediment Registry
@@ -981,6 +1001,18 @@ completed:
   - sprint: 29
     pbi_id: PBI-029
     story: "OpenAI Vision API（GPT-4o）を使って OCR を実行できる"
+    subtasks_completed: 4
+    commits: []
+
+  - sprint: 30
+    pbi_id: PBI-032
+    story: "日報生成時にカレンダー予定と作業ログを照合して、差分と補完情報を含めた日報を作成できる"
+    subtasks_completed: 5
+    commits: []
+
+  - sprint: 31
+    pbi_id: PBI-024
+    story: "Ollama の Vision モデル（llava 等）を使って OCR を実行できる"
     subtasks_completed: 4
     commits: []
 ```
@@ -1280,6 +1312,31 @@ retrospectives:
       - "特になし - 既存パターンを活用してシンプルに完了"
     action_items:
       - "次の draft PBI をリファインメントして ready にする"
+
+  - sprint: 30
+    what_went_well:
+      - "PBI-031 で実装した CalendarEvent, get_all_events() を効果的に活用"
+      - "LogEntry, MatchResult dataclass で照合結果を型安全に構造化"
+      - "match_events_with_logs() で時間ベースの照合を柔軟に実装"
+      - "generate_daily_report_prompt_with_calendar() でカレンダー統合プロンプトを生成"
+      - "TDD サイクル（Red-Green）がスムーズに回った"
+      - "5つのサブタスクをすべて完了"
+    what_to_improve:
+      - "特になし - 既存パターンを活用してシンプルに完了"
+    action_items:
+      - "次の draft PBI をリファインメントして ready にする"
+
+  - sprint: 31
+    what_went_well:
+      - "openai_vision.py のパターンを踏襲して効率的に実装"
+      - "既存の httpx を使用した OllamaClient と同様のパターンで Vision API を実装"
+      - "OCR バックエンド抽象化（PBI-023）の上に自然に追加"
+      - "TDD サイクル（Red-Green）がスムーズに回った"
+      - "4つのサブタスクをすべて完了"
+    what_to_improve:
+      - "特になし - 既存パターンを活用してシンプルに完了"
+    action_items:
+      - "次の draft PBI（PBI-026 要約機能など）をリファインメントして ready にする"
 ```
 
 ---

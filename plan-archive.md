@@ -802,4 +802,92 @@ product_backlog_archive:
     dependencies:
       - PBI-004
     status: done
+
+  - id: PBI-033
+    story:
+      role: "Mac ユーザー"
+      capability: "アプリケーション起動時に macOS の必要な権限（画面収録・アクセシビリティ）が確認され、不足時に警告が表示される"
+      benefit: "権限不足による動作不良を事前に検知し、スムーズにセットアップできる"
+    acceptance_criteria:
+      - criterion: "アプリ起動時に画面収録とアクセシビリティ権限を自動チェックする"
+        verification: "pytest tests/test_permissions.py::test_check_all_permissions -v"
+      - criterion: "権限が不足している場合、警告メッセージを表示して setup-permissions.sh の実行を促す"
+        verification: "pytest tests/test_main.py::test_permission_warning_on_start -v"
+      - criterion: "権限が揃っている場合はそのまま監視を開始する"
+        verification: "pytest tests/test_main.py::test_start_with_permissions -v"
+    technical_notes: |
+      ## 統合箇所
+      __init__.py の main() 関数で --start 時に permissions.py を呼び出す
+
+      ## 実装内容
+      - check_all_permissions() を __init__.py にインポート
+      - main() の --start 処理で権限チェックを追加
+      - 権限不足時: 警告メッセージ + setup-permissions.sh の案内 + exit(1)
+      - 権限正常時: 従来通り監視を開始
+    story_points: 2
+    dependencies:
+      - PBI-020
+    sprint: 24
+    status: done
+
+  - id: PBI-016
+    story:
+      role: "Mac ユーザー"
+      capability: "Ollama がインストールされていなくてもアプリケーションを起動できる"
+      benefit: "まずログ収集だけを試したい場合や、Ollama を後から導入したい場合でも使い始められる"
+    acceptance_criteria:
+      - criterion: "Ollama 未接続でもアプリケーションが起動しウィンドウ監視が動作する"
+        verification: "pytest tests/test_main.py::test_start_without_ollama -v"
+      - criterion: "アプリケーション起動時に Ollama 未接続の場合は警告メッセージを表示する"
+        verification: "pytest tests/test_main.py::test_start_warns_without_ollama -v"
+      - criterion: "report コマンド実行時に Ollama 未接続の場合はエラーで終了する"
+        verification: "pytest tests/test_main.py::test_report_fails_without_ollama -v"
+      - criterion: "OLLAMA_BASE_URL で指定した接続先に接続できない場合もエラーで終了する"
+        verification: "pytest tests/test_main.py::test_report_fails_with_invalid_ollama_url -v"
+    technical_notes: |
+      ## 実装方針
+      - ollama.py に check_ollama_connection() -> bool 関数を追加
+        - OLLAMA_BASE_URL への接続を試行し、成功可否を返す
+      - __init__.py の start_command() を修正
+        - 起動時に check_ollama_connection() を呼び出し
+        - 接続不可の場合は警告（Warning）を表示して続行
+      - __init__.py の report_command() を修正
+        - 実行時に check_ollama_connection() を呼び出し
+        - 接続不可の場合はエラーメッセージを表示して終了（sys.exit(1)）
+
+      ## エラーメッセージ例
+      - 警告: "Warning: Ollama is not available at {url}. Report generation will not work."
+      - エラー: "Error: Cannot connect to Ollama at {url}. Please ensure Ollama is running."
+
+      ## 挙動の変更
+      - 現在: Ollama 未起動 → アプリ起動失敗
+      - 変更後: Ollama 未起動 → 警告表示してアプリ起動成功、report コマンドのみエラー
+    story_points: 3
+    dependencies:
+      - PBI-005
+      - PBI-015
+    sprint: 26
+    status: done
+
+  - id: PBI-022
+    story:
+      role: "Mac ユーザー"
+      capability: "LM Studio を使って日報を生成できる"
+      benefit: "Ollama 以外の選択肢があり、好みのツールで日報生成ができる"
+    acceptance_criteria:
+      - criterion: "LMStudioClient が LLMClient プロトコルを実装している"
+        verification: "pytest tests/test_llm_client.py::test_lm_studio_implements_protocol -v"
+      - criterion: "AI_BACKEND=lm_studio で LM Studio を使用できる"
+        verification: "pytest tests/test_llm_client.py::test_lm_studio_backend -v"
+      - criterion: "LM_STUDIO_BASE_URL 環境変数で接続先を設定できる"
+        verification: "pytest tests/test_config.py::test_lm_studio_base_url_from_env -v"
+    technical_notes: |
+      ## 実装方針
+      OpenAI SDK を使用し、base_url をオーバーライドして LM Studio に接続する。
+      LM Studio は API キーが不要なので、api_key="not-needed" とする。
+    story_points: 3
+    dependencies:
+      - PBI-021
+    sprint: 27
+    status: done
 ```
