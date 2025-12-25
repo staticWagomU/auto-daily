@@ -1,6 +1,10 @@
 """Window monitoring module for macOS."""
 
 import subprocess
+from collections.abc import Callable
+
+type WindowInfo = dict[str, str]
+type WindowChangeCallback = Callable[[WindowInfo, WindowInfo], None]
 
 
 def get_active_window() -> dict[str, str]:
@@ -36,3 +40,27 @@ def get_active_window() -> dict[str, str]:
         "app_name": parts[0] if len(parts) > 0 else "",
         "window_title": parts[1] if len(parts) > 1 else "",
     }
+
+
+class WindowMonitor:
+    """Monitor window changes and trigger callbacks when the active window changes."""
+
+    def __init__(self, on_window_change: WindowChangeCallback) -> None:
+        """Initialize the window monitor.
+
+        Args:
+            on_window_change: Callback function called when window changes.
+                              Receives (old_window, new_window) as arguments.
+        """
+        self._on_window_change = on_window_change
+        self._current_window: WindowInfo | None = None
+
+    def _check_window_change(self, new_window: WindowInfo) -> None:
+        """Check if window has changed and trigger callback if so.
+
+        Args:
+            new_window: The new window information to compare against current.
+        """
+        if self._current_window is not None and self._current_window != new_window:
+            self._on_window_change(self._current_window, new_window)
+        self._current_window = new_window

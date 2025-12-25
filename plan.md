@@ -261,8 +261,10 @@ sprint:
       test: "test_window_change_detection: ウィンドウ切り替えを検知してイベントを発火できる"
       implementation: "ウィンドウ変更検知のコールバック機能を実装"
       type: behavioral
-      status: red
-      commits: []
+      status: green
+      commits:
+        - phase: red
+          hash: ce4ab41
 
     - id: ST-003
       test: "test_background_monitoring: バックグラウンドで常駐し、ウィンドウ変更を監視し続ける"
