@@ -125,8 +125,8 @@ Sprint Cycle:
 sprint:
   number: 1
   pbi: PBI-001
-  status: in_progress
-  subtasks_completed: 2
+  status: done
+  subtasks_completed: 3
   subtasks_total: 3
   impediments: 0
 ```
@@ -167,7 +167,7 @@ product_backlog:
       - criterion: "バックグラウンドで常駐し、ウィンドウ変更を監視し続ける"
         verification: "pytest tests/test_window_monitor.py::test_background_monitoring -v"
     dependencies: []
-    status: ready
+    status: done
 
   - id: PBI-002
     story:
@@ -243,7 +243,7 @@ sprint:
   number: 1
   pbi_id: PBI-001
   story: "Mac ユーザーとして、ウィンドウを切り替えたタイミングでアクティブウィンドウの名前を自動取得できる"
-  status: in_progress
+  status: done
 
   subtasks:
     - id: ST-001
@@ -272,10 +272,12 @@ sprint:
       test: "test_background_monitoring: バックグラウンドで常駐し、ウィンドウ変更を監視し続ける"
       implementation: "バックグラウンド監視ループを実装"
       type: behavioral
-      status: green
+      status: completed
       commits:
         - phase: red
           hash: cdaeae6
+        - phase: green
+          hash: 3441b04
 
   notes: |
     Sprint 1 開始。PBI-001 のウィンドウ監視機能を TDD で実装する。
@@ -310,7 +312,18 @@ definition_of_done:
 ## 4. Completed Sprints
 
 ```yaml
-completed: []
+completed:
+  - sprint: 1
+    pbi_id: PBI-001
+    story: "ウィンドウ切り替え時にアクティブウィンドウの名前を自動取得できる"
+    subtasks_completed: 3
+    commits:
+      - accfa9e  # test: add failing test for get_active_window
+      - 6eda581  # feat: implement get_active_window function
+      - ce4ab41  # test: add failing test for window change detection
+      - 2701c0c  # feat: implement WindowMonitor class
+      - cdaeae6  # test: add failing test for background monitoring
+      - 3441b04  # feat: implement background monitoring
 ```
 
 ---
