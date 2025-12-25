@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 ENV_LOG_DIR = "AUTO_DAILY_LOG_DIR"
 DEFAULT_LOG_DIR = Path.home() / ".auto-daily" / "logs"
 DEFAULT_REPORTS_DIR = Path.home() / ".auto-daily" / "reports"
+DEFAULT_SUMMARIES_DIR = Path.home() / ".auto-daily" / "summaries"
 
 # Ollama settings
 DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434"
@@ -277,3 +278,21 @@ def get_ocr_model() -> str:
         OCR model name for Vision API.
     """
     return os.environ.get("OCR_MODEL", DEFAULT_OCR_MODEL)
+
+
+def get_summaries_dir() -> Path:
+    """Get the summaries directory path.
+
+    Reads from AUTO_DAILY_SUMMARIES_DIR environment variable.
+    Falls back to ~/.auto-daily/summaries/ if not set.
+    Creates the directory if it doesn't exist.
+
+    Returns:
+        Path to the summaries directory.
+    """
+    env_value = os.environ.get("AUTO_DAILY_SUMMARIES_DIR")
+    summaries_dir = Path(env_value) if env_value else DEFAULT_SUMMARIES_DIR
+
+    summaries_dir.mkdir(parents=True, exist_ok=True)
+
+    return summaries_dir

@@ -21,6 +21,7 @@ from auto_daily.config import (
     get_ollama_base_url,
     get_ollama_model,
     get_reports_dir,
+    get_summaries_dir,
     load_env,
 )
 from auto_daily.llm.ollama import check_ollama_connection
@@ -34,6 +35,7 @@ from auto_daily.ollama import (
 from auto_daily.permissions import check_all_permissions
 from auto_daily.processor import process_window_change
 from auto_daily.scheduler import PeriodicCapture, process_periodic_capture
+from auto_daily.summarize import save_summary
 from auto_daily.window_monitor import WindowMonitor
 
 # Default interval for periodic capture (30 seconds)
@@ -135,6 +137,88 @@ async def report_command(
     print(f"Report saved: {report_path}")
 
 
+def generate_summary_prompt(log_content: str) -> str:
+    """Generate a prompt for hourly log summarization.
+
+    Args:
+        log_content: The log content to summarize.
+
+    Returns:
+        A prompt for the LLM.
+    """
+    return f"""以下の1時間分のアクティビティログを簡潔に要約してください。
+重要なタスク、作業内容、成果を箇条書きで記載してください。
+
+{log_content}
+
+要約:"""
+
+
+async def summarize_command(
+    date_str: str | None = None, hour: int | None = None
+) -> None:
+    """Generate a summary for an hour's worth of logs.
+
+    Args:
+        date_str: Optional date string in YYYY-MM-DD format.
+                  If None, uses today's date.
+        hour: Optional hour (0-23) to summarize.
+              If None, uses the current hour.
+    """
+    from auto_daily.logger import get_log_dir_for_date
+
+    # Check Ollama connection before proceeding
+    if not check_ollama_connection():
+        ollama_url = get_ollama_base_url()
+        print(
+            f"Error: Cannot connect to Ollama at {ollama_url}. "
+            "Please ensure Ollama is running."
+        )
+        sys.exit(1)
+
+    # Determine the target date and hour
+    now = datetime.now()
+    if date_str:
+        target_date = date.fromisoformat(date_str)
+    else:
+        target_date = now.date()
+
+    if hour is not None:
+        target_hour = hour
+    else:
+        target_hour = now.hour
+
+    # Get log file path
+    log_dir = get_log_dir()
+    target_datetime = datetime.combine(
+        target_date, datetime.min.time().replace(hour=target_hour)
+    )
+    date_log_dir = get_log_dir_for_date(log_dir, target_datetime)
+    log_file = date_log_dir / get_log_filename(target_datetime)
+
+    if not log_file.exists():
+        print(f"No log file found for {target_date.isoformat()} hour {target_hour:02d}")
+        print(f"Expected: {log_file}")
+        return
+
+    # Read log content
+    log_content = log_file.read_text()
+
+    # Generate summary using Ollama
+    print(f"Generating summary for {target_date.isoformat()} {target_hour:02d}:00...")
+
+    prompt = generate_summary_prompt(log_content)
+    client = OllamaClient()
+    model = get_ollama_model()
+    summary = await client.generate(model=model, prompt=prompt)
+
+    # Save summary
+    summaries_dir = get_summaries_dir()
+    summary_path = save_summary(summaries_dir, target_date, target_hour, summary)
+
+    print(f"Summary saved: {summary_path}")
+
+
 def main() -> None:
     """Main entry point for auto-daily."""
     # Load environment variables from .env file
@@ -175,11 +259,32 @@ def main() -> None:
         help="Include calendar events in the report",
     )
 
+    # Summarize subcommand
+    summarize_parser = subparsers.add_parser(
+        "summarize",
+        help="Generate an hourly summary from logs",
+    )
+    summarize_parser.add_argument(
+        "--date",
+        type=str,
+        help="Date to summarize (YYYY-MM-DD format)",
+    )
+    summarize_parser.add_argument(
+        "--hour",
+        type=int,
+        help="Hour to summarize (0-23)",
+    )
+
     args = parser.parse_args()
 
     # Handle report subcommand
     if args.command == "report":
         asyncio.run(report_command(args.date, args.with_calendar))
+        return
+
+    # Handle summarize subcommand
+    if args.command == "summarize":
+        asyncio.run(summarize_command(args.date, args.hour))
         return
 
     if args.start:

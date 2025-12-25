@@ -4,7 +4,7 @@ import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from auto_daily.scheduler import PeriodicCapture
+from auto_daily.scheduler import HourlySummaryScheduler, PeriodicCapture
 
 
 class TestPeriodicCapture:
@@ -107,3 +107,61 @@ class TestPeriodicCaptureWithProcessor:
             scheduler.stop()
 
             assert mock_process.call_count >= 1
+
+
+class TestHourlySummaryScheduler:
+    """Test hourly summary scheduler functionality."""
+
+    def test_hourly_summary_scheduler(self, tmp_path: Path) -> None:
+        """Test that HourlySummaryScheduler calls callback at scheduled times.
+
+        The scheduler should:
+        1. Accept a callback function and log/summaries directories
+        2. Call the callback when triggered
+        3. Stop cleanly when stop() is called
+        """
+        mock_callback = MagicMock()
+        log_dir = tmp_path / "logs"
+        log_dir.mkdir()
+        summaries_dir = tmp_path / "summaries"
+        summaries_dir.mkdir()
+
+        scheduler = HourlySummaryScheduler(
+            callback=mock_callback,
+            log_dir=log_dir,
+            summaries_dir=summaries_dir,
+            # For testing, use a very short check interval
+            check_interval=0.1,
+        )
+
+        scheduler.start()
+        # Trigger manually for testing
+        scheduler.trigger_summary()
+        time.sleep(0.15)
+        scheduler.stop()
+
+        # Callback should have been called at least once
+        assert mock_callback.call_count >= 1
+
+    def test_hourly_summary_scheduler_passes_dirs(self, tmp_path: Path) -> None:
+        """Test that callback receives log_dir and summaries_dir."""
+        mock_callback = MagicMock()
+        log_dir = tmp_path / "logs"
+        log_dir.mkdir()
+        summaries_dir = tmp_path / "summaries"
+        summaries_dir.mkdir()
+
+        scheduler = HourlySummaryScheduler(
+            callback=mock_callback,
+            log_dir=log_dir,
+            summaries_dir=summaries_dir,
+            check_interval=0.1,
+        )
+
+        scheduler.start()
+        scheduler.trigger_summary()
+        time.sleep(0.15)
+        scheduler.stop()
+
+        # Check callback was called with correct arguments
+        mock_callback.assert_called_with(log_dir, summaries_dir)

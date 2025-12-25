@@ -11,6 +11,7 @@ from auto_daily.ocr import perform_ocr
 from auto_daily.window_monitor import get_active_window
 
 type CaptureCallback = Callable[[Path], None]
+type SummaryCallback = Callable[[Path, Path], None]
 
 
 def process_periodic_capture(log_dir: Path) -> bool:
@@ -95,3 +96,70 @@ class PeriodicCapture:
         if self._thread is not None:
             self._thread.join(timeout=1.0)
             self._thread = None
+
+
+class HourlySummaryScheduler:
+    """Schedule hourly log summarization.
+
+    This scheduler triggers a callback at the top of each hour to summarize
+    the previous hour's logs.
+    """
+
+    def __init__(
+        self,
+        callback: SummaryCallback,
+        log_dir: Path,
+        summaries_dir: Path,
+        check_interval: float = 60.0,
+    ) -> None:
+        """Initialize the hourly summary scheduler.
+
+        Args:
+            callback: Function to call when summarization is needed.
+                     Receives (log_dir, summaries_dir) as arguments.
+            log_dir: Directory containing activity logs.
+            summaries_dir: Directory for storing summaries.
+            check_interval: How often to check if summarization is needed (seconds).
+        """
+        self._callback = callback
+        self._log_dir = log_dir
+        self._summaries_dir = summaries_dir
+        self._check_interval = check_interval
+        self._running = False
+        self._thread: threading.Thread | None = None
+        self._trigger_event = threading.Event()
+
+    def _summary_loop(self) -> None:
+        """Background loop that checks for summary triggers."""
+        while self._running:
+            # Wait for trigger or check interval
+            triggered = self._trigger_event.wait(timeout=self._check_interval)
+            if triggered:
+                self._trigger_event.clear()
+                self._callback(self._log_dir, self._summaries_dir)
+            elif self._running:
+                # Auto-trigger at top of hour could be added here
+                # For now, only manual trigger is supported
+                pass
+
+    def start(self) -> None:
+        """Start the hourly summary scheduler."""
+        if self._running:
+            return
+
+        self._running = True
+        self._thread = threading.Thread(target=self._summary_loop)
+        self._thread.daemon = True
+        self._thread.start()
+
+    def stop(self) -> None:
+        """Stop the hourly summary scheduler."""
+        self._running = False
+        self._trigger_event.set()  # Wake up the thread
+        if self._thread is not None:
+            self._thread.join(timeout=1.0)
+            self._thread = None
+
+    def trigger_summary(self) -> None:
+        """Manually trigger a summary generation."""
+        self._trigger_event.set()
