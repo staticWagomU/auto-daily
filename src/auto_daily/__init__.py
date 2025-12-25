@@ -6,6 +6,8 @@ import time
 
 __version__ = "0.1.0"
 
+from auto_daily.config import get_log_dir
+from auto_daily.processor import process_window_change
 from auto_daily.window_monitor import WindowMonitor
 
 
@@ -31,8 +33,18 @@ def main() -> None:
     if args.start:
         print(f"auto-daily v{__version__} - Starting window monitor...")
 
+        log_dir = get_log_dir()
+        print(f"Logging to: {log_dir}")
+
         def on_window_change(old_window: dict, new_window: dict) -> None:
-            print(f"Window changed: {old_window} -> {new_window}")
+            print(
+                f"Window changed: {old_window['app_name']} -> {new_window['app_name']}"
+            )
+            success = process_window_change(old_window, new_window, log_dir)
+            if success:
+                print("  ✓ Captured, OCR'd, and logged")
+            else:
+                print("  ✗ Processing failed")
 
         monitor = WindowMonitor(on_window_change)
         monitor.start()
