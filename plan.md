@@ -125,7 +125,7 @@ Sprint Cycle:
 sprint:
   number: 4
   pbi: PBI-004
-  status: in_progress
+  status: done
   subtasks_completed: 3
   subtasks_total: 3
   impediments: 0
@@ -215,7 +215,7 @@ product_backlog:
         verification: "pytest tests/test_ollama.py::test_save_daily_report -v"
     dependencies:
       - PBI-003
-    status: ready
+    status: done
 ```
 
 ### Definition of Ready
@@ -277,7 +277,7 @@ sprint:
         - phase: red
           hash: e46e839
         - phase: green
-          hash: pending
+          hash: 031f845
 
   notes: |
     Sprint 4 開始。PBI-004 の Ollama 連携と日報自動生成機能を TDD で実装する。
@@ -347,6 +347,18 @@ completed:
       - 205e639  # test: add test for daily log file rotation
       - 0fdb573  # test: add failing test for image cleanup
       - e4b30c3  # feat: implement cleanup_image function
+
+  - sprint: 4
+    pbi_id: PBI-004
+    story: "数分間隔で Ollama を呼び出し、蓄積されたログから日報を自動生成できる"
+    subtasks_completed: 3
+    commits:
+      - 2d9a421  # test: add failing test for Ollama API call
+      - 0b4e3e3  # feat: implement OllamaClient.generate()
+      - ad8b6f9  # test: add failing test for prompt generation
+      - e835661  # feat: implement generate_daily_report_prompt
+      - e46e839  # test: add failing test for daily report save
+      - 031f845  # feat: implement save_daily_report
 ```
 
 ---
@@ -384,6 +396,16 @@ retrospectives:
       - "ST-002 のテストが既に Green の状態だった（実装先行）"
     action_items:
       - "複数のサブタスクで共通する機能は事前に整理する"
+
+  - sprint: 4
+    what_went_well:
+      - "Ollama API クライアントを httpx で非同期実装できた"
+      - "プロンプト生成が JSONL ログをうまく活用している"
+      - "日報保存機能がシンプルかつ堅牢に実装できた"
+    what_to_improve:
+      - "特になし - TDD サイクルが順調に回った"
+    action_items:
+      - "PBI-004 完了により、コア機能がすべて揃った"
 ```
 
 ---
