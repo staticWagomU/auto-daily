@@ -1,6 +1,7 @@
 """Ollama API integration for daily report generation."""
 
 import json
+from datetime import date
 from pathlib import Path
 
 import httpx
@@ -90,3 +91,24 @@ def generate_daily_report_prompt(log_file: Path) -> str:
 日本語で簡潔に記述してください。"""
 
     return prompt
+
+
+def save_daily_report(output_dir: Path, content: str, report_date: date) -> Path:
+    """Save the daily report to a Markdown file.
+
+    Args:
+        output_dir: Directory to save the report.
+        content: Report content to save.
+        report_date: Date of the report for filename.
+
+    Returns:
+        Path to the saved report file.
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    filename = f"daily_report_{report_date.isoformat()}.md"
+    file_path = output_dir / filename
+
+    file_path.write_text(content)
+
+    return file_path

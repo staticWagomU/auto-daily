@@ -126,7 +126,7 @@ sprint:
   number: 4
   pbi: PBI-004
   status: in_progress
-  subtasks_completed: 2
+  subtasks_completed: 3
   subtasks_total: 3
   impediments: 0
 ```
@@ -272,9 +272,11 @@ sprint:
       test: "test_save_daily_report: Ollama からの応答を日報ファイルとして保存できる"
       implementation: "save_daily_report() 関数を実装"
       type: behavioral
-      status: red
+      status: completed
       commits:
         - phase: red
+          hash: e46e839
+        - phase: green
           hash: pending
 
   notes: |
