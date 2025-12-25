@@ -10,7 +10,7 @@ from pathlib import Path
 
 __version__ = "0.1.0"
 
-from auto_daily.config import get_log_dir, get_reports_dir
+from auto_daily.config import get_log_dir, get_ollama_model, get_reports_dir
 from auto_daily.logger import get_log_filename
 from auto_daily.ollama import (
     OllamaClient,
@@ -62,7 +62,8 @@ async def report_command(date_str: str | None = None) -> None:
     prompt = generate_daily_report_prompt(log_file)
 
     client = OllamaClient()
-    content = await client.generate(model="llama3.2", prompt=prompt)
+    model = get_ollama_model()
+    content = await client.generate(model=model, prompt=prompt)
 
     # Save report
     reports_dir = get_reports_dir()
