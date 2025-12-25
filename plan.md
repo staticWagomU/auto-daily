@@ -248,6 +248,22 @@ product_backlog:
     dependencies:
       - PBI-005
     status: ready
+
+  - id: PBI-007
+    story:
+      role: "Mac ユーザー"
+      capability: "Ollama に渡すプロンプトをテキストファイルで自由にカスタマイズできる"
+      benefit: "日報のフォーマットや指示内容を自分の業務スタイルに合わせて変更できる"
+    acceptance_criteria:
+      - criterion: "プロンプトテンプレートを外部ファイル (~/.auto-daily/prompt.txt) から読み込める"
+        verification: "pytest tests/test_config.py::test_prompt_template_from_file -v"
+      - criterion: "テンプレート内の {activities} プレースホルダーにアクティビティログが埋め込まれる"
+        verification: "pytest tests/test_ollama.py::test_prompt_template_placeholder -v"
+      - criterion: "テンプレートファイルが存在しない場合はデフォルトテンプレートを使用する"
+        verification: "pytest tests/test_config.py::test_prompt_template_default -v"
+    dependencies:
+      - PBI-006
+    status: ready
 ```
 
 ### Definition of Ready
