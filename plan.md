@@ -296,6 +296,26 @@ product_backlog:
     dependencies:
       - PBI-005
     status: done
+
+  - id: PBI-010
+    story:
+      role: "Mac ユーザー"
+      capability: "ウィンドウ切り替え時に自動的に画面キャプチャ、OCR、ログ保存が実行される"
+      benefit: "手動操作なしで作業コンテキストが自動記録される"
+    acceptance_criteria:
+      - criterion: "ウィンドウ切り替え時に capture_screen() で画面がキャプチャされる"
+        verification: "pytest tests/test_integration.py::test_capture_on_window_change -v"
+      - criterion: "キャプチャ画像に対して perform_ocr() が実行され、テキストが抽出される"
+        verification: "pytest tests/test_integration.py::test_ocr_on_capture -v"
+      - criterion: "ウィンドウ情報と OCR 結果が append_log() でログに保存される"
+        verification: "pytest tests/test_integration.py::test_log_on_window_change -v"
+      - criterion: "処理完了後に cleanup_image() で画像が削除される"
+        verification: "pytest tests/test_integration.py::test_cleanup_after_processing -v"
+    dependencies:
+      - PBI-001
+      - PBI-002
+      - PBI-003
+    status: ready
 ```
 
 ### Definition of Ready
