@@ -126,7 +126,7 @@ sprint:
   number: 5
   pbi: PBI-005
   status: in_progress
-  subtasks_completed: 2
+  subtasks_completed: 3
   subtasks_total: 3
   impediments: 0
 ```
@@ -330,9 +330,11 @@ sprint_5:
       test: "test_main_starts_monitoring: 起動後、ウィンドウ監視ループが開始される"
       implementation: "main() で WindowMonitor を起動する"
       type: behavioral
-      status: red
+      status: completed
       commits:
         - phase: red
+          hash: f806654
+        - phase: green
           hash: pending
 
   notes: |
