@@ -123,10 +123,10 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 3
-  pbi: PBI-003
-  status: done
-  subtasks_completed: 3
+  number: 4
+  pbi: PBI-004
+  status: in_progress
+  subtasks_completed: 2
   subtasks_total: 3
   impediments: 0
 ```
@@ -215,7 +215,7 @@ product_backlog:
         verification: "pytest tests/test_ollama.py::test_save_daily_report -v"
     dependencies:
       - PBI-003
-    status: draft
+    status: ready
 ```
 
 ### Definition of Ready
@@ -240,45 +240,45 @@ definition_of_ready:
 
 ```yaml
 sprint:
-  number: 3
-  pbi_id: PBI-003
-  story: "Mac ユーザーとして、取得した情報を JSONL 形式でログ保存し、使用済みのキャプチャ画像を自動削除できる"
-  status: done
+  number: 4
+  pbi_id: PBI-004
+  story: "Mac ユーザーとして、数分間隔で Ollama を呼び出し、蓄積されたログから日報を自動生成できる"
+  status: in_progress
 
   subtasks:
     - id: ST-001
-      test: "test_jsonl_append: ウィンドウ名、OCR テキスト、タイムスタンプを含む JSON を JSONL ファイルに追記できる"
-      implementation: "append_log() 関数を実装"
+      test: "test_scheduled_call: 設定された間隔で Ollama API を呼び出せる"
+      implementation: "OllamaClient クラスを実装"
       type: behavioral
       status: completed
       commits:
         - phase: red
-          hash: beaad54
+          hash: 2d9a421
         - phase: green
-          hash: 2e28cd2
+          hash: 0b4e3e3
 
     - id: ST-002
-      test: "test_daily_rotation: JSONL ファイルは日付ごとにローテーションされる"
-      implementation: "日付ベースのファイル名生成ロジックを実装"
-      type: behavioral
-      status: completed
-      commits:
-        - phase: green
-          hash: 205e639
-
-    - id: ST-003
-      test: "test_image_cleanup: OCR 処理完了後にキャプチャ画像を削除する"
-      implementation: "cleanup_image() 関数を実装"
+      test: "test_prompt_generation: JSONL ログを読み込み、日報用のプロンプトを生成できる"
+      implementation: "generate_daily_report_prompt() 関数を実装"
       type: behavioral
       status: completed
       commits:
         - phase: red
-          hash: 0fdb573
+          hash: ad8b6f9
         - phase: green
-          hash: e4b30c3
+          hash: e835661
+
+    - id: ST-003
+      test: "test_save_daily_report: Ollama からの応答を日報ファイルとして保存できる"
+      implementation: "save_daily_report() 関数を実装"
+      type: behavioral
+      status: red
+      commits:
+        - phase: red
+          hash: pending
 
   notes: |
-    Sprint 3 開始。PBI-003 の JSONL ログ保存と画像クリーンアップ機能を TDD で実装する。
+    Sprint 4 開始。PBI-004 の Ollama 連携と日報自動生成機能を TDD で実装する。
 ```
 
 ### Impediment Registry

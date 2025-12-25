@@ -94,3 +94,54 @@ def test_prompt_generation(tmp_path) -> None:
     assert "Slack" in prompt
     # Check that it includes instructions for generating a report
     assert "日報" in prompt or "daily report" in prompt.lower()
+
+
+def test_save_daily_report(tmp_path) -> None:
+    """Test that save_daily_report saves the generated report to a file.
+
+    The function should:
+    1. Create the output directory if it doesn't exist
+    2. Save the report as a Markdown file with date-based filename
+    3. Write the provided content to the file
+    """
+    from datetime import date
+
+    from auto_daily.ollama import save_daily_report
+
+    # Arrange
+    output_dir = tmp_path / "reports"
+    report_content = """# 日報 2024-12-25
+
+## 今日の作業内容
+- VSCode でコードの実装
+- GitHub で PR のレビュー
+- Slack でミーティングの調整
+
+## 進捗・成果
+- 機能実装が完了
+
+## 課題・問題点
+- なし
+
+## 明日の予定
+- テストの追加
+"""
+    report_date = date(2024, 12, 25)
+
+    # Act
+    result_path = save_daily_report(output_dir, report_content, report_date)
+
+    # Assert
+    # The output directory should be created
+    assert output_dir.exists()
+    assert output_dir.is_dir()
+
+    # The file should be created with the correct name
+    expected_filename = "daily_report_2024-12-25.md"
+    expected_path = output_dir / expected_filename
+    assert result_path == expected_path
+    assert expected_path.exists()
+
+    # The content should match
+    saved_content = expected_path.read_text()
+    assert saved_content == report_content
