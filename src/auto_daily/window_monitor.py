@@ -1,6 +1,8 @@
 """Window monitoring module for macOS."""
 
 import subprocess
+import threading
+import time
 from collections.abc import Callable
 
 type WindowInfo = dict[str, str]
@@ -54,6 +56,8 @@ class WindowMonitor:
         """
         self._on_window_change = on_window_change
         self._current_window: WindowInfo | None = None
+        self._running = False
+        self._thread: threading.Thread | None = None
 
     def _check_window_change(self, new_window: WindowInfo) -> None:
         """Check if window has changed and trigger callback if so.
@@ -64,3 +68,35 @@ class WindowMonitor:
         if self._current_window is not None and self._current_window != new_window:
             self._on_window_change(self._current_window, new_window)
         self._current_window = new_window
+
+    def _monitor_loop(self, interval: float) -> None:
+        """Background monitoring loop.
+
+        Args:
+            interval: Time in seconds between window checks.
+        """
+        while self._running:
+            new_window = get_active_window()
+            self._check_window_change(new_window)
+            time.sleep(interval)
+
+    def start(self, interval: float = 1.0) -> None:
+        """Start background monitoring.
+
+        Args:
+            interval: Time in seconds between window checks. Default is 1 second.
+        """
+        if self._running:
+            return
+
+        self._running = True
+        self._thread = threading.Thread(target=self._monitor_loop, args=(interval,))
+        self._thread.daemon = True
+        self._thread.start()
+
+    def stop(self) -> None:
+        """Stop background monitoring."""
+        self._running = False
+        if self._thread is not None:
+            self._thread.join(timeout=1.0)
+            self._thread = None

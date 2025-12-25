@@ -272,8 +272,10 @@ sprint:
       test: "test_background_monitoring: バックグラウンドで常駐し、ウィンドウ変更を監視し続ける"
       implementation: "バックグラウンド監視ループを実装"
       type: behavioral
-      status: red
-      commits: []
+      status: green
+      commits:
+        - phase: red
+          hash: cdaeae6
 
   notes: |
     Sprint 1 開始。PBI-001 のウィンドウ監視機能を TDD で実装する。
