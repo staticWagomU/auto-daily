@@ -256,3 +256,46 @@ def test_legacy_daily_log_compat(tmp_path: Path) -> None:
     assert hourly_path is not None
     assert hourly_path.exists()
     assert Path(legacy_path).exists()  # Legacy still exists
+
+
+def test_slack_fields_in_log(tmp_path: Path) -> None:
+    """Test that log entry includes slack_context with channel, workspace, dm_user, is_thread.
+
+    When slack_context is provided:
+    1. The log entry should include all Slack context fields
+    2. Fields should be properly serialized as JSON
+    """
+    import json
+
+    from auto_daily.logger import append_log
+
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+
+    window_info = {"app_name": "Slack", "window_title": "#dev-team | Company"}
+    ocr_text = "Slack conversation text"
+    slack_context = {
+        "channel": "dev-team",
+        "workspace": "Company",
+        "dm_user": None,
+        "is_thread": False,
+    }
+
+    # Act
+    log_path = append_log(
+        log_dir=log_dir,
+        window_info=window_info,
+        ocr_text=ocr_text,
+        slack_context=slack_context,
+    )
+
+    # Assert
+    assert log_path is not None
+    with open(log_path) as f:
+        entry = json.loads(f.readline())
+
+    assert "slack_context" in entry
+    assert entry["slack_context"]["channel"] == "dev-team"
+    assert entry["slack_context"]["workspace"] == "Company"
+    assert entry["slack_context"]["dm_user"] is None
+    assert entry["slack_context"]["is_thread"] is False

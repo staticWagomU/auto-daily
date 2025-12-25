@@ -5,6 +5,7 @@ from pathlib import Path
 from auto_daily.capture import capture_screen, cleanup_image
 from auto_daily.logger import append_log
 from auto_daily.ocr import perform_ocr
+from auto_daily.slack_parser import SlackContext, parse_slack_title
 
 
 def process_window_change(
@@ -32,10 +33,15 @@ def process_window_change(
     # Step 2: Perform OCR on the captured image
     ocr_text = perform_ocr(image_path)
 
-    # Step 3: Log the window change with OCR result
-    append_log(log_dir, new_window, ocr_text)
+    # Step 3: Extract Slack context if applicable
+    slack_context: SlackContext | None = None
+    if new_window.get("app_name") == "Slack":
+        slack_context = parse_slack_title(new_window.get("window_title", ""))
 
-    # Step 4: Clean up the captured image
+    # Step 4: Log the window change with OCR result and Slack context
+    append_log(log_dir, new_window, ocr_text, slack_context=slack_context)
+
+    # Step 5: Clean up the captured image
     cleanup_image(image_path)
 
     return True

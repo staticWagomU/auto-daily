@@ -3,6 +3,7 @@
 import json
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 
 def get_log_dir_for_date(log_base: Path, dt: datetime | None = None) -> Path:
@@ -88,6 +89,8 @@ def append_log(
     log_dir: Path,
     window_info: dict[str, str],
     ocr_text: str,
+    *,
+    slack_context: Any = None,
 ) -> str | None:
     """Append an activity log entry to the JSONL file (legacy).
 
@@ -95,6 +98,7 @@ def append_log(
         log_dir: Directory where log files are stored.
         window_info: Dictionary with app_name and window_title.
         ocr_text: OCR extracted text from the screen.
+        slack_context: Optional Slack context with channel, workspace, dm_user, is_thread.
 
     Returns:
         Path to the log file, or None if logging failed.
@@ -102,10 +106,11 @@ def append_log(
     try:
         log_path = log_dir / get_log_filename()
 
-        entry = {
+        entry: dict[str, Any] = {
             "timestamp": datetime.now().isoformat(),
             "window_info": window_info,
             "ocr_text": ocr_text,
+            "slack_context": slack_context,
         }
 
         with open(log_path, "a") as f:
