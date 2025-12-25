@@ -54,3 +54,35 @@ def test_jsonl_append(tmp_path: Path) -> None:
         lines = f.readlines()
 
     assert len(lines) == 2
+
+
+def test_daily_rotation(tmp_path: Path) -> None:
+    """Test that JSONL files are rotated daily based on date.
+
+    The function should:
+    1. Use different filenames for different dates
+    2. Filename format should be 'activity_YYYY-MM-DD.jsonl'
+    3. Logs from different days go to different files
+    """
+    from datetime import datetime
+
+    from auto_daily.logger import get_log_filename
+
+    # Act
+    today = datetime(2024, 12, 25)
+    tomorrow = datetime(2024, 12, 26)
+    next_year = datetime(2025, 1, 1)
+
+    today_filename = get_log_filename(today)
+    tomorrow_filename = get_log_filename(tomorrow)
+    next_year_filename = get_log_filename(next_year)
+
+    # Assert
+    assert today_filename == "activity_2024-12-25.jsonl"
+    assert tomorrow_filename == "activity_2024-12-26.jsonl"
+    assert next_year_filename == "activity_2025-01-01.jsonl"
+
+    # All filenames should be different
+    assert today_filename != tomorrow_filename
+    assert today_filename != next_year_filename
+    assert tomorrow_filename != next_year_filename
