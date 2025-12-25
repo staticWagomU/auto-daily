@@ -264,26 +264,54 @@ python -m auto_daily report --with-calendar
 
 ### .env ファイルによる設定
 
-`~/.auto-daily/.env` ファイルで各種設定を一元管理できます。
+プロジェクトルートの `.env` ファイルで各種設定を一元管理できます。
 
 ```bash
 # 設定ファイルを作成
-mkdir -p ~/.auto-daily
-cp .env.example ~/.auto-daily/.env
+cp .env.example .env
 
 # 必要に応じて編集
-vim ~/.auto-daily/.env
+vim .env
 ```
 
-利用可能な環境変数：
+#### LLM バックエンド設定
 
 | 環境変数 | 説明 | デフォルト値 |
 |---------|------|-------------|
-| `AI_BACKEND` | LLM バックエンド（`ollama` または `openai`） | `ollama` |
+| `AI_BACKEND` | LLM バックエンド（`ollama`, `openai`, `lm_studio`） | `ollama` |
+
+#### Ollama 設定
+
+| 環境変数 | 説明 | デフォルト値 |
+|---------|------|-------------|
 | `OLLAMA_BASE_URL` | Ollama の接続先 URL | `http://localhost:11434` |
 | `OLLAMA_MODEL` | 使用する Ollama モデル | `llama3.2` |
+
+#### OpenAI 設定
+
+| 環境変数 | 説明 | デフォルト値 |
+|---------|------|-------------|
 | `OPENAI_API_KEY` | OpenAI API キー（`AI_BACKEND=openai` の場合必須） | なし |
 | `OPENAI_MODEL` | 使用する OpenAI モデル | `gpt-4o-mini` |
+
+#### LM Studio 設定
+
+| 環境変数 | 説明 | デフォルト値 |
+|---------|------|-------------|
+| `LM_STUDIO_BASE_URL` | LM Studio の接続先 URL | `http://localhost:1234` |
+| `LM_STUDIO_MODEL` | 使用する LM Studio モデル | `default` |
+
+#### OCR バックエンド設定
+
+| 環境変数 | 説明 | デフォルト値 |
+|---------|------|-------------|
+| `OCR_BACKEND` | OCR バックエンド（`apple`, `openai`, `ollama`） | `apple` |
+| `OCR_MODEL` | Vision API モデル（`openai`/`ollama` 使用時） | `gpt-4o-mini` |
+
+#### キャプチャ・ディレクトリ設定
+
+| 環境変数 | 説明 | デフォルト値 |
+|---------|------|-------------|
 | `AUTO_DAILY_CAPTURE_INTERVAL` | 定期キャプチャの間隔（秒） | `30` |
 | `AUTO_DAILY_LOG_DIR` | ログ出力先ディレクトリ | `~/.auto-daily/logs/` |
 | `AUTO_DAILY_SUMMARIES_DIR` | 要約出力先ディレクトリ | `~/.auto-daily/summaries/` |
@@ -303,12 +331,11 @@ auto-daily --start
 
 ### プロンプトテンプレートのカスタマイズ
 
-`~/.auto-daily/prompt.txt` にテンプレートファイルを作成することで、日報生成のプロンプトをカスタマイズできます。
+プロジェクトルートの `prompt.txt` にテンプレートファイルを作成することで、日報生成のプロンプトをカスタマイズできます。
 
 ```bash
 # テンプレートファイルを作成
-mkdir -p ~/.auto-daily
-cat > ~/.auto-daily/prompt.txt << 'EOF'
+cat > prompt.txt << 'EOF'
 以下のアクティビティログに基づいて、日報を作成してください。
 
 ## 今日のアクティビティ
@@ -322,6 +349,25 @@ EOF
 ```
 
 テンプレート内の `{activities}` プレースホルダーにアクティビティログが埋め込まれます。
+
+### Slack ワークスペース設定
+
+Slack のウィンドウから自分のメッセージを識別するために、ワークスペースごとのユーザー名を設定できます。
+
+```bash
+# 設定ファイルを作成
+cat > slack_config.yaml << 'EOF'
+workspaces:
+  MyWorkspace:
+    username: "your-username"
+  AnotherWorkspace:
+    username: "another-username"
+EOF
+```
+
+設定ファイルは以下の順序で読み込まれます：
+1. プロジェクトルートの `slack_config.yaml`
+2. `~/.auto-daily/slack_config.yaml`
 
 ### カレンダー連携
 
@@ -363,6 +409,45 @@ OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxx
 OPENAI_MODEL=gpt-4o-mini
 EOF
 ```
+
+### LM Studio の使用
+
+ローカルで動作する LM Studio を LLM バックエンドとして使用できます。
+
+```bash
+# LM Studio を起動し、サーバーモードを有効化
+
+# .env ファイルに設定
+cat >> .env << 'EOF'
+AI_BACKEND=lm_studio
+LM_STUDIO_BASE_URL=http://localhost:1234
+LM_STUDIO_MODEL=default
+EOF
+```
+
+### OCR バックエンドの切り替え
+
+デフォルトでは macOS の Vision Framework（`apple`）を使用しますが、OpenAI や Ollama の Vision モデルに切り替えることもできます。
+
+```bash
+# OpenAI Vision API を使用
+cat >> .env << 'EOF'
+OCR_BACKEND=openai
+OCR_MODEL=gpt-4o-mini
+EOF
+
+# Ollama Vision モデルを使用（llava など）
+cat >> .env << 'EOF'
+OCR_BACKEND=ollama
+OCR_MODEL=llava
+EOF
+```
+
+| バックエンド | 説明 | 必要な設定 |
+|-------------|------|-----------|
+| `apple` | macOS Vision Framework（デフォルト） | なし |
+| `openai` | OpenAI Vision API | `OPENAI_API_KEY` |
+| `ollama` | Ollama Vision モデル | Ollama が起動していること |
 
 ## 開発
 
