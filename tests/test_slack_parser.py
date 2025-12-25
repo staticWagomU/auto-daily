@@ -193,3 +193,53 @@ Sure, let me wrap up what I'm doing.
             "This is just some random text without messages."
         )
         assert messages == []
+
+
+class TestMyMessageFilter:
+    """Tests for filtering messages by username."""
+
+    def test_my_message_filter(self) -> None:
+        """Test filtering messages by a specific username.
+
+        The function should:
+        1. Take a list of messages and a username
+        2. Return only messages from that username
+        3. Preserve message order
+        """
+        from auto_daily.slack_parser import Message, filter_my_messages
+
+        messages: list[Message] = [
+            {"username": "taro.yamada", "timestamp": "10:30", "content": "おはよう"},
+            {
+                "username": "hanako.suzuki",
+                "timestamp": "10:32",
+                "content": "おはよう！",
+            },
+            {"username": "taro.yamada", "timestamp": "10:35", "content": "今日の予定"},
+            {"username": "jiro.tanaka", "timestamp": "10:40", "content": "了解"},
+        ]
+
+        my_messages = filter_my_messages(messages, "taro.yamada")
+
+        assert len(my_messages) == 2
+        assert my_messages[0]["content"] == "おはよう"
+        assert my_messages[1]["content"] == "今日の予定"
+
+    def test_my_message_filter_no_matches(self) -> None:
+        """Test filter when no messages match the username."""
+        from auto_daily.slack_parser import Message, filter_my_messages
+
+        messages: list[Message] = [
+            {"username": "alice", "timestamp": "10:30", "content": "Hello"},
+            {"username": "bob", "timestamp": "10:32", "content": "Hi!"},
+        ]
+
+        my_messages = filter_my_messages(messages, "charlie")
+        assert my_messages == []
+
+    def test_my_message_filter_empty_list(self) -> None:
+        """Test filter with empty message list."""
+        from auto_daily.slack_parser import filter_my_messages
+
+        my_messages = filter_my_messages([], "anyone")
+        assert my_messages == []
