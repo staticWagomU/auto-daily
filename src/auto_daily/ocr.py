@@ -36,3 +36,18 @@ def perform_ocr(image_path: str) -> str:
             text_lines.append(top_candidate[0].string())
 
     return "\n".join(text_lines)
+
+
+def validate_ocr_result(text: str) -> tuple[bool, str]:
+    """Validate and clean OCR result text.
+
+    Args:
+        text: Raw OCR result text.
+
+    Returns:
+        A tuple of (is_valid, cleaned_text) where:
+        - is_valid: True if the text is non-empty after cleaning
+        - cleaned_text: The text with leading/trailing whitespace removed
+    """
+    cleaned = text.strip()
+    return (len(cleaned) > 0, cleaned)
