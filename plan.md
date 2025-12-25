@@ -125,7 +125,7 @@ Sprint Cycle:
 sprint:
   number: 5
   pbi: PBI-005
-  status: in_progress
+  status: done
   subtasks_completed: 3
   subtasks_total: 3
   impediments: 0
@@ -231,7 +231,7 @@ product_backlog:
         verification: "pytest tests/test_main.py::test_main_starts_monitoring -v"
     dependencies:
       - PBI-004
-    status: ready
+    status: done
 ```
 
 ### Definition of Ready
@@ -335,7 +335,7 @@ sprint_5:
         - phase: red
           hash: f806654
         - phase: green
-          hash: pending
+          hash: b83f676
 
   notes: |
     ルートの main.py を削除し、パッケージ内に適切なエントリーポイントを実装する。
@@ -417,6 +417,17 @@ completed:
       - e835661  # feat: implement generate_daily_report_prompt
       - e46e839  # test: add failing test for daily report save
       - 031f845  # feat: implement save_daily_report
+
+  - sprint: 5
+    pbi_id: PBI-005
+    story: "auto-daily コマンドでアプリケーションを起動し、ウィンドウ監視から日報生成までの一連の処理を実行できる"
+    subtasks_completed: 3
+    commits:
+      - d4d28a3  # test: add failing test for module execution
+      - a41c0be  # feat: implement module execution entrypoint
+      - 1e85225  # test: add test for CLI entrypoint
+      - f806654  # test: add failing test for monitoring startup
+      - b83f676  # feat: implement --start flag for window monitoring
 ```
 
 ---
@@ -464,6 +475,16 @@ retrospectives:
       - "特になし - TDD サイクルが順調に回った"
     action_items:
       - "PBI-004 完了により、コア機能がすべて揃った"
+
+  - sprint: 5
+    what_went_well:
+      - "ST-001 の実装が ST-002 もカバーし、効率的だった"
+      - "argparse で CLI が簡潔に実装できた"
+      - "ルートの main.py を削除し、パッケージ構造がクリーンになった"
+    what_to_improve:
+      - "特になし - 3つのサブタスクがスムーズに完了"
+    action_items:
+      - "アプリケーションが python -m auto_daily --start で起動可能に"
 ```
 
 ---
