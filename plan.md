@@ -123,8 +123,8 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 8
-  pbi: PBI-008
+  number: 9
+  pbi: PBI-009
   status: done
   subtasks_completed: 3
   subtasks_total: 3
@@ -295,7 +295,7 @@ product_backlog:
         verification: "ls -la scripts/start.sh で実行権限を確認"
     dependencies:
       - PBI-005
-    status: ready
+    status: done
 ```
 
 ### Definition of Ready
@@ -319,45 +319,45 @@ definition_of_ready:
 ## 2. Current Sprint
 
 ```yaml
-sprint_8:
-  number: 8
-  pbi_id: PBI-008
-  story: "README.md を読んでアプリケーションの概要、インストール方法、使い方を理解できる"
+sprint_9:
+  number: 9
+  pbi_id: PBI-009
+  story: "シェルスクリプトを実行するだけでアプリケーションを起動できる"
   status: done
 
   subtasks:
     - id: ST-001
-      test: "README.md にプロジェクトの概要と機能一覧が記載されている"
-      implementation: "README.md を作成し、概要セクションを記述"
+      test: "scripts/start.sh を実行するとアプリケーションが起動する"
+      implementation: "scripts/start.sh を作成し、python -m auto_daily --start を実行"
       type: behavioral
       status: completed
       commits:
         - phase: green
-          hash: 5ca9d12
+          hash: db7e591
 
     - id: ST-002
-      test: "インストール手順が記載されている"
-      implementation: "README.md にインストールセクションを追加"
+      test: "Ollama が起動していない場合はエラーメッセージを表示する"
+      implementation: "Ollama 起動チェックを追加"
       type: behavioral
       status: completed
       commits:
         - phase: green
-          hash: 5ca9d12
+          hash: db7e591
           note: "ST-001 のコミットでカバー済み"
 
     - id: ST-003
-      test: "使用方法が記載されている"
-      implementation: "README.md に使用方法セクションを追加"
+      test: "スクリプトに実行権限が付与されている"
+      implementation: "chmod +x scripts/start.sh を実行"
       type: behavioral
       status: completed
       commits:
         - phase: green
-          hash: 5ca9d12
-          note: "ST-001 のコミットでカバー済み"
+          hash: db7e591
+          note: "ST-001 のコミットでカバー済み（mode 100755）"
 
   notes: |
-    ドキュメンテーションタスクのためテストファイルは不要。
-    README.md に概要、インストール手順、使用方法、設定、開発コマンドを記載。
+    シェルスクリプトタスクのためテストファイルは不要。
+    start.sh に Ollama 起動チェック、ヘルプ表示、色付き出力を実装。
     1つのコミットですべてのサブタスクをカバー。
 ```
 
@@ -471,6 +471,13 @@ completed:
     subtasks_completed: 3
     commits:
       - 5ca9d12  # docs: add comprehensive README with install and usage guide (PBI-008)
+
+  - sprint: 9
+    pbi_id: PBI-009
+    story: "シェルスクリプトを実行するだけでアプリケーションを起動できる"
+    subtasks_completed: 3
+    commits:
+      - db7e591  # feat: add start.sh script for easy application launch (PBI-009)
 ```
 
 ---
@@ -558,6 +565,16 @@ retrospectives:
       - "特になし - シンプルなドキュメント作成タスクがスムーズに完了"
     action_items:
       - "PBI-009（起動スクリプト）を次スプリントで対応"
+
+  - sprint: 9
+    what_went_well:
+      - "Sprint 8 のアクションアイテム（起動スクリプト）を完遂"
+      - "Ollama 起動チェックで事前エラー検知を実装"
+      - "色付き出力で UX を向上"
+    what_to_improve:
+      - "特になし - シンプルなスクリプト作成がスムーズに完了"
+    action_items:
+      - "Product Backlog の次の ready アイテムを確認し、必要に応じて新規 PBI を追加"
 ```
 
 ---
