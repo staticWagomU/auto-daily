@@ -123,8 +123,8 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 12
-  pbi: PBI-012
+  number: 13
+  pbi: PBI-013
   status: done
   subtasks_completed: 3
   subtasks_total: 3
@@ -367,9 +367,39 @@ product_backlog:
         verification: "pytest tests/test_slack_parser.py::test_conversation_extraction -v"
       - criterion: "ユーザー名で自分のメッセージをフィルタできる"
         verification: "pytest tests/test_slack_parser.py::test_my_message_filter -v"
+    technical_notes: |
+      ## YAML 設定ファイル
+      - パス: ~/.auto-daily/slack_config.yaml
+      - フォーマット:
+        ```yaml
+        workspaces:
+          "Workspace Name":
+            username: "your-username"
+        ```
+
+      ## 新規依存関係
+      - PyYAML (pyyaml) を pyproject.toml の dependencies に追加
+
+      ## 新規関数
+      - config.py: get_slack_username(workspace: str) -> str | None
+        - ワークスペース名からユーザー名を取得
+        - 設定ファイルがない場合は None を返す
+
+      - slack_parser.py: extract_conversations(ocr_text: str) -> list[Message]
+        - OCR テキストから会話を抽出
+        - Message = TypedDict with username, timestamp, content
+        - パターン: "username  HH:MM" または "username  HH:MM AM/PM"
+
+      - slack_parser.py: filter_my_messages(conversations: list[Message], username: str) -> list[Message]
+        - 自分のメッセージをフィルタ
+
+      ## 既存パターンの踏襲
+      - config.py の get_prompt_template() と同様のファイル読み込みパターン
+      - slack_parser.py の parse_slack_title() と同様の正規表現パターン
+    story_points: 5
     dependencies:
       - PBI-012
-    status: draft
+    status: done
 
   - id: PBI-014
     story:
@@ -411,47 +441,78 @@ definition_of_ready:
 ## 2. Current Sprint
 
 ```yaml
-sprint_12:
-  number: 12
-  pbi_id: PBI-012
-  story: "Slack ウィンドウ表示時にチャンネル名とワークスペース名を自動抽出できる"
+sprint_13:
+  number: 13
+  pbi_id: PBI-013
+  story: "YAML設定でワークスペースごとのユーザー名を設定し、自分のメッセージを識別できる"
   status: done
+
+  sprint_goal:
+    statement: "Slack の会話から自分のメッセージを識別し、日報に反映できるようにする"
+    success_criteria:
+      - "slack_config.yaml でワークスペースごとのユーザー名を設定できる"
+      - "OCR テキストから会話を抽出できる"
+      - "自分のメッセージのみをフィルタできる"
+    stakeholder_value: "複数ワークスペースで自分の発言を正確に記録し、日報の精度を向上"
 
   subtasks:
     - id: ST-001
-      test: "test_channel_extraction: ウィンドウタイトルからチャンネル名を抽出できる"
-      implementation: "parse_slack_title() 関数でチャンネル名を抽出"
+      test: "test_slack_username_config: slack_config.yaml からワークスペースごとのユーザー名を読み込める"
+      implementation: |
+        config.py に get_slack_username(workspace: str) -> str | None を追加
+        - パス: ~/.auto-daily/slack_config.yaml
+        - PyYAML で YAML を読み込み
+        - ワークスペース名からユーザー名を取得
+        - 設定ファイルがない場合は None を返す
       type: behavioral
       status: completed
       commits:
-        - phase: red
-          hash: e78dc2d
-        - phase: green
-          hash: 7e93ed7
+        - hash: 7de7f83
+          phase: red
+          message: "test: add failing tests for Slack username config (PBI-013)"
+        - hash: 81ae895
+          phase: green
+          message: "feat: implement get_slack_username for YAML config (PBI-013)"
 
     - id: ST-002
-      test: "test_workspace_extraction: ウィンドウタイトルからワークスペース名を抽出できる"
-      implementation: "parse_slack_title() 関数でワークスペース名を抽出"
+      test: "test_conversation_extraction: OCR テキストから会話全体を抽出できる"
+      implementation: |
+        slack_parser.py に extract_conversations(ocr_text: str) -> list[Message] を追加
+        - Message = TypedDict with username, timestamp, content
+        - パターン: "username  HH:MM" または "username  HH:MM AM/PM"
+        - 正規表現で OCR テキストからメッセージを抽出
       type: behavioral
       status: completed
       commits:
-        - phase: green
-          hash: 7e93ed7
-          note: "ST-001 の実装でカバー済み"
+        - hash: 84b91b1
+          phase: red
+          message: "test: add failing tests for conversation extraction (PBI-013)"
+        - hash: de6da01
+          phase: green
+          message: "feat: implement extract_conversations for OCR text (PBI-013)"
 
     - id: ST-003
-      test: "test_slack_context_in_log: Slack コンテキストがログエントリに追加される"
-      implementation: "SlackContext TypedDict でログ用構造を提供"
+      test: "test_my_message_filter: ユーザー名で自分のメッセージをフィルタできる"
+      implementation: |
+        slack_parser.py に filter_my_messages(conversations: list[Message], username: str) -> list[Message] を追加
+        - 指定されたユーザー名のメッセージのみを返す
       type: behavioral
       status: completed
       commits:
-        - phase: green
-          hash: 7e93ed7
-          note: "ST-001 の実装でカバー済み"
+        - hash: f1a60d6
+          phase: red
+          message: "test: add failing tests for my message filter (PBI-013)"
+        - hash: 50e81e3
+          phase: green
+          message: "feat: implement filter_my_messages function (PBI-013)"
+
+  dependencies_added:
+    - package: pyyaml
+      location: pyproject.toml
 
   notes: |
-    slack_parser.py を新規作成し、Slack ウィンドウタイトルのパース機能を実装。
-    Slack アプリのウィンドウタイトルからチャンネル名・ワークスペース名を抽出。
+    PBI-012 の slack_parser.py を拡張し、会話抽出とフィルタ機能を追加。
+    config.py に YAML 設定読み込み機能を追加（get_prompt_template() パターンを踏襲）。
 ```
 
 ### Impediment Registry
@@ -597,6 +658,18 @@ completed:
     commits:
       - e78dc2d  # test: add failing tests for Slack parser (PBI-012)
       - 7e93ed7  # feat: implement Slack window title parser (PBI-012)
+
+  - sprint: 13
+    pbi_id: PBI-013
+    story: "YAML設定でワークスペースごとのユーザー名を設定し、自分のメッセージを識別できる"
+    subtasks_completed: 3
+    commits:
+      - 7de7f83  # test: add failing tests for Slack username config (PBI-013)
+      - 81ae895  # feat: implement get_slack_username for YAML config (PBI-013)
+      - 84b91b1  # test: add failing tests for conversation extraction (PBI-013)
+      - de6da01  # feat: implement extract_conversations for OCR text (PBI-013)
+      - f1a60d6  # test: add failing tests for my message filter (PBI-013)
+      - 50e81e3  # feat: implement filter_my_messages function (PBI-013)
 ```
 
 ---
@@ -730,6 +803,19 @@ retrospectives:
     action_items:
       - "processor.py に Slack コンテキスト統合を検討"
       - "PBI-013 で Slack ユーザー名設定機能を追加"
+
+  - sprint: 13
+    what_went_well:
+      - "Sprint 12 のアクションアイテム（Slack ユーザー名設定機能）を完遂"
+      - "既存の config.py パターン（get_prompt_template）を踏襲し、効率的に実装"
+      - "PyYAML による YAML 設定読み込みがシンプルに実装できた"
+      - "Message TypedDict で型安全な会話構造を実装"
+      - "TDD サイクル（Red-Green）が全サブタスクで順調に回った"
+    what_to_improve:
+      - "特になし - PBI-012 からの自然な拡張がスムーズに完了"
+    action_items:
+      - "processor.py に Slack 会話抽出とフィルタリングを統合"
+      - "日報生成時に自分のメッセージを活用する機能を検討"
 ```
 
 ---
