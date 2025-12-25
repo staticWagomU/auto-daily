@@ -125,8 +125,8 @@ Sprint Cycle:
 sprint:
   number: 11
   pbi: PBI-011
-  status: in_progress
-  subtasks_completed: 0
+  status: done
+  subtasks_completed: 3
   subtasks_total: 3
   impediments: 0
 ```
@@ -331,7 +331,7 @@ product_backlog:
         verification: "pytest tests/test_scheduler.py::test_stop_periodic_capture -v"
     dependencies:
       - PBI-010
-    status: ready
+    status: done
 ```
 
 ### Definition of Ready
@@ -359,33 +359,43 @@ sprint_11:
   number: 11
   pbi_id: PBI-011
   story: "ウィンドウ切り替えとは別に、30秒ごとに定期的に画面キャプチャとOCRが実行される"
-  status: in_progress
+  status: done
 
   subtasks:
     - id: ST-001
       test: "test_periodic_capture: 30秒間隔で定期的にキャプチャが実行される"
       implementation: "PeriodicCapture クラスを作成し、スケジューラを実装"
       type: behavioral
-      status: pending
-      commits: []
+      status: completed
+      commits:
+        - phase: red
+          hash: c13eda6
+        - phase: green
+          hash: 77b3f3c
 
     - id: ST-002
       test: "test_coexistence_with_window_trigger: ウィンドウ切り替えと定期トリガーが共存する"
       implementation: "メインループで両方のトリガーを起動"
       type: behavioral
-      status: pending
-      commits: []
+      status: completed
+      commits:
+        - phase: green
+          hash: 0196a16
 
     - id: ST-003
       test: "test_stop_periodic_capture: アプリ停止時に定期実行も停止する"
       implementation: "stop() メソッドでスケジューラを停止"
       type: behavioral
-      status: pending
-      commits: []
+      status: completed
+      commits:
+        - phase: green
+          hash: 77b3f3c
+          note: "ST-001 の実装でカバー済み"
 
   notes: |
-    ウィンドウ切り替えトリガーに加えて、30秒間隔の定期実行を追加。
-    長時間同じウィンドウで作業していても記録が取れるようになる。
+    scheduler.py を新規作成し、PeriodicCapture クラスを実装。
+    30秒間隔でキャプチャ・OCR・ログ保存を自動実行。
+    ウィンドウ切り替えと定期実行が独立して動作する。
 ```
 
 ### Impediment Registry
@@ -514,6 +524,15 @@ completed:
       - 4d4a1be  # test: add failing integration tests for window change processing (PBI-010)
       - 4cdf8bb  # feat: implement processor module for window change pipeline (PBI-010)
       - 58c0e64  # feat: integrate processor into main event loop (PBI-010)
+
+  - sprint: 11
+    pbi_id: PBI-011
+    story: "ウィンドウ切り替えとは別に、30秒ごとに定期的に画面キャプチャとOCRが実行される"
+    subtasks_completed: 3
+    commits:
+      - c13eda6  # test: add failing tests for periodic capture scheduler (PBI-011)
+      - 77b3f3c  # feat: implement PeriodicCapture scheduler (PBI-011)
+      - 0196a16  # feat: integrate periodic capture into main loop (PBI-011)
 ```
 
 ---
@@ -623,6 +642,18 @@ retrospectives:
     action_items:
       - "実際にアプリを起動して E2E テストを実施"
       - "Ollama 日報生成のスケジュール機能を検討"
+
+  - sprint: 11
+    what_went_well:
+      - "PeriodicCapture クラスで定期実行を独立したコンポーネントとして実装"
+      - "threading.Event().wait() で stop() の応答性を向上"
+      - "ウィンドウ切り替えと定期実行が干渉せず共存"
+      - "TDD サイクルが順調に回った"
+    what_to_improve:
+      - "特になし - シンプルな機能追加がスムーズに完了"
+    action_items:
+      - "定期キャプチャ間隔を環境変数でカスタマイズ可能にする"
+      - "Ollama 日報生成の定期実行を検討"
 ```
 
 ---
