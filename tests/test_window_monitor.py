@@ -1,6 +1,8 @@
 """Tests for window_monitor module."""
 
-from auto_daily.window_monitor import get_active_window
+from unittest.mock import MagicMock
+
+from auto_daily.window_monitor import WindowMonitor, get_active_window
 
 
 def test_get_active_window():
@@ -18,3 +20,25 @@ def test_get_active_window():
 
     # アプリ名は空でない（何かしらのアプリがアクティブなはず）
     assert result["app_name"] != ""
+
+
+def test_window_change_detection():
+    """ウィンドウ切り替えを検知してイベントを発火できる。"""
+    callback = MagicMock()
+
+    monitor = WindowMonitor(on_window_change=callback)
+
+    # 最初のウィンドウ情報をシミュレート
+    monitor._current_window = {"app_name": "App1", "window_title": "Title1"}
+
+    # 異なるウィンドウに変更されたことをシミュレート
+    new_window = {"app_name": "App2", "window_title": "Title2"}
+    monitor._check_window_change(new_window)
+
+    # コールバックが呼ばれたことを確認
+    callback.assert_called_once()
+
+    # コールバックには古いウィンドウと新しいウィンドウの情報が渡される
+    call_args = callback.call_args[0]
+    assert call_args[0] == {"app_name": "App1", "window_title": "Title1"}
+    assert call_args[1] == {"app_name": "App2", "window_title": "Title2"}

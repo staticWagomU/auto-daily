@@ -126,7 +126,7 @@ sprint:
   number: 1
   pbi: PBI-001
   status: in_progress
-  subtasks_completed: 0
+  subtasks_completed: 1
   subtasks_total: 3
   impediments: 0
 ```
@@ -250,16 +250,18 @@ sprint:
       test: "test_get_active_window: AppleScript でアクティブウィンドウのアプリ名とウィンドウタイトルを取得できる"
       implementation: "get_active_window() 関数を実装"
       type: behavioral
-      status: green
+      status: completed
       commits:
         - phase: red
           hash: accfa9e
+        - phase: green
+          hash: 6eda581
 
     - id: ST-002
       test: "test_window_change_detection: ウィンドウ切り替えを検知してイベントを発火できる"
       implementation: "ウィンドウ変更検知のコールバック機能を実装"
       type: behavioral
-      status: pending
+      status: red
       commits: []
 
     - id: ST-003
