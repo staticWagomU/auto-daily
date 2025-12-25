@@ -1285,6 +1285,154 @@ product_backlog:
     dependencies:
       - PBI-006
     status: ready
+
+  - id: PBI-031
+    story:
+      role: "Mac ユーザー"
+      capability: "Google カレンダーの iCal URL を設定して、指定日の予定を取得できる"
+      benefit: "カレンダーの予定を日報生成に活用できる"
+    acceptance_criteria:
+      - criterion: "calendar_config.yaml から iCal URL を読み込める"
+        verification: "pytest tests/test_calendar.py::test_load_calendar_config -v"
+      - criterion: "iCal URL から指定日のイベント一覧を取得できる"
+        verification: "pytest tests/test_calendar.py::test_fetch_events_from_ical -v"
+      - criterion: "複数カレンダーのイベントをマージできる"
+        verification: "pytest tests/test_calendar.py::test_merge_multiple_calendars -v"
+      - criterion: "カレンダー設定がない場合は空のリストを返す"
+        verification: "pytest tests/test_calendar.py::test_no_calendar_config -v"
+    technical_notes: |
+      ## 新規依存関係
+      - icalendar: iCal 形式のパース（pyproject.toml に追加）
+
+      ## 設定ファイル
+      パス: プロジェクトルート または ~/.auto-daily/calendar_config.yaml
+      ```yaml
+      calendars:
+        - name: "仕事"
+          ical_url: "https://calendar.google.com/calendar/ical/xxx/private-xxx/basic.ics"
+        - name: "個人"
+          ical_url: "https://calendar.google.com/calendar/ical/yyy/private-yyy/basic.ics"
+      ```
+
+      ## 新規ファイル
+      src/auto_daily/calendar.py:
+      ```python
+      from dataclasses import dataclass
+      from datetime import date, datetime
+      from pathlib import Path
+      import httpx
+      from icalendar import Calendar
+      import yaml
+
+      @dataclass
+      class CalendarEvent:
+          summary: str
+          start: datetime
+          end: datetime
+          calendar_name: str
+
+      def load_calendar_config() -> list[dict]:
+          """カレンダー設定を読み込む"""
+          # プロジェクトルート優先、なければホームディレクトリ
+          ...
+
+      async def fetch_events(ical_url: str, target_date: date) -> list[CalendarEvent]:
+          """iCal URL から指定日のイベントを取得"""
+          ...
+
+      async def get_all_events(target_date: date) -> list[CalendarEvent]:
+          """全カレンダーからイベントを取得してマージ"""
+          ...
+      ```
+
+      ## iCal URL の取得方法（ドキュメント用）
+      1. Google カレンダーを開く
+      2. 設定 → カレンダーを選択
+      3. 「カレンダーの統合」セクション
+      4. 「秘密のアドレス（iCal 形式）」をコピー
+    story_points: 3
+    dependencies: []
+    status: ready
+
+  - id: PBI-032
+    story:
+      role: "Mac ユーザー"
+      capability: "日報生成時にカレンダー予定と作業ログを照合して、差分と補完情報を含めた日報を作成できる"
+      benefit: "予定と実績の差分が明確になり、予定情報で作業内容を補完した精度の高い日報ができる"
+    acceptance_criteria:
+      - criterion: "予定と作業ログを時間軸で照合できる"
+        verification: "pytest tests/test_calendar.py::test_match_events_with_logs -v"
+      - criterion: "予定にあるが作業ログがない項目を「未着手」として検出できる"
+        verification: "pytest tests/test_calendar.py::test_detect_unstarted_events -v"
+      - criterion: "作業ログにあるが予定にない項目を「予定外作業」として検出できる"
+        verification: "pytest tests/test_calendar.py::test_detect_unplanned_work -v"
+      - criterion: "日報生成プロンプトにカレンダー情報と差分が含まれる"
+        verification: "pytest tests/test_calendar.py::test_calendar_in_report_prompt -v"
+      - criterion: "report コマンドに --with-calendar オプションがある"
+        verification: "pytest tests/test_main.py::test_report_with_calendar_option -v"
+    technical_notes: |
+      ## 照合ロジック
+      ```python
+      @dataclass
+      class MatchResult:
+          matched: list[tuple[CalendarEvent, list[LogEntry]]]  # 予定と対応するログ
+          unstarted: list[CalendarEvent]  # 予定あり、ログなし
+          unplanned: list[LogEntry]  # ログあり、予定なし
+
+      def match_events_with_logs(
+          events: list[CalendarEvent],
+          logs: list[LogEntry],
+          tolerance_minutes: int = 30
+      ) -> MatchResult:
+          """予定とログを時間軸で照合"""
+          # イベントの時間帯とログのタイムスタンプを比較
+          # tolerance_minutes の余裕を持って照合
+          ...
+      ```
+
+      ## 日報プロンプトへの統合
+      ```
+      ## 今日の予定
+      - 09:00-10:00: チームミーティング
+      - 14:00-15:00: コードレビュー
+      - 16:00-17:00: 1on1
+
+      ## アクティビティログ
+      {activities}
+
+      ## 予定と実績の照合
+      ### 予定通り実施
+      - 09:00-10:00: チームミーティング（ログあり）
+
+      ### 未着手の予定
+      - 16:00-17:00: 1on1（ログなし）
+
+      ### 予定外の作業
+      - 11:00-12:00: 緊急バグ対応
+
+      ## 指示
+      上記の情報をもとに日報を作成してください。
+      予定と実績の差分についてもコメントしてください。
+      ```
+
+      ## コマンドオプション
+      ```bash
+      # カレンダー情報を含めて日報生成
+      python -m auto_daily report --with-calendar
+
+      # デフォルトでカレンダー統合を有効にする環境変数
+      AUTO_DAILY_USE_CALENDAR=true
+      ```
+
+      ## 作業内容の補完
+      - 予定の「summary」を使ってログの文脈を補完
+      - 例: 「Zoom」アプリのログ → 予定「チームミーティング」と紐付け
+      - 例: 「Slack」で #dev-team チャンネル → 予定「開発打ち合わせ」と紐付け
+    story_points: 5
+    dependencies:
+      - PBI-031
+      - PBI-004
+    status: draft
 ```
 
 ### Definition of Ready
