@@ -122,3 +122,74 @@ class TestSlackContextInLog:
         assert result["workspace"] == "Company"
         assert result["dm_user"] is None
         assert result["is_thread"] is True
+
+
+class TestConversationExtraction:
+    """Tests for extracting conversation messages from OCR text."""
+
+    def test_conversation_extraction(self) -> None:
+        """Test extracting messages from OCR text.
+
+        The function should:
+        1. Parse OCR text and identify message patterns
+        2. Extract username, timestamp, and content for each message
+        3. Return a list of Message TypedDicts
+        """
+        from auto_daily.slack_parser import extract_conversations
+
+        ocr_text = """taro.yamada  10:30
+おはようございます！今日のミーティングは14時からです。
+
+hanako.suzuki  10:32
+了解です！議題は何ですか？
+
+taro.yamada  10:35
+新機能の進捗確認と、来週のリリース計画についてです。
+"""
+
+        messages = extract_conversations(ocr_text)
+
+        assert len(messages) == 3
+
+        assert messages[0]["username"] == "taro.yamada"
+        assert messages[0]["timestamp"] == "10:30"
+        assert "おはようございます" in messages[0]["content"]
+
+        assert messages[1]["username"] == "hanako.suzuki"
+        assert messages[1]["timestamp"] == "10:32"
+        assert "了解です" in messages[1]["content"]
+
+        assert messages[2]["username"] == "taro.yamada"
+        assert messages[2]["timestamp"] == "10:35"
+        assert "新機能の進捗確認" in messages[2]["content"]
+
+    def test_conversation_extraction_with_am_pm(self) -> None:
+        """Test extracting messages with AM/PM time format."""
+        from auto_daily.slack_parser import extract_conversations
+
+        ocr_text = """alice  2:30 PM
+Hey, are you available for a quick call?
+
+bob  2:35 PM
+Sure, let me wrap up what I'm doing.
+"""
+
+        messages = extract_conversations(ocr_text)
+
+        assert len(messages) == 2
+        assert messages[0]["username"] == "alice"
+        assert messages[0]["timestamp"] == "2:30 PM"
+        assert messages[1]["username"] == "bob"
+        assert messages[1]["timestamp"] == "2:35 PM"
+
+    def test_conversation_extraction_empty_text(self) -> None:
+        """Test extracting from empty or no-message text."""
+        from auto_daily.slack_parser import extract_conversations
+
+        messages = extract_conversations("")
+        assert messages == []
+
+        messages = extract_conversations(
+            "This is just some random text without messages."
+        )
+        assert messages == []
