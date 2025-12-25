@@ -250,8 +250,10 @@ sprint:
       test: "test_get_active_window: AppleScript でアクティブウィンドウのアプリ名とウィンドウタイトルを取得できる"
       implementation: "get_active_window() 関数を実装"
       type: behavioral
-      status: red
-      commits: []
+      status: green
+      commits:
+        - phase: red
+          hash: accfa9e
 
     - id: ST-002
       test: "test_window_change_detection: ウィンドウ切り替えを検知してイベントを発火できる"
