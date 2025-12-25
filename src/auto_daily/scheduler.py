@@ -2,6 +2,7 @@
 
 import threading
 from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
 
 from auto_daily.capture import capture_screen, cleanup_image
@@ -128,6 +129,7 @@ class HourlySummaryScheduler:
         self._running = False
         self._thread: threading.Thread | None = None
         self._trigger_event = threading.Event()
+        self._last_triggered_hour: int | None = None
 
     def _summary_loop(self) -> None:
         """Background loop that checks for summary triggers."""
@@ -138,9 +140,14 @@ class HourlySummaryScheduler:
                 self._trigger_event.clear()
                 self._callback(self._log_dir, self._summaries_dir)
             elif self._running:
-                # Auto-trigger at top of hour could be added here
-                # For now, only manual trigger is supported
-                pass
+                # Auto-trigger at top of hour
+                now = datetime.now()
+                current_hour = now.hour
+
+                # Trigger at the start of a new hour (minute < 5 to give some buffer)
+                if now.minute < 5 and self._last_triggered_hour != current_hour:
+                    self._last_triggered_hour = current_hour
+                    self._callback(self._log_dir, self._summaries_dir)
 
     def start(self) -> None:
         """Start the hourly summary scheduler."""

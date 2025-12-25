@@ -22,23 +22,24 @@ show_help() {
     echo "auto-daily 日報生成スクリプト"
     echo ""
     echo "使用方法:"
-    echo "  $0                       今日の要約/ログから日報を生成"
+    echo "  $0                       今日の要約/ログから日報を生成（自動要約付き）"
     echo "  $0 --date YYYY-MM-DD     特定の日付の日報を生成"
-    echo "  $0 --auto-summarize      未要約のログを自動で要約してから日報を生成"
+    echo "  $0 --no-auto-summarize   自動要約をスキップして日報を生成"
     echo "  $0 --with-calendar       カレンダー情報を含めて日報を生成"
     echo "  $0 --help                このヘルプを表示"
     echo ""
     echo "オプション:"
-    echo "  --date, -d           日報を生成する日付（YYYY-MM-DD 形式）"
-    echo "  --auto-summarize, -a 未要約のログを自動で要約してから日報を生成"
-    echo "  --with-calendar, -c  カレンダー情報を含めて日報を生成"
+    echo "  --date, -d              日報を生成する日付（YYYY-MM-DD 形式）"
+    echo "  --auto-summarize, -a    未要約のログを自動で要約してから日報を生成（デフォルト）"
+    echo "  --no-auto-summarize, -n 自動要約をスキップ"
+    echo "  --with-calendar, -c     カレンダー情報を含めて日報を生成"
     echo ""
     echo "例:"
-    echo "  $0                        # 今日の日報を生成（要約優先）"
-    echo "  $0 --date 2024-12-24      # 2024年12月24日の日報を生成"
+    echo "  $0                        # 今日の日報を生成（自動要約付き）"
+    echo "  $0 --date 2024-12-24      # 2024年12月24日の日報を生成（自動要約付き）"
     echo "  $0 -d 2024-12-24          # 同上（短縮形）"
-    echo "  $0 --auto-summarize       # 未要約のログを要約してから日報を生成"
-    echo "  $0 -a -d 2024-12-24       # 特定日付を自動要約して日報を生成"
+    echo "  $0 --no-auto-summarize    # 自動要約をスキップして日報を生成"
+    echo "  $0 -n -d 2024-12-24       # 特定日付を自動要約なしで日報を生成"
     echo "  $0 --with-calendar        # カレンダー情報を含めて日報を生成"
     echo ""
     echo "出力先:"
@@ -78,7 +79,7 @@ validate_date() {
 # メイン処理
 main() {
     local date_option=""
-    local auto_summarize=""
+    local auto_summarize="--auto-summarize"  # デフォルトで有効
     local with_calendar=""
 
     # 引数の解析
@@ -101,6 +102,10 @@ main() {
                 auto_summarize="--auto-summarize"
                 shift
                 ;;
+            --no-auto-summarize|-n)
+                auto_summarize=""
+                shift
+                ;;
             --with-calendar|-c)
                 with_calendar="--with-calendar"
                 shift
@@ -114,6 +119,9 @@ main() {
     done
 
     echo -e "${BLUE}日報を生成しています...${NC}"
+    if [[ -n "$auto_summarize" ]]; then
+        echo -e "${YELLOW}（未要約のログがある場合は自動で要約します）${NC}"
+    fi
     echo ""
 
     # Ollama チェック
