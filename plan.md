@@ -125,8 +125,8 @@ Sprint Cycle:
 sprint:
   number: 14
   pbi: PBI-014
-  status: in_progress
-  subtasks_completed: 0
+  status: done
+  subtasks_completed: 4
   subtasks_total: 4
   impediments: 0
 ```
@@ -430,7 +430,7 @@ product_backlog:
         - date_str が None なら今日の日付を使用
         - ログファイルが存在しない場合はエラーメッセージを表示
     story_points: 5
-    status: ready
+    status: done
 ```
 
 ### Definition of Ready
@@ -458,7 +458,7 @@ sprint_14:
   number: 14
   pbi_id: PBI-014
   story: "コマンドラインから日報生成を実行できる"
-  status: in_progress
+  status: done
 
   sprint_goal:
     statement: "任意のタイミングでコマンドラインから日報を生成できるようにする"
@@ -479,8 +479,14 @@ sprint_14:
         - OllamaClient.generate() で日報を生成
         - save_daily_report() で保存
       type: behavioral
-      status: pending
-      commits: []
+      status: completed
+      commits:
+        - hash: 0209694
+          phase: red
+          message: "test: add failing tests for report command (PBI-014)"
+        - hash: 5d1eacd
+          phase: green
+          message: "feat: implement report command for CLI (PBI-014)"
 
     - id: ST-002
       test: "test_report_with_date_option: --date オプションで過去の日付のログから日報を生成できる"
@@ -489,8 +495,14 @@ sprint_14:
         - フォーマット: YYYY-MM-DD
         - 指定された日付のログファイルを読み込む
       type: behavioral
-      status: pending
-      commits: []
+      status: completed
+      commits:
+        - hash: 0209694
+          phase: red
+          message: "test: add failing tests for report command (PBI-014)"
+        - hash: 5d1eacd
+          phase: green
+          message: "feat: implement report command for CLI (PBI-014)"
 
     - id: ST-003
       test: "test_report_saves_to_reports_dir: 生成された日報が ~/.auto-daily/reports/ に保存される"
@@ -498,20 +510,33 @@ sprint_14:
         save_daily_report() を使用して ~/.auto-daily/reports/ に保存
         - ファイル名: daily_report_YYYY-MM-DD.md
       type: behavioral
-      status: pending
-      commits: []
+      status: completed
+      commits:
+        - hash: 0209694
+          phase: red
+          message: "test: add failing tests for report command (PBI-014)"
+        - hash: 5d1eacd
+          phase: green
+          message: "feat: implement report command for CLI (PBI-014)"
 
     - id: ST-004
       test: "test_report_outputs_path: 日報生成後にファイルパスが標準出力に表示される"
       implementation: |
         report_command() で日報生成後にファイルパスを print()
       type: behavioral
-      status: pending
-      commits: []
+      status: completed
+      commits:
+        - hash: 0209694
+          phase: red
+          message: "test: add failing tests for report command (PBI-014)"
+        - hash: 5d1eacd
+          phase: green
+          message: "feat: implement report command for CLI (PBI-014)"
 
   notes: |
     既存の OllamaClient, generate_daily_report_prompt(), save_daily_report() を活用。
     argparse のサブコマンド構造を導入して CLI を拡張。
+    4つのサブタスクを効率的に1つの Red-Green サイクルでカバー。
 ```
 
 ### Impediment Registry
@@ -669,6 +694,14 @@ completed:
       - de6da01  # feat: implement extract_conversations for OCR text (PBI-013)
       - f1a60d6  # test: add failing tests for my message filter (PBI-013)
       - 50e81e3  # feat: implement filter_my_messages function (PBI-013)
+
+  - sprint: 14
+    pbi_id: PBI-014
+    story: "コマンドラインから日報生成を実行できる"
+    subtasks_completed: 4
+    commits:
+      - 0209694  # test: add failing tests for report command (PBI-014)
+      - 5d1eacd  # feat: implement report command for CLI (PBI-014)
 ```
 
 ---
@@ -815,6 +848,18 @@ retrospectives:
     action_items:
       - "processor.py に Slack 会話抽出とフィルタリングを統合"
       - "日報生成時に自分のメッセージを活用する機能を検討"
+
+  - sprint: 14
+    what_went_well:
+      - "既存の OllamaClient, save_daily_report() を活用して効率的に実装"
+      - "argparse のサブコマンド構造を導入して CLI を拡張"
+      - "4つのサブタスクを1つの Red-Green サイクルでカバーできた"
+      - "TDD サイクル（Red-Green）が順調に回った"
+    what_to_improve:
+      - "特になし - シンプルな CLI 拡張がスムーズに完了"
+    action_items:
+      - "日報生成時に Slack の自分のメッセージを含める機能を検討"
+      - "日報の出力フォーマットをカスタマイズ可能にする"
 ```
 
 ---
