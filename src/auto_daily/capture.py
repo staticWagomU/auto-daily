@@ -28,3 +28,22 @@ def capture_screen(output_dir: Path) -> str | None:
         return None
     except subprocess.CalledProcessError:
         return None
+
+
+def cleanup_image(image_path: str) -> bool:
+    """Delete a captured image file.
+
+    Args:
+        image_path: Path to the image file to delete.
+
+    Returns:
+        True if the file was successfully deleted, False otherwise.
+    """
+    try:
+        path = Path(image_path)
+        if path.exists():
+            path.unlink()
+            return True
+        return False
+    except OSError:
+        return False
