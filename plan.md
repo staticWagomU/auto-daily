@@ -123,8 +123,8 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 22
-  pbi: PBI-030
+  number: 23
+  pbi: PBI-031
   status: done
   subtasks_completed: 4
   subtasks_total: 4
@@ -1352,7 +1352,7 @@ product_backlog:
       4. 「秘密のアドレス（iCal 形式）」をコピー
     story_points: 3
     dependencies: []
-    status: ready
+    status: done
 
   - id: PBI-032
     story:
