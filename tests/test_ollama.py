@@ -44,3 +44,53 @@ async def test_scheduled_call() -> None:
         # Assert
         assert result == "This is a test response from Ollama."
         mock_post.assert_called_once()
+
+
+def test_prompt_generation(tmp_path) -> None:
+    """Test that generate_daily_report_prompt creates a proper prompt from logs.
+
+    The function should:
+    1. Read JSONL log file
+    2. Extract activity entries
+    3. Format them into a prompt for daily report generation
+    """
+    import json
+
+    from auto_daily.ollama import generate_daily_report_prompt
+
+    # Arrange: Create a sample JSONL log file
+    log_file = tmp_path / "activity_2024-12-25.jsonl"
+    entries = [
+        {
+            "timestamp": "2024-12-25T09:00:00",
+            "window_info": {"app_name": "VSCode", "window_title": "main.py"},
+            "ocr_text": "def hello_world():",
+        },
+        {
+            "timestamp": "2024-12-25T10:00:00",
+            "window_info": {"app_name": "Chrome", "window_title": "GitHub"},
+            "ocr_text": "Pull Request #123",
+        },
+        {
+            "timestamp": "2024-12-25T11:00:00",
+            "window_info": {"app_name": "Slack", "window_title": "#general"},
+            "ocr_text": "Meeting at 2pm",
+        },
+    ]
+
+    with open(log_file, "w") as f:
+        for entry in entries:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+    # Act
+    prompt = generate_daily_report_prompt(log_file)
+
+    # Assert
+    assert isinstance(prompt, str)
+    assert len(prompt) > 0
+    # Check that the prompt contains activity information
+    assert "VSCode" in prompt
+    assert "Chrome" in prompt
+    assert "Slack" in prompt
+    # Check that it includes instructions for generating a report
+    assert "日報" in prompt or "daily report" in prompt.lower()
