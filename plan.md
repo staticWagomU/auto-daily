@@ -123,11 +123,11 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 15
-  pbi: PBI-015
+  number: 16
+  pbi: PBI-017
   status: done
-  subtasks_completed: 5
-  subtasks_total: 5
+  subtasks_completed: 2
+  subtasks_total: 2
   impediments: 0
 ```
 
@@ -476,6 +476,75 @@ product_backlog:
     dependencies:
       - PBI-006
     status: done
+
+  - id: PBI-016
+    story:
+      role: "Mac ユーザー"
+      capability: "Ollama がインストールされていなくてもアプリケーションを起動できる"
+      benefit: "まずログ収集だけを試したい場合や、Ollama を後から導入したい場合でも使い始められる"
+    acceptance_criteria:
+      - criterion: "Ollama 未接続でもアプリケーションが起動しウィンドウ監視が動作する"
+        verification: "pytest tests/test_main.py::test_start_without_ollama -v"
+      - criterion: "アプリケーション起動時に Ollama 未接続の場合は警告メッセージを表示する"
+        verification: "pytest tests/test_main.py::test_start_warns_without_ollama -v"
+      - criterion: "report コマンド実行時に Ollama 未接続の場合はエラーで終了する"
+        verification: "pytest tests/test_main.py::test_report_fails_without_ollama -v"
+      - criterion: "OLLAMA_BASE_URL で指定した接続先に接続できない場合もエラーで終了する"
+        verification: "pytest tests/test_main.py::test_report_fails_with_invalid_ollama_url -v"
+    technical_notes: |
+      ## 実装方針
+      - ollama.py に check_ollama_connection() -> bool 関数を追加
+        - OLLAMA_BASE_URL への接続を試行し、成功可否を返す
+      - __init__.py の start_command() を修正
+        - 起動時に check_ollama_connection() を呼び出し
+        - 接続不可の場合は警告（Warning）を表示して続行
+      - __init__.py の report_command() を修正
+        - 実行時に check_ollama_connection() を呼び出し
+        - 接続不可の場合はエラーメッセージを表示して終了（sys.exit(1)）
+
+      ## エラーメッセージ例
+      - 警告: "Warning: Ollama is not available at {url}. Report generation will not work."
+      - エラー: "Error: Cannot connect to Ollama at {url}. Please ensure Ollama is running."
+
+      ## 挙動の変更
+      - 現在: Ollama 未起動 → アプリ起動失敗
+      - 変更後: Ollama 未起動 → 警告表示してアプリ起動成功、report コマンドのみエラー
+    story_points: 3
+    dependencies:
+      - PBI-005
+      - PBI-015
+    status: draft
+
+  - id: PBI-017
+    story:
+      role: "Mac ユーザー"
+      capability: "report コマンドで正しいログファイルを参照して日報を生成できる"
+      benefit: "蓄積したログから確実に日報を生成できる"
+    acceptance_criteria:
+      - criterion: "report コマンドが logger.py の get_log_filename() と同じ形式のファイルを参照する"
+        verification: "pytest tests/test_main.py::test_report_uses_correct_log_filename -v"
+      - criterion: "ログファイルが存在する場合に日報生成が成功する"
+        verification: "pytest tests/test_main.py::test_report_with_existing_log -v"
+    technical_notes: |
+      ## バグの内容
+      ログファイル名の形式が一致していない:
+      - logger.py (生成時): "activity_YYYY-MM-DD.jsonl"
+      - __init__.py (参照時): "YYYY-MM-DD.jsonl"
+
+      ## 修正箇所
+      __init__.py:51 の log_file 生成を修正:
+      - 現在: log_file = log_dir / f"{target_date.isoformat()}.jsonl"
+      - 修正後: logger.py の get_log_filename() を使用
+
+      ## 修正方法
+      from auto_daily.logger import get_log_filename
+      log_file = log_dir / get_log_filename(datetime.combine(target_date, datetime.min.time()))
+
+      または get_log_filename() を date 型も受け付けるように拡張
+    story_points: 1
+    dependencies:
+      - PBI-014
+    status: done
 ```
 
 ### Definition of Ready
@@ -499,72 +568,43 @@ definition_of_ready:
 ## 2. Current Sprint
 
 ```yaml
-sprint_15:
-  number: 15
-  pbi_id: PBI-015
-  story: ".env ファイルで Ollama の接続先やモデル名などの設定を管理できる"
+sprint_16:
+  number: 16
+  pbi_id: PBI-017
+  story: "report コマンドで正しいログファイルを参照して日報を生成できる"
   status: done
 
   sprint_goal:
-    statement: ".env ファイルで設定を一元管理し、環境ごとの設定切り替えを簡単にする"
+    statement: "report コマンドが logger.py と同じログファイル名形式を参照するようバグを修正する"
     success_criteria:
-      - ".env ファイルから環境変数を読み込める"
-      - "OLLAMA_BASE_URL 環境変数で Ollama の接続先を設定できる"
-      - "OLLAMA_MODEL 環境変数で使用するモデルを設定できる"
-      - "AUTO_DAILY_CAPTURE_INTERVAL 環境変数でキャプチャ間隔を設定できる"
-      - "各環境変数が未設定の場合はデフォルト値を使用する"
-    stakeholder_value: "設定を一元管理でき、環境ごとに異なる設定を簡単に切り替えられる"
+      - "report コマンドが logger.py の get_log_filename() と同じ形式のファイルを参照する"
+      - "ログファイルが存在する場合に日報生成が成功する"
+    stakeholder_value: "蓄積したログから確実に日報を生成できる"
 
   subtasks:
     - id: ST-001
-      test: "test_load_dotenv: .env ファイルから環境変数を読み込める"
+      test: "test_report_uses_correct_log_filename: report コマンドが activity_YYYY-MM-DD.jsonl 形式を参照する"
       implementation: |
-        config.py の先頭で load_dotenv() を呼び出し
-        - python-dotenv を pyproject.toml に追加
-        - .env ファイルのパス: ~/.auto-daily/.env
+        __init__.py の report_command() を修正:
+        - logger.py から get_log_filename() をインポート
+        - datetime.combine(target_date, datetime.min.time()) で date を datetime に変換
+        - log_file = log_dir / get_log_filename(datetime.combine(...))
       type: behavioral
       status: completed
       commits: []
 
     - id: ST-002
-      test: "test_ollama_base_url_from_env: OLLAMA_BASE_URL 環境変数で Ollama の接続先を設定できる"
+      test: "test_report_with_existing_log: ログファイルが存在する場合に日報生成が成功する"
       implementation: |
-        get_ollama_base_url() 関数を追加
-        - デフォルト: "http://localhost:11434"
-      type: behavioral
-      status: completed
-      commits: []
-
-    - id: ST-003
-      test: "test_ollama_model_from_env: OLLAMA_MODEL 環境変数で使用するモデルを設定できる"
-      implementation: |
-        get_ollama_model() 関数を追加
-        - デフォルト: "llama3.2"
-      type: behavioral
-      status: completed
-      commits: []
-
-    - id: ST-004
-      test: "test_capture_interval_from_env: AUTO_DAILY_CAPTURE_INTERVAL 環境変数でキャプチャ間隔を設定できる"
-      implementation: |
-        get_capture_interval() 関数を追加
-        - デフォルト: 30 (秒)
-      type: behavioral
-      status: completed
-      commits: []
-
-    - id: ST-005
-      test: "test_env_defaults: 各環境変数が未設定の場合はデフォルト値を使用する"
-      implementation: |
-        すべての get_* 関数が環境変数未設定時にデフォルト値を返すことを検証
+        ST-001 の実装で自動的にカバーされる
+        activity_YYYY-MM-DD.jsonl 形式のファイルで日報生成が成功することを検証
       type: behavioral
       status: completed
       commits: []
 
   notes: |
-    既存の config.py パターンを踏襲。
-    python-dotenv を追加して .env ファイルから環境変数を読み込む。
-    OllamaClient と PeriodicCapture は新設定を使用するように修正。
+    バグ修正のため、小規模な変更。
+    get_log_filename() を再利用することで、コードの一貫性を保つ。
 ```
 
 ### Impediment Registry
@@ -730,6 +770,19 @@ completed:
     commits:
       - 0209694  # test: add failing tests for report command (PBI-014)
       - 5d1eacd  # feat: implement report command for CLI (PBI-014)
+
+  - sprint: 15
+    pbi_id: PBI-015
+    story: ".env ファイルで Ollama の接続先やモデル名などの設定を管理できる"
+    subtasks_completed: 5
+    commits:
+      - 356797d  # feat: add .env file support for configuration management (PBI-015)
+
+  - sprint: 16
+    pbi_id: PBI-017
+    story: "report コマンドで正しいログファイルを参照して日報を生成できる"
+    subtasks_completed: 2
+    commits: []  # コミット前
 ```
 
 ---
@@ -888,6 +941,27 @@ retrospectives:
     action_items:
       - "日報生成時に Slack の自分のメッセージを含める機能を検討"
       - "日報の出力フォーマットをカスタマイズ可能にする"
+
+  - sprint: 15
+    what_went_well:
+      - "python-dotenv で .env ファイル読み込みを実装"
+      - "既存の config.py パターンを踏襲し、効率的に実装"
+      - "5つのサブタスクをすべて完了"
+    what_to_improve:
+      - "特になし - シンプルな設定拡張がスムーズに完了"
+    action_items:
+      - ".env.example ファイルを追加してサンプル設定を提供"
+
+  - sprint: 16
+    what_went_well:
+      - "バグの根本原因（ログファイル名形式の不一致）を正確に特定"
+      - "get_log_filename() を再利用することでコードの一貫性を確保"
+      - "既存テストも正しい形式に更新し、回帰を防止"
+      - "TDD サイクル（Red-Green）がスムーズに回った"
+    what_to_improve:
+      - "PBI-014 のテスト作成時に logger.py のファイル名形式を考慮すべきだった"
+    action_items:
+      - "新規機能追加時は既存モジュールとの整合性をより意識する"
 ```
 
 ---

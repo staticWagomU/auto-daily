@@ -98,17 +98,19 @@ def test_report_command(tmp_path, monkeypatch) -> None:
     3. Save the report to the reports directory
     """
     import json
-    from datetime import date
+    from datetime import date, datetime
     from unittest.mock import AsyncMock, patch
 
     import auto_daily
+    from auto_daily.logger import get_log_filename
 
     # Arrange: Create a temporary log directory with a log file
     log_dir = tmp_path / "logs"
     log_dir.mkdir()
     reports_dir = tmp_path / "reports"
     today = date.today()
-    log_file = log_dir / f"{today.isoformat()}.jsonl"
+    # Use correct log filename format (activity_YYYY-MM-DD.jsonl)
+    log_file = log_dir / get_log_filename(datetime.combine(today, datetime.min.time()))
     log_entry = {
         "timestamp": "2024-12-25T10:00:00",
         "window_info": {"app_name": "Code", "window_title": "test.py"},
@@ -143,16 +145,20 @@ def test_report_with_date_option(tmp_path, monkeypatch) -> None:
     3. Generate a report for that date
     """
     import json
+    from datetime import datetime
     from unittest.mock import AsyncMock, patch
 
     import auto_daily
+    from auto_daily.logger import get_log_filename
 
     # Arrange: Create a log file for a specific date
     log_dir = tmp_path / "logs"
     log_dir.mkdir()
     reports_dir = tmp_path / "reports"
     target_date = "2024-12-24"
-    log_file = log_dir / f"{target_date}.jsonl"
+    # Use correct log filename format (activity_YYYY-MM-DD.jsonl)
+    target_datetime = datetime.fromisoformat(f"{target_date}T00:00:00")
+    log_file = log_dir / get_log_filename(target_datetime)
     log_entry = {
         "timestamp": "2024-12-24T15:00:00",
         "window_info": {"app_name": "Safari", "window_title": "Google"},
@@ -185,10 +191,11 @@ def test_report_saves_to_reports_dir(tmp_path, monkeypatch) -> None:
     2. Use the filename format: daily_report_YYYY-MM-DD.md
     """
     import json
-    from datetime import date
+    from datetime import date, datetime
     from unittest.mock import AsyncMock, patch
 
     import auto_daily
+    from auto_daily.logger import get_log_filename
 
     # Arrange: Setup directories
     log_dir = tmp_path / "logs"
@@ -196,7 +203,8 @@ def test_report_saves_to_reports_dir(tmp_path, monkeypatch) -> None:
     reports_dir = tmp_path / "reports"
 
     today = date.today()
-    log_file = log_dir / f"{today.isoformat()}.jsonl"
+    # Use correct log filename format (activity_YYYY-MM-DD.jsonl)
+    log_file = log_dir / get_log_filename(datetime.combine(today, datetime.min.time()))
     log_entry = {
         "timestamp": "2024-12-25T10:00:00",
         "window_info": {"app_name": "Code", "window_title": "test.py"},
@@ -231,10 +239,11 @@ def test_report_outputs_path(tmp_path, monkeypatch, capsys) -> None:
     2. Allow users to easily locate the generated report
     """
     import json
-    from datetime import date
+    from datetime import date, datetime
     from unittest.mock import AsyncMock, patch
 
     import auto_daily
+    from auto_daily.logger import get_log_filename
 
     # Arrange: Setup directories
     log_dir = tmp_path / "logs"
@@ -242,7 +251,8 @@ def test_report_outputs_path(tmp_path, monkeypatch, capsys) -> None:
     reports_dir = tmp_path / "reports"
 
     today = date.today()
-    log_file = log_dir / f"{today.isoformat()}.jsonl"
+    # Use correct log filename format (activity_YYYY-MM-DD.jsonl)
+    log_file = log_dir / get_log_filename(datetime.combine(today, datetime.min.time()))
     log_entry = {
         "timestamp": "2024-12-25T10:00:00",
         "window_info": {"app_name": "Code", "window_title": "test.py"},
@@ -267,3 +277,112 @@ def test_report_outputs_path(tmp_path, monkeypatch, capsys) -> None:
     captured = capsys.readouterr()
     expected_file = reports_dir / f"daily_report_{today.isoformat()}.md"
     assert str(expected_file) in captured.out
+
+
+def test_report_uses_correct_log_filename(tmp_path, monkeypatch) -> None:
+    """Test that report command uses the same log filename format as logger.py.
+
+    The report command should:
+    1. Use logger.get_log_filename() to construct the log file path
+    2. Look for files in 'activity_YYYY-MM-DD.jsonl' format
+    3. Match the format used by logger.append_log()
+
+    This is a regression test for PBI-017: report command was looking for
+    'YYYY-MM-DD.jsonl' instead of 'activity_YYYY-MM-DD.jsonl'.
+    """
+    import json
+    from datetime import date, datetime
+    from unittest.mock import AsyncMock, patch
+
+    import auto_daily
+    from auto_daily.logger import get_log_filename
+
+    # Arrange: Create a log file with the CORRECT format (activity_YYYY-MM-DD.jsonl)
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    reports_dir = tmp_path / "reports"
+
+    today = date.today()
+    # Use get_log_filename to ensure we're using the same format as logger.py
+    correct_filename = get_log_filename(datetime.combine(today, datetime.min.time()))
+    log_file = log_dir / correct_filename
+
+    log_entry = {
+        "timestamp": datetime.now().isoformat(),
+        "window_info": {"app_name": "Code", "window_title": "test.py"},
+        "ocr_text": "Test content for PBI-017",
+    }
+    log_file.write_text(json.dumps(log_entry) + "\n")
+
+    # Also verify the correct format is activity_YYYY-MM-DD.jsonl
+    assert correct_filename == f"activity_{today.isoformat()}.jsonl"
+
+    monkeypatch.setenv("AUTO_DAILY_LOG_DIR", str(log_dir))
+
+    mock_client = AsyncMock()
+    mock_client.generate.return_value = "# 日報\n\nPBI-017 修正確認用"
+
+    with (
+        patch.object(auto_daily, "OllamaClient", return_value=mock_client),
+        patch.object(auto_daily, "get_reports_dir", return_value=reports_dir),
+        patch("sys.argv", ["auto-daily", "report"]),
+    ):
+        # Act: Call main with report command
+        auto_daily.main()
+
+    # Assert: Ollama should have been called (meaning log file was found)
+    mock_client.generate.assert_called_once()
+
+
+def test_report_with_existing_log(tmp_path, monkeypatch, capsys) -> None:
+    """Test that report succeeds when activity_YYYY-MM-DD.jsonl exists.
+
+    This test verifies the end-to-end flow:
+    1. Log file exists in the correct format
+    2. Report generation is successful
+    3. Report is saved to the correct location
+
+    This is a regression test for PBI-017.
+    """
+    import json
+    from datetime import datetime
+    from unittest.mock import AsyncMock, patch
+
+    import auto_daily
+    from auto_daily.logger import get_log_filename
+
+    # Arrange: Create a log file with activity_YYYY-MM-DD.jsonl format
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    reports_dir = tmp_path / "reports"
+
+    target_date = "2024-12-24"
+    target_datetime = datetime.fromisoformat(f"{target_date}T00:00:00")
+    correct_filename = get_log_filename(target_datetime)
+    log_file = log_dir / correct_filename
+
+    log_entry = {
+        "timestamp": f"{target_date}T15:00:00",
+        "window_info": {"app_name": "Safari", "window_title": "Research"},
+        "ocr_text": "Found important information",
+    }
+    log_file.write_text(json.dumps(log_entry) + "\n")
+
+    monkeypatch.setenv("AUTO_DAILY_LOG_DIR", str(log_dir))
+
+    mock_client = AsyncMock()
+    mock_client.generate.return_value = "# 日報 2024-12-24\n\n調査作業を実施"
+
+    with (
+        patch.object(auto_daily, "OllamaClient", return_value=mock_client),
+        patch.object(auto_daily, "get_reports_dir", return_value=reports_dir),
+        patch("sys.argv", ["auto-daily", "report", "--date", target_date]),
+    ):
+        # Act: Call main with report command
+        auto_daily.main()
+
+    # Assert: Report should be generated and saved
+    mock_client.generate.assert_called_once()
+    expected_report = reports_dir / f"daily_report_{target_date}.md"
+    assert expected_report.exists()
+    assert "日報" in expected_report.read_text()

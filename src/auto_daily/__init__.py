@@ -5,12 +5,13 @@ import asyncio
 import signal
 import sys
 import time
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 __version__ = "0.1.0"
 
 from auto_daily.config import get_log_dir, get_reports_dir
+from auto_daily.logger import get_log_filename
 from auto_daily.ollama import (
     OllamaClient,
     generate_daily_report_prompt,
@@ -46,9 +47,10 @@ async def report_command(date_str: str | None = None) -> None:
     else:
         target_date = date.today()
 
-    # Get log file path
+    # Get log file path using the same format as logger.py
     log_dir = get_log_dir()
-    log_file = log_dir / f"{target_date.isoformat()}.jsonl"
+    target_datetime = datetime.combine(target_date, datetime.min.time())
+    log_file = log_dir / get_log_filename(target_datetime)
 
     if not log_file.exists():
         print(f"Error: No log file found for {target_date.isoformat()}")
