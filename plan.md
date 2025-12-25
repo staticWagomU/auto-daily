@@ -330,8 +330,10 @@ sprint_5:
       test: "test_main_starts_monitoring: 起動後、ウィンドウ監視ループが開始される"
       implementation: "main() で WindowMonitor を起動する"
       type: behavioral
-      status: pending
-      commits: []
+      status: red
+      commits:
+        - phase: red
+          hash: pending
 
   notes: |
     ルートの main.py を削除し、パッケージ内に適切なエントリーポイントを実装する。

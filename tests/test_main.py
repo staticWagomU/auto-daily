@@ -55,3 +55,35 @@ def test_cli_entrypoint() -> None:
     # When called without args, should print version and exit normally
     assert result.returncode == 0
     assert "auto-daily" in result.stdout.lower()
+
+
+def test_main_starts_monitoring() -> None:
+    """Test that main() starts the window monitoring loop when --start is passed.
+
+    The main function should:
+    1. Accept a --start flag to begin monitoring
+    2. Create a WindowMonitor instance
+    3. Call WindowMonitor.start() to begin the monitoring loop
+    """
+    from unittest.mock import MagicMock, patch
+
+    # Arrange: Mock WindowMonitor to avoid actual monitoring
+    mock_monitor_instance = MagicMock()
+    mock_monitor_class = MagicMock(return_value=mock_monitor_instance)
+
+    with (
+        patch("auto_daily.WindowMonitor", mock_monitor_class),
+        patch("sys.argv", ["auto-daily", "--start"]),
+        patch("time.sleep", side_effect=KeyboardInterrupt),  # Stop loop immediately
+    ):
+        from auto_daily import main
+
+        # Act: Call main with --start
+        try:
+            main()
+        except (KeyboardInterrupt, SystemExit):
+            pass  # Expected when we interrupt the loop
+
+    # Assert: WindowMonitor should have been instantiated and started
+    mock_monitor_class.assert_called_once()
+    mock_monitor_instance.start.assert_called_once()
