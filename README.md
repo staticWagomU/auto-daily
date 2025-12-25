@@ -57,7 +57,7 @@ ollama pull llama3.2
 
 ## 使用方法
 
-### 基本的な使い方
+### ウィンドウ監視の開始
 
 ```bash
 # ウィンドウ監視を開始
@@ -66,6 +66,9 @@ python -m auto_daily --start
 # または CLI コマンドで起動
 auto-daily --start
 
+# スクリプトで起動（Ollama 起動チェック付き）
+./scripts/start.sh
+
 # バージョン確認
 auto-daily --version
 ```
@@ -73,6 +76,27 @@ auto-daily --version
 ### 停止方法
 
 `Ctrl + C` で安全に停止できます。
+
+### 日報の生成
+
+蓄積されたログから日報を生成できます。
+
+```bash
+# 今日のログから日報を生成
+python -m auto_daily report
+
+# または CLI コマンドで
+auto-daily report
+
+# スクリプトで実行（Ollama 起動チェック付き）
+./scripts/report.sh
+
+# 特定の日付のログから日報を生成
+python -m auto_daily report --date 2024-12-24
+./scripts/report.sh --date 2024-12-24
+```
+
+生成された日報は `~/.auto-daily/reports/` に `daily_report_YYYY-MM-DD.md` という形式で保存されます。
 
 ## 設定
 
