@@ -13,6 +13,14 @@ class SlackContext(TypedDict):
     is_thread: bool
 
 
+class Message(TypedDict):
+    """A single message extracted from Slack conversation."""
+
+    username: str
+    timestamp: str
+    content: str
+
+
 def parse_slack_title(title: str) -> SlackContext:
     """Parse Slack window title to extract channel, workspace, and other context.
 
@@ -65,3 +73,55 @@ def parse_slack_title(title: str) -> SlackContext:
         return result
 
     return result
+
+
+def extract_conversations(ocr_text: str) -> list[Message]:
+    """Extract conversation messages from OCR text.
+
+    Parses OCR text looking for message patterns like:
+    - "username  HH:MM" (24-hour format)
+    - "username  H:MM AM/PM" (12-hour format)
+
+    Args:
+        ocr_text: The OCR-extracted text from a Slack window.
+
+    Returns:
+        List of Message TypedDicts with username, timestamp, and content.
+    """
+    if not ocr_text.strip():
+        return []
+
+    messages: list[Message] = []
+
+    # Pattern: username (with dots, underscores, hyphens) followed by 2+ spaces and time
+    # Time can be HH:MM or H:MM with optional AM/PM
+    pattern = r"^([\w.-]+)\s{2,}(\d{1,2}:\d{2}(?:\s*[AP]M)?)\s*$"
+
+    lines = ocr_text.split("\n")
+    current_message: Message | None = None
+
+    for line in lines:
+        match = re.match(pattern, line.strip())
+        if match:
+            # Save previous message if exists
+            if current_message is not None:
+                messages.append(current_message)
+
+            # Start new message
+            current_message = {
+                "username": match.group(1),
+                "timestamp": match.group(2),
+                "content": "",
+            }
+        elif current_message is not None and line.strip():
+            # Append content to current message
+            if current_message["content"]:
+                current_message["content"] += "\n" + line.strip()
+            else:
+                current_message["content"] = line.strip()
+
+    # Don't forget the last message
+    if current_message is not None:
+        messages.append(current_message)
+
+    return messages
