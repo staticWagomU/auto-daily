@@ -232,6 +232,22 @@ product_backlog:
     dependencies:
       - PBI-004
     status: done
+
+  - id: PBI-006
+    story:
+      role: "Mac ユーザー"
+      capability: "環境変数 AUTO_DAILY_LOG_DIR でログの出力先ディレクトリを設定できる"
+      benefit: "ログの保存場所を自分の好みや運用環境に合わせてカスタマイズできる"
+    acceptance_criteria:
+      - criterion: "AUTO_DAILY_LOG_DIR 環境変数でログ出力先を指定できる"
+        verification: "pytest tests/test_config.py::test_log_dir_from_env -v"
+      - criterion: "環境変数が未設定の場合はデフォルトディレクトリ (~/.auto-daily/logs/) を使用する"
+        verification: "pytest tests/test_config.py::test_log_dir_default -v"
+      - criterion: "指定されたディレクトリが存在しない場合は自動作成する"
+        verification: "pytest tests/test_config.py::test_log_dir_auto_create -v"
+    dependencies:
+      - PBI-005
+    status: ready
 ```
 
 ### Definition of Ready
