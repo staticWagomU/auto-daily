@@ -240,18 +240,19 @@ async def report_command(
 def generate_summary_prompt(log_content: str) -> str:
     """Generate a prompt for hourly log summarization.
 
+    Reads template from summary_prompt.txt in project root.
+    Falls back to default template if file doesn't exist.
+
     Args:
         log_content: The log content to summarize.
 
     Returns:
-        A prompt for the LLM.
+        A prompt for the LLM with {log_content} replaced.
     """
-    return f"""以下の1時間分のアクティビティログを簡潔に要約してください。
-重要なタスク、作業内容、成果を箇条書きで記載してください。
+    from auto_daily.config import get_summary_prompt_template
 
-{log_content}
-
-要約:"""
+    template = get_summary_prompt_template()
+    return template.format(log_content=log_content)
 
 
 async def summarize_command(

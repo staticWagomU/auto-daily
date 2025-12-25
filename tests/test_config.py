@@ -745,3 +745,76 @@ def test_ocr_model_ollama_from_env() -> None:
     with patch.dict(os.environ, {"OCR_MODEL": "llama3.2-vision"}):
         backend = OllamaVisionOCR()
         assert backend.model == "llama3.2-vision"
+
+
+# ============================================================
+# PBI-035: 要約プロンプトのカスタマイズ
+# ============================================================
+
+
+def test_summary_prompt_template_from_file(tmp_path: Path) -> None:
+    """Test that summary prompt template is loaded from summary_prompt.txt.
+
+    The config should:
+    1. Check for summary_prompt.txt in the current working directory
+    2. If exists, return its content as the template
+    3. Use Path.cwd() to find the file
+    """
+    from auto_daily.config import get_summary_prompt_template
+
+    # Arrange: Create a custom summary_prompt.txt in tmp_path
+    prompt_file = tmp_path / "summary_prompt.txt"
+    custom_template = """カスタム要約プロンプトです。
+
+## アクティビティログ
+{log_content}
+
+## 出力
+- カスタム形式で要約してください
+"""
+    prompt_file.write_text(custom_template)
+
+    # Save current directory and change to tmp_path
+    original_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+
+        # Act: Get summary prompt template
+        result = get_summary_prompt_template()
+
+        # Assert: Should return the custom template
+        assert result == custom_template
+        assert "{log_content}" in result
+        assert "カスタム" in result
+    finally:
+        # Restore original directory
+        os.chdir(original_cwd)
+
+
+def test_summary_prompt_template_default(tmp_path: Path) -> None:
+    """Test that default template is used when summary_prompt.txt doesn't exist.
+
+    When summary_prompt.txt doesn't exist in the current directory, the config should:
+    1. Return the default summary prompt template
+    2. Include {log_content} placeholder
+    3. Include standard summary instructions
+    """
+    from auto_daily.config import (
+        DEFAULT_SUMMARY_PROMPT_TEMPLATE,
+        get_summary_prompt_template,
+    )
+
+    # Arrange: Use tmp_path as current working directory (no summary_prompt.txt)
+    original_cwd = os.getcwd()
+    try:
+        os.chdir(tmp_path)
+
+        # Act: Get summary prompt template
+        result = get_summary_prompt_template()
+
+        # Assert: Should return the default template
+        assert result == DEFAULT_SUMMARY_PROMPT_TEMPLATE
+        assert "{log_content}" in result
+        assert "要約" in result
+    finally:
+        os.chdir(original_cwd)

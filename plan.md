@@ -123,8 +123,8 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 33
-  pbi: PBI-027
+  number: 34
+  pbi: PBI-035
   status: done
   subtasks_completed: 4
   subtasks_total: 4
@@ -678,6 +678,85 @@ product_backlog:
       - PBI-012
       - PBI-013
     status: done
+
+  - id: PBI-035
+    story:
+      role: "Mac ユーザー"
+      capability: "要約生成に使うプロンプトをテキストファイルでカスタマイズできる"
+      benefit: "自分の仕事スタイルに合った要約形式を定義でき、日報の質が向上する"
+    acceptance_criteria:
+      - criterion: "プロジェクトルートの summary_prompt.txt からプロンプトを読み込める"
+        verification: "pytest tests/test_config.py::test_summary_prompt_template_from_file -v"
+      - criterion: "summary_prompt.txt が存在しない場合はデフォルトプロンプトを使用する"
+        verification: "pytest tests/test_config.py::test_summary_prompt_template_default -v"
+      - criterion: "{log_content} プレースホルダーがログ内容で置換される"
+        verification: "pytest tests/test_main.py::test_summary_prompt_placeholder -v"
+      - criterion: "summarize コマンドがカスタムプロンプトを使用する"
+        verification: "pytest tests/test_main.py::test_summarize_uses_custom_prompt -v"
+    technical_notes: |
+      ## 実装パターン
+      PBI-007（日報用 prompt.txt）と同じパターンを踏襲する。
+
+      ## config.py に追加
+      ```python
+      DEFAULT_SUMMARY_PROMPT_TEMPLATE = """以下の1時間分のアクティビティログを簡潔に要約してください。
+      重要なタスク、作業内容、成果を箇条書きで記載してください。
+
+      {log_content}
+
+      要約:"""
+
+      def get_summary_prompt_template() -> str:
+          """Get the prompt template for hourly summarization.
+
+          Reads from summary_prompt.txt in the current working directory.
+          Falls back to DEFAULT_SUMMARY_PROMPT_TEMPLATE if not found.
+
+          Returns:
+              Prompt template string with {log_content} placeholder.
+          """
+          prompt_file = Path.cwd() / "summary_prompt.txt"
+
+          if prompt_file.exists():
+              return prompt_file.read_text()
+
+          return DEFAULT_SUMMARY_PROMPT_TEMPLATE
+      ```
+
+      ## __init__.py の変更
+      ```python
+      from auto_daily.config import get_summary_prompt_template
+
+      def generate_summary_prompt(log_content: str) -> str:
+          template = get_summary_prompt_template()
+          return template.format(log_content=log_content)
+      ```
+
+      ## カスタマイズ例（summary_prompt.txt）
+      ```
+      以下のアクティビティログを要約してください。
+
+      ## フォーマット
+      - 主な作業内容
+      - 使用したツール/アプリ
+      - 重要なコミュニケーション
+
+      {log_content}
+
+      要約:
+      ```
+
+      ## 日報用プロンプトとの違い
+      | 項目 | 日報（prompt.txt） | 要約（summary_prompt.txt） |
+      |------|-------------------|---------------------------|
+      | プレースホルダー | {activities} | {log_content} |
+      | 入力 | フォーマット済みログ | 生ログ（JSONL） |
+      | 出力 | 構造化日報 | 箇条書き要約 |
+    story_points: 2
+    dependencies:
+      - PBI-007
+      - PBI-026
+    status: done
 ```
 
 ### Definition of Ready
@@ -701,76 +780,72 @@ definition_of_ready:
 ## 2. Current Sprint
 
 ```yaml
-sprint_33:
-  number: 33
-  pbi_id: PBI-027
-  story: "時間単位の要約を集約して日報を生成できる"
+sprint_34:
+  number: 34
+  pbi_id: PBI-035
+  story: "要約生成に使うプロンプトをテキストファイルでカスタマイズできる"
   status: done
 
   sprint_goal:
-    statement: "要約ファイルを使って効率的に日報を生成し、コンテキスト制限を回避する"
+    statement: "summary_prompt.txt でプロンプトをカスタマイズ可能にし、ユーザー独自の要約形式を実現する"
     success_criteria:
-      - "report コマンドが要約ファイルから日報を生成する"
-      - "要約がない時間帯はスキップされる"
-      - "要約がまだ生成されていないログは直接読み込む（フォールバック）"
-      - "日報生成前に未要約のログを自動で要約するオプション (--auto-summarize)"
-    stakeholder_value: "コンテキスト制限を回避しながら、1日全体を俯瞰した日報を作成できる"
+      - "プロジェクトルートの summary_prompt.txt からプロンプトを読み込める"
+      - "summary_prompt.txt が存在しない場合はデフォルトプロンプトを使用する"
+      - "{log_content} プレースホルダーがログ内容で置換される"
+      - "summarize コマンドがカスタムプロンプトを使用する"
+    stakeholder_value: "自分の仕事スタイルに合った要約形式を定義でき、日報の質が向上する"
 
   subtasks:
     - id: ST-001
-      test: "test_report_from_summaries: report コマンドが要約ファイルから日報を生成する"
+      test: "test_summary_prompt_template_from_file: summary_prompt.txt からプロンプトを読み込める"
       implementation: |
-        report コマンドを拡張:
-        - summarize.py に get_summaries_for_date() を追加
-        - 日付の要約ファイル一覧を取得
-        - 要約を結合してプロンプトを生成
-        - generate_daily_report_prompt_from_summaries() を追加
+        config.py に追加:
+        - DEFAULT_SUMMARY_PROMPT_TEMPLATE を定義
+        - get_summary_prompt_template() を実装
+        - Path.cwd() / "summary_prompt.txt" から読み込み
       type: behavioral
       status: completed
       commits: []
 
     - id: ST-002
-      test: "test_report_skips_missing_summaries: 要約がない時間帯はスキップされる"
+      test: "test_summary_prompt_template_default: ファイルがない場合はデフォルトを使用"
       implementation: |
-        要約ファイルがない時間帯は警告なくスキップ:
-        - get_summaries_for_date() が存在するファイルのみ返す
-        - 結合時に存在する要約のみ使用
+        get_summary_prompt_template() のフォールバック:
+        - ファイルが存在しない場合は DEFAULT_SUMMARY_PROMPT_TEMPLATE を返す
       type: behavioral
       status: completed
       commits: []
 
     - id: ST-003
-      test: "test_report_fallback_to_logs: 要約がないログは直接読み込む"
+      test: "test_summary_prompt_placeholder: {log_content} がログ内容で置換される"
       implementation: |
-        フォールバック動作:
-        - 要約ファイルがない場合、対応するログファイルを検出
-        - デフォルトでは警告を表示してスキップ
-        - --include-raw オプションでログを直接含める（将来の拡張）
+        __init__.py に追加:
+        - generate_summary_prompt(log_content: str) -> str を実装
+        - template.format(log_content=log_content) で置換
       type: behavioral
       status: completed
       commits: []
 
     - id: ST-004
-      test: "test_report_auto_summarize: --auto-summarize オプションで自動要約"
+      test: "test_summarize_uses_custom_prompt: summarize コマンドがカスタムプロンプトを使用"
       implementation: |
-        --auto-summarize オプションを追加:
-        - 日報生成前に未要約のログを検出
-        - 自動で summarize_command() を呼び出して要約を生成
-        - 生成した要約を使って日報を作成
+        __init__.py の summarize_command() を修正:
+        - get_summary_prompt_template() を使用してプロンプト生成
+        - ハードコードされたプロンプトを置き換え
       type: behavioral
       status: completed
       commits: []
 
   notes: |
     ## 実装方針
-    - 既存の report_command() を拡張
-    - 要約ファイルを優先し、ログは フォールバック
-    - PBI-026 で実装した summarize.py を活用
+    - PBI-007（prompt.txt）と同じパターンを踏襲
+    - config.py に get_summary_prompt_template() を追加
+    - 既存のハードコードされたプロンプトを置き換え
 
     ## テスト方針
-    - Ollama API をモックして日報生成をテスト
-    - ファイルシステム操作は tmp_path fixture を使用
-    - 複数の要約ファイルを作成してテスト
+    - os.chdir() で一時ディレクトリに移動してテスト
+    - ファイル存在/不在の両方をテスト
+    - プレースホルダー置換の検証
 ```
 
 ### Impediment Registry
@@ -1034,6 +1109,12 @@ completed:
   - sprint: 33
     pbi_id: PBI-027
     story: "時間単位の要約を集約して日報を生成できる"
+    subtasks_completed: 4
+    commits: []
+
+  - sprint: 34
+    pbi_id: PBI-035
+    story: "要約生成に使うプロンプトをテキストファイルでカスタマイズできる"
     subtasks_completed: 4
     commits: []
 ```
@@ -1383,6 +1464,18 @@ retrospectives:
       - "特になし - 既存パターンを活用してシンプルに完了"
     action_items:
       - "次の draft PBI をリファインメントして ready にする"
+
+  - sprint: 34
+    what_went_well:
+      - "PBI-007（prompt.txt）と同じパターンを踏襲して効率的に実装"
+      - "config.py に DEFAULT_SUMMARY_PROMPT_TEMPLATE と get_summary_prompt_template() を追加"
+      - "generate_summary_prompt() で template.format() を使用した置換を実装"
+      - "TDD サイクル（Red-Green）がスムーズに回った"
+      - "4つのサブタスクをすべて完了"
+    what_to_improve:
+      - "テストで使用するログファイル形式（hourly vs daily）の不整合に注意"
+    action_items:
+      - "Product Backlog の整理（完了した PBI を確認）"
 ```
 
 ---

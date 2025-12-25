@@ -30,6 +30,14 @@ DEFAULT_LM_STUDIO_MODEL = "default"
 DEFAULT_OCR_BACKEND = "apple"
 DEFAULT_OCR_MODEL = "gpt-4o-mini"
 
+# Summary prompt template
+DEFAULT_SUMMARY_PROMPT_TEMPLATE = """以下の1時間分のアクティビティログを簡潔に要約してください。
+重要なタスク、作業内容、成果を箇条書きで記載してください。
+
+{log_content}
+
+要約:"""
+
 DEFAULT_PROMPT_TEMPLATE = """以下のアクティビティログに基づいて、日報を作成してください。
 
 ## 今日のアクティビティ
@@ -296,3 +304,20 @@ def get_summaries_dir() -> Path:
     summaries_dir.mkdir(parents=True, exist_ok=True)
 
     return summaries_dir
+
+
+def get_summary_prompt_template() -> str:
+    """Get the prompt template for hourly summarization.
+
+    Reads from summary_prompt.txt in the current working directory.
+    Falls back to DEFAULT_SUMMARY_PROMPT_TEMPLATE if not found.
+
+    Returns:
+        Prompt template string with {log_content} placeholder.
+    """
+    prompt_file = Path.cwd() / "summary_prompt.txt"
+
+    if prompt_file.exists():
+        return prompt_file.read_text()
+
+    return DEFAULT_SUMMARY_PROMPT_TEMPLATE

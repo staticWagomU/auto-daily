@@ -994,3 +994,157 @@ def test_report_auto_summarize(tmp_path, monkeypatch, capsys) -> None:
     # Assert: Ollama should have been called multiple times
     # (once for each summary + once for final report)
     assert mock_client.generate.call_count >= 2
+
+
+# ============================================================
+# PBI-035: 要約プロンプトのカスタマイズ
+# ============================================================
+
+
+def test_summary_prompt_placeholder(tmp_path, monkeypatch) -> None:
+    """Test that {log_content} placeholder is replaced with log content.
+
+    The summarize command should:
+    1. Load the summary prompt template
+    2. Replace {log_content} placeholder with actual log content
+    3. Pass the formatted prompt to the LLM
+    """
+    import json
+    from datetime import date, datetime
+    from unittest.mock import AsyncMock, patch
+
+    import auto_daily
+    from auto_daily.logger import get_log_dir_for_date, get_log_filename
+
+    # Arrange: Create a log file for a specific hour
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    summaries_dir = tmp_path / "summaries"
+    summaries_dir.mkdir()
+
+    today = date.today()
+    target_datetime = datetime.combine(today, datetime.min.time()).replace(hour=10)
+    date_log_dir = get_log_dir_for_date(log_dir, target_datetime)
+
+    # Use get_log_filename (日付単位のファイル名) - summarize_command が期待する形式
+    log_file = date_log_dir / get_log_filename(target_datetime)
+    log_entry = {
+        "timestamp": target_datetime.isoformat(),
+        "window_info": {"app_name": "VS Code", "window_title": "project/main.py"},
+        "ocr_text": "def test_function():\n    pass",
+    }
+    log_file.write_text(json.dumps(log_entry) + "\n")
+
+    monkeypatch.setenv("AUTO_DAILY_LOG_DIR", str(log_dir))
+    monkeypatch.setenv("AUTO_DAILY_SUMMARIES_DIR", str(summaries_dir))
+
+    mock_client = AsyncMock()
+    mock_client.generate.return_value = "## 10:00-11:00\n- コーディング作業"
+
+    with (
+        patch.object(auto_daily, "OllamaClient", return_value=mock_client),
+        patch("sys.argv", ["auto-daily", "summarize", "--hour", "10"]),
+    ):
+        # Act: Call main with summarize command
+        auto_daily.main()
+
+    # Assert: Ollama should have been called with log content in the prompt
+    mock_client.generate.assert_called_once()
+    call_args = mock_client.generate.call_args
+    prompt = call_args.kwargs.get(
+        "prompt", call_args.args[1] if len(call_args.args) > 1 else ""
+    )
+
+    # The prompt should contain the log content
+    assert "VS Code" in prompt or "main.py" in prompt or "test_function" in prompt
+
+    # The prompt should NOT contain the raw placeholder
+    assert "{log_content}" not in prompt
+
+
+def test_summarize_uses_custom_prompt(tmp_path, monkeypatch) -> None:
+    """Test that summarize command uses custom prompt from summary_prompt.txt.
+
+    The summarize command should:
+    1. Load custom prompt from summary_prompt.txt in project root
+    2. Use the custom prompt template instead of default
+    3. Replace {log_content} placeholder with actual log content
+    """
+    import json
+    import os
+    from datetime import date, datetime
+    from unittest.mock import AsyncMock, patch
+
+    import auto_daily
+    from auto_daily.logger import get_log_dir_for_date, get_log_filename
+
+    # Arrange: Create a custom summary_prompt.txt
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+
+    custom_prompt = """カスタム要約プロンプト
+
+## ログ
+{log_content}
+
+## 指示
+- 箇条書きで簡潔に
+- 重要なタスクのみ抽出
+"""
+    prompt_file = project_root / "summary_prompt.txt"
+    prompt_file.write_text(custom_prompt)
+
+    # Create log file
+    log_dir = project_root / "logs"
+    log_dir.mkdir()
+    summaries_dir = project_root / "summaries"
+    summaries_dir.mkdir()
+
+    today = date.today()
+    target_datetime = datetime.combine(today, datetime.min.time()).replace(hour=11)
+    date_log_dir = get_log_dir_for_date(log_dir, target_datetime)
+
+    # Use get_log_filename (日付単位のファイル名) - summarize_command が期待する形式
+    log_file = date_log_dir / get_log_filename(target_datetime)
+    log_entry = {
+        "timestamp": target_datetime.isoformat(),
+        "window_info": {"app_name": "Slack", "window_title": "#dev-team"},
+        "ocr_text": "チャット内容",
+    }
+    log_file.write_text(json.dumps(log_entry) + "\n")
+
+    monkeypatch.setenv("AUTO_DAILY_LOG_DIR", str(log_dir))
+    monkeypatch.setenv("AUTO_DAILY_SUMMARIES_DIR", str(summaries_dir))
+
+    mock_client = AsyncMock()
+    mock_client.generate.return_value = "## 11:00-12:00\n- Slack でのコミュニケーション"
+
+    original_cwd = os.getcwd()
+    try:
+        os.chdir(project_root)
+
+        with (
+            patch.object(auto_daily, "OllamaClient", return_value=mock_client),
+            patch("sys.argv", ["auto-daily", "summarize", "--hour", "11"]),
+        ):
+            # Act: Call main with summarize command
+            auto_daily.main()
+    finally:
+        os.chdir(original_cwd)
+
+    # Assert: Ollama should have been called with custom prompt content
+    mock_client.generate.assert_called_once()
+    call_args = mock_client.generate.call_args
+    prompt = call_args.kwargs.get(
+        "prompt", call_args.args[1] if len(call_args.args) > 1 else ""
+    )
+
+    # The prompt should contain custom prompt markers
+    assert "カスタム要約プロンプト" in prompt
+    assert "重要なタスクのみ抽出" in prompt
+
+    # The prompt should contain the log content (Slack)
+    assert "Slack" in prompt or "dev-team" in prompt or "チャット" in prompt
+
+    # The prompt should NOT contain the raw placeholder
+    assert "{log_content}" not in prompt
