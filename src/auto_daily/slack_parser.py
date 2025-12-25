@@ -125,3 +125,16 @@ def extract_conversations(ocr_text: str) -> list[Message]:
         messages.append(current_message)
 
     return messages
+
+
+def filter_my_messages(messages: list[Message], username: str) -> list[Message]:
+    """Filter messages to only include those from a specific user.
+
+    Args:
+        messages: List of Message TypedDicts to filter.
+        username: The username to filter by.
+
+    Returns:
+        List of messages from the specified user.
+    """
+    return [msg for msg in messages if msg["username"] == username]
