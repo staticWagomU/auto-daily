@@ -24,7 +24,8 @@ show_help() {
     echo "  $0 --help   このヘルプを表示"
     echo ""
     echo "関連スクリプト:"
-    echo "  ./scripts/report.sh   日報を生成"
+    echo "  ./scripts/report.sh            日報を生成"
+    echo "  ./scripts/setup-permissions.sh 権限設定"
     echo ""
     echo "環境変数:"
     echo "  AUTO_DAILY_LOG_DIR  ログ出力先ディレクトリ（デフォルト: ~/.auto-daily/logs/）"
@@ -33,6 +34,48 @@ show_help() {
     echo "  - 画面収録の権限（システム環境設定 > プライバシーとセキュリティ > 画面収録）"
     echo ""
     echo "Ollama が起動している必要があります。"
+}
+
+# macOS 権限チェック
+check_permissions() {
+    # Python を使って権限状態を確認
+    local result
+    result=$(python3 -c "
+from auto_daily.permissions import check_all_permissions
+
+permissions = check_all_permissions()
+missing = [name for name, granted in permissions.items() if not granted]
+
+if missing:
+    print('MISSING:' + ','.join(missing))
+else:
+    print('OK')
+" 2>/dev/null || echo "ERROR")
+
+    if [[ "$result" == "OK" ]]; then
+        echo -e "${GREEN}✓ macOS 権限が許可済み${NC}"
+        return 0
+    elif [[ "$result" == ERROR* ]]; then
+        # 権限モジュールが読み込めない場合はスキップ
+        echo -e "${YELLOW}⚠ 権限チェックをスキップ（モジュール読み込みエラー）${NC}"
+        return 0
+    else
+        # 権限が不足している場合
+        echo -e "${RED}⚠ 権限が不足しています${NC}"
+        echo ""
+        if [[ "$result" == *"screen_recording"* ]]; then
+            echo "  - 画面収録の権限が必要です"
+        fi
+        if [[ "$result" == *"accessibility"* ]]; then
+            echo "  - アクセシビリティの権限が必要です"
+        fi
+        echo ""
+        echo "権限を設定するには:"
+        echo "  ./scripts/setup-permissions.sh"
+        echo ""
+        echo -e "${YELLOW}権限なしで続行しますが、一部の機能が動作しない可能性があります。${NC}"
+        return 0
+    fi
 }
 
 # Ollama 起動チェック
@@ -57,6 +100,9 @@ main() {
 
     echo "auto-daily を起動しています..."
     echo ""
+
+    # 権限チェック
+    check_permissions
 
     # Ollama チェック
     check_ollama
