@@ -35,7 +35,12 @@ from auto_daily.ollama import (
 from auto_daily.permissions import check_all_permissions
 from auto_daily.processor import process_window_change
 from auto_daily.scheduler import PeriodicCapture, process_periodic_capture
-from auto_daily.summarize import save_summary
+from auto_daily.summarize import (
+    generate_daily_report_prompt_from_summaries,
+    get_missing_summary_hours,
+    get_summaries_for_date,
+    save_summary,
+)
 from auto_daily.window_monitor import WindowMonitor
 
 # Default interval for periodic capture (30 seconds)
@@ -80,15 +85,20 @@ def _load_logs_as_entries(log_file: Path) -> list[LogEntry]:
 
 
 async def report_command(
-    date_str: str | None = None, with_calendar: bool = False
+    date_str: str | None = None,
+    with_calendar: bool = False,
+    auto_summarize: bool = False,
 ) -> None:
-    """Generate a daily report from logs.
+    """Generate a daily report from summaries or logs.
 
     Args:
         date_str: Optional date string in YYYY-MM-DD format.
                   If None, uses today's date.
         with_calendar: If True, include calendar events in report.
+        auto_summarize: If True, automatically generate missing summaries.
     """
+    from auto_daily.logger import get_hourly_log_filename, get_log_dir_for_date
+
     # Check Ollama connection before proceeding
     if not check_ollama_connection():
         ollama_url = get_ollama_base_url()
@@ -104,27 +114,60 @@ async def report_command(
     else:
         target_date = date.today()
 
-    # Get log file path using the same format as logger.py
     log_dir = get_log_dir()
-    target_datetime = datetime.combine(target_date, datetime.min.time())
-    log_file = log_dir / get_log_filename(target_datetime)
+    summaries_dir = get_summaries_dir()
 
-    if not log_file.exists():
-        print(f"Error: No log file found for {target_date.isoformat()}")
-        print(f"Expected: {log_file}")
-        sys.exit(1)
+    # Auto-summarize if requested
+    if auto_summarize:
+        missing_hours = get_missing_summary_hours(log_dir, summaries_dir, target_date)
+        if missing_hours:
+            print(f"Generating summaries for hours: {missing_hours}...")
+            client = OllamaClient()
+            model = get_ollama_model()
 
-    # Generate report using Ollama
-    print(f"Generating report for {target_date.isoformat()}...")
+            for hour in missing_hours:
+                # Read log file for this hour
+                target_datetime = datetime.combine(
+                    target_date, datetime.min.time()
+                ).replace(hour=hour)
+                date_log_dir = get_log_dir_for_date(log_dir, target_datetime)
+                log_file = date_log_dir / get_hourly_log_filename(target_datetime)
 
-    if with_calendar:
-        # Fetch calendar events and match with logs
-        events = await get_all_events(target_date)
-        log_entries = _load_logs_as_entries(log_file)
-        match_result = match_events_with_logs(events, log_entries)
-        prompt = generate_daily_report_prompt_with_calendar(log_file, match_result)
+                if log_file.exists():
+                    log_content = log_file.read_text()
+                    prompt = generate_summary_prompt(log_content)
+                    summary = await client.generate(model=model, prompt=prompt)
+                    save_summary(summaries_dir, target_date, hour, summary)
+                    print(f"  Generated summary for hour {hour:02d}")
+
+    # Try to use summary files first
+    summaries = get_summaries_for_date(summaries_dir, target_date)
+
+    if summaries:
+        # Use summaries for report generation
+        print(f"Generating report for {target_date.isoformat()} from summaries...")
+        prompt = generate_daily_report_prompt_from_summaries(summaries)
     else:
-        prompt = generate_daily_report_prompt(log_file)
+        # Fall back to log file
+        target_datetime = datetime.combine(target_date, datetime.min.time())
+        log_file = log_dir / get_log_filename(target_datetime)
+
+        if not log_file.exists():
+            print(f"Error: No log file found for {target_date.isoformat()}")
+            print(f"Expected: {log_file}")
+            sys.exit(1)
+
+        # Generate report using Ollama
+        print(f"Generating report for {target_date.isoformat()}...")
+
+        if with_calendar:
+            # Fetch calendar events and match with logs
+            events = await get_all_events(target_date)
+            log_entries = _load_logs_as_entries(log_file)
+            match_result = match_events_with_logs(events, log_entries)
+            prompt = generate_daily_report_prompt_with_calendar(log_file, match_result)
+        else:
+            prompt = generate_daily_report_prompt(log_file)
 
     client = OllamaClient()
     model = get_ollama_model()
@@ -258,6 +301,11 @@ def main() -> None:
         action="store_true",
         help="Include calendar events in the report",
     )
+    report_parser.add_argument(
+        "--auto-summarize",
+        action="store_true",
+        help="Automatically generate missing summaries before report",
+    )
 
     # Summarize subcommand
     summarize_parser = subparsers.add_parser(
@@ -279,7 +327,7 @@ def main() -> None:
 
     # Handle report subcommand
     if args.command == "report":
-        asyncio.run(report_command(args.date, args.with_calendar))
+        asyncio.run(report_command(args.date, args.with_calendar, args.auto_summarize))
         return
 
     # Handle summarize subcommand

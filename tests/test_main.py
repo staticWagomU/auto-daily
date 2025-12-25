@@ -736,3 +736,257 @@ def test_report_with_calendar_option(tmp_path, monkeypatch) -> None:
     )
     # Prompt should mention the meeting or calendar info
     assert "Team Meeting" in prompt or "予定" in prompt
+
+
+# ============================================================
+# PBI-027: Summary-based report generation
+# ============================================================
+
+
+def test_report_from_summaries(tmp_path, monkeypatch) -> None:
+    """Test that report command generates report from summary files.
+
+    The report command should:
+    1. Look for summary files in summaries/YYYY-MM-DD/
+    2. Read all available summary files (summary_HH.md)
+    3. Combine summaries into a single prompt
+    4. Generate a daily report from the combined summaries
+    """
+    from datetime import date
+    from unittest.mock import AsyncMock, patch
+
+    import auto_daily
+
+    # Arrange: Create summary files for several hours
+    summaries_dir = tmp_path / "summaries"
+    reports_dir = tmp_path / "reports"
+
+    today = date.today()
+    date_dir = summaries_dir / today.isoformat()
+    date_dir.mkdir(parents=True)
+
+    # Create summary files for hours 9, 10, and 14
+    (date_dir / "summary_09.md").write_text(
+        "## 09:00-10:00\n- チームミーティングに参加\n- 週次レビューを実施"
+    )
+    (date_dir / "summary_10.md").write_text(
+        "## 10:00-11:00\n- コードレビューを完了\n- PR をマージ"
+    )
+    (date_dir / "summary_14.md").write_text(
+        "## 14:00-15:00\n- バグ修正に着手\n- テストを追加"
+    )
+
+    monkeypatch.setenv("AUTO_DAILY_SUMMARIES_DIR", str(summaries_dir))
+
+    mock_client = AsyncMock()
+    mock_client.generate.return_value = (
+        "# 日報\n\n今日はチームミーティング、コードレビュー、バグ修正を行いました。"
+    )
+
+    with (
+        patch.object(auto_daily, "OllamaClient", return_value=mock_client),
+        patch.object(auto_daily, "get_reports_dir", return_value=reports_dir),
+        patch("sys.argv", ["auto-daily", "report"]),
+    ):
+        # Act: Call main with report command
+        auto_daily.main()
+
+    # Assert: Ollama should have been called with a prompt containing all summaries
+    mock_client.generate.assert_called_once()
+    call_args = mock_client.generate.call_args
+    prompt = call_args.kwargs.get(
+        "prompt", call_args.args[1] if len(call_args.args) > 1 else ""
+    )
+
+    # The prompt should contain content from all summary files
+    assert "チームミーティング" in prompt
+    assert "コードレビュー" in prompt
+    assert "バグ修正" in prompt
+
+
+def test_report_skips_missing_summaries(tmp_path, monkeypatch) -> None:
+    """Test that report command skips hours without summary files.
+
+    The report command should:
+    1. Only include hours that have summary files
+    2. Skip hours without summary files (no error, no warning)
+    3. Generate report from available summaries only
+    """
+    from datetime import date
+    from unittest.mock import AsyncMock, patch
+
+    import auto_daily
+
+    # Arrange: Create sparse summary files (only hours 9 and 14, missing 10-13)
+    summaries_dir = tmp_path / "summaries"
+    reports_dir = tmp_path / "reports"
+
+    today = date.today()
+    date_dir = summaries_dir / today.isoformat()
+    date_dir.mkdir(parents=True)
+
+    # Only create summaries for hours 9 and 14 (gap in between)
+    (date_dir / "summary_09.md").write_text("## 09:00-10:00\n- 朝会に参加")
+    (date_dir / "summary_14.md").write_text("## 14:00-15:00\n- 午後の作業")
+
+    monkeypatch.setenv("AUTO_DAILY_SUMMARIES_DIR", str(summaries_dir))
+
+    mock_client = AsyncMock()
+    mock_client.generate.return_value = "# 日報\n\n朝会と午後の作業を行いました。"
+
+    with (
+        patch.object(auto_daily, "OllamaClient", return_value=mock_client),
+        patch.object(auto_daily, "get_reports_dir", return_value=reports_dir),
+        patch("sys.argv", ["auto-daily", "report"]),
+    ):
+        # Act: Call main with report command
+        auto_daily.main()
+
+    # Assert: Ollama should have been called
+    mock_client.generate.assert_called_once()
+    call_args = mock_client.generate.call_args
+    prompt = call_args.kwargs.get(
+        "prompt", call_args.args[1] if len(call_args.args) > 1 else ""
+    )
+
+    # The prompt should contain content from available summaries only
+    assert "朝会" in prompt
+    assert "午後の作業" in prompt
+
+    # Should include time slots for 09 and 14
+    assert "09:00" in prompt
+    assert "14:00" in prompt
+
+    # Should NOT include non-existent time slots (10, 11, 12, 13)
+    # Just verify no errors occurred - gaps are silently skipped
+
+
+def test_report_fallback_to_logs(tmp_path, monkeypatch) -> None:
+    """Test that report command falls back to logs when no summaries exist.
+
+    The report command should:
+    1. First check for summary files
+    2. If no summaries exist, fall back to reading the log file
+    3. Generate report from the log file content
+    """
+    import json
+    from datetime import date, datetime
+    from unittest.mock import AsyncMock, patch
+
+    import auto_daily
+    from auto_daily.logger import get_log_filename
+
+    # Arrange: Create log file but NO summary files
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    summaries_dir = tmp_path / "summaries"  # Empty directory
+    summaries_dir.mkdir()
+    reports_dir = tmp_path / "reports"
+
+    today = date.today()
+
+    # Create log file
+    log_file = log_dir / get_log_filename(datetime.combine(today, datetime.min.time()))
+    log_entry = {
+        "timestamp": datetime.combine(today, datetime.min.time())
+        .replace(hour=10, minute=30)
+        .isoformat(),
+        "window_info": {"app_name": "VS Code", "window_title": "project/main.py"},
+        "ocr_text": "def main():\n    print('Hello')",
+    }
+    log_file.write_text(json.dumps(log_entry) + "\n")
+
+    # No summary files created - should fall back to log
+
+    monkeypatch.setenv("AUTO_DAILY_LOG_DIR", str(log_dir))
+    monkeypatch.setenv("AUTO_DAILY_SUMMARIES_DIR", str(summaries_dir))
+
+    mock_client = AsyncMock()
+    mock_client.generate.return_value = "# 日報\n\nコーディング作業を行いました。"
+
+    with (
+        patch.object(auto_daily, "OllamaClient", return_value=mock_client),
+        patch.object(auto_daily, "get_reports_dir", return_value=reports_dir),
+        patch("sys.argv", ["auto-daily", "report"]),
+    ):
+        # Act: Call main with report command
+        auto_daily.main()
+
+    # Assert: Ollama should have been called with log content
+    mock_client.generate.assert_called_once()
+    call_args = mock_client.generate.call_args
+    prompt = call_args.kwargs.get(
+        "prompt", call_args.args[1] if len(call_args.args) > 1 else ""
+    )
+
+    # The prompt should contain the log content (VS Code, main.py)
+    assert "VS Code" in prompt or "main.py" in prompt or "Hello" in prompt
+
+
+def test_report_auto_summarize(tmp_path, monkeypatch, capsys) -> None:
+    """Test that --auto-summarize option generates missing summaries.
+
+    The --auto-summarize option should:
+    1. Detect hours with logs but no summaries
+    2. Automatically generate summaries for those hours
+    3. Use the newly generated summaries for report generation
+    """
+    import json
+    from datetime import date, datetime
+    from unittest.mock import AsyncMock, patch
+
+    import auto_daily
+    from auto_daily.logger import get_hourly_log_filename, get_log_dir_for_date
+
+    # Arrange: Create hourly log files but NO summary files
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    summaries_dir = tmp_path / "summaries"
+    summaries_dir.mkdir()
+    reports_dir = tmp_path / "reports"
+
+    today = date.today()
+    date_log_dir = get_log_dir_for_date(
+        log_dir, datetime.combine(today, datetime.min.time())
+    )
+
+    # Create hourly log files for hours 9 and 10 using correct hourly format
+    for hour in [9, 10]:
+        target_datetime = datetime.combine(today, datetime.min.time()).replace(
+            hour=hour
+        )
+        log_file = date_log_dir / get_hourly_log_filename(target_datetime)
+        log_entry = {
+            "timestamp": target_datetime.isoformat(),
+            "window_info": {"app_name": "VS Code", "window_title": f"task_{hour}.py"},
+            "ocr_text": f"# Hour {hour} work",
+        }
+        log_file.write_text(json.dumps(log_entry) + "\n")
+
+    monkeypatch.setenv("AUTO_DAILY_LOG_DIR", str(log_dir))
+    monkeypatch.setenv("AUTO_DAILY_SUMMARIES_DIR", str(summaries_dir))
+
+    mock_client = AsyncMock()
+    # First call for hour 9 summary, second for hour 10 summary, third for final report
+    mock_client.generate.side_effect = [
+        "## 09:00-10:00\n- 朝の作業",  # Summary for hour 9
+        "## 10:00-11:00\n- 午前の作業",  # Summary for hour 10
+        "# 日報\n\n朝と午前の作業を行いました。",  # Final report
+    ]
+
+    with (
+        patch.object(auto_daily, "OllamaClient", return_value=mock_client),
+        patch.object(auto_daily, "get_reports_dir", return_value=reports_dir),
+        patch("sys.argv", ["auto-daily", "report", "--auto-summarize"]),
+    ):
+        # Act: Call main with report command and --auto-summarize
+        auto_daily.main()
+
+    # Assert: Summary files should be created
+    date_summary_dir = summaries_dir / today.isoformat()
+    assert (date_summary_dir / "summary_09.md").exists()
+    assert (date_summary_dir / "summary_10.md").exists()
+
+    # Assert: Ollama should have been called multiple times
+    # (once for each summary + once for final report)
+    assert mock_client.generate.call_count >= 2

@@ -123,11 +123,11 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 32
-  pbi: PBI-026
+  number: 33
+  pbi: PBI-027
   status: done
-  subtasks_completed: 5
-  subtasks_total: 5
+  subtasks_completed: 4
+  subtasks_total: 4
   impediments: 0
 ```
 
@@ -492,10 +492,14 @@ product_backlog:
       ## コンテキスト削減効果
       - 従来: 1日分のログ（数百KB〜数MB）
       - 変更後: 時間単位の要約（各1-2KB × 8-10時間 = 10-20KB）
+
+      ## 実装ファイル
+      - src/auto_daily/__init__.py: report コマンドを拡張
+      - src/auto_daily/summarize.py: 要約読み込み関数を追加
     story_points: 5
     dependencies:
       - PBI-026
-    status: draft
+    status: done
 
   - id: PBI-032
     story:
@@ -697,83 +701,76 @@ definition_of_ready:
 ## 2. Current Sprint
 
 ```yaml
-sprint_32:
-  number: 32
-  pbi_id: PBI-026
-  story: "1時間ごとにログを要約して保存できる"
+sprint_33:
+  number: 33
+  pbi_id: PBI-027
+  story: "時間単位の要約を集約して日報を生成できる"
   status: done
 
   sprint_goal:
-    statement: "1時間単位でログを要約し、長時間作業でもコンテキスト溢れを防ぐ"
+    statement: "要約ファイルを使って効率的に日報を生成し、コンテキスト制限を回避する"
     success_criteria:
-      - "python -m auto_daily summarize で現在の時間のログを要約できる"
-      - "日付ディレクトリ summaries/YYYY-MM-DD/ が自動作成される"
-      - "要約が summaries/YYYY-MM-DD/summary_HH.md として保存される"
-      - "スケジューラーで1時間ごとに自動的に要約が生成される"
-      - "--hour オプションで特定の時間の要約を生成できる"
-    stakeholder_value: "長時間の作業でもコンテキストが溢れず、効率的に日報を生成できる"
+      - "report コマンドが要約ファイルから日報を生成する"
+      - "要約がない時間帯はスキップされる"
+      - "要約がまだ生成されていないログは直接読み込む（フォールバック）"
+      - "日報生成前に未要約のログを自動で要約するオプション (--auto-summarize)"
+    stakeholder_value: "コンテキスト制限を回避しながら、1日全体を俯瞰した日報を作成できる"
 
   subtasks:
     - id: ST-001
-      test: "test_summarize_command: python -m auto_daily summarize が動作する"
+      test: "test_report_from_summaries: report コマンドが要約ファイルから日報を生成する"
       implementation: |
-        __init__.py に summarize サブコマンドを追加:
-        - argparse にサブコマンドを追加
-        - summarize_command() 関数を作成
+        report コマンドを拡張:
+        - summarize.py に get_summaries_for_date() を追加
+        - 日付の要約ファイル一覧を取得
+        - 要約を結合してプロンプトを生成
+        - generate_daily_report_prompt_from_summaries() を追加
       type: behavioral
       status: completed
       commits: []
 
     - id: ST-002
-      test: "test_summary_date_directory: summaries/YYYY-MM-DD/ が作成される"
+      test: "test_report_skips_missing_summaries: 要約がない時間帯はスキップされる"
       implementation: |
-        config.py に get_summaries_dir() を追加:
-        - AUTO_DAILY_SUMMARIES_DIR 環境変数または ~/.auto-daily/summaries/
-        summarize.py に get_summary_dir_for_date() を追加
+        要約ファイルがない時間帯は警告なくスキップ:
+        - get_summaries_for_date() が存在するファイルのみ返す
+        - 結合時に存在する要約のみ使用
       type: behavioral
       status: completed
       commits: []
 
     - id: ST-003
-      test: "test_summary_file_format: summary_HH.md 形式で保存される"
+      test: "test_report_fallback_to_logs: 要約がないログは直接読み込む"
       implementation: |
-        summarize.py に:
-        - get_summary_filename(hour) -> "summary_HH.md"
-        - save_summary(date, hour, content) で保存
+        フォールバック動作:
+        - 要約ファイルがない場合、対応するログファイルを検出
+        - デフォルトでは警告を表示してスキップ
+        - --include-raw オプションでログを直接含める（将来の拡張）
       type: behavioral
       status: completed
       commits: []
 
     - id: ST-004
-      test: "test_hourly_summary_scheduler: スケジューラーで1時間ごとに要約"
+      test: "test_report_auto_summarize: --auto-summarize オプションで自動要約"
       implementation: |
-        scheduler.py に HourlySummaryScheduler クラスを追加:
-        - PeriodicCapture と同様のパターン
-        - trigger_summary() で手動トリガー
-      type: behavioral
-      status: completed
-      commits: []
-
-    - id: ST-005
-      test: "test_summarize_with_hour_option: --hour オプションで時間指定"
-      implementation: |
-        summarize コマンドに --date と --hour オプションを追加:
-        - --date: YYYY-MM-DD 形式
-        - --hour: 0-23 の整数
+        --auto-summarize オプションを追加:
+        - 日報生成前に未要約のログを検出
+        - 自動で summarize_command() を呼び出して要約を生成
+        - 生成した要約を使って日報を作成
       type: behavioral
       status: completed
       commits: []
 
   notes: |
     ## 実装方針
-    - 既存の logger.py パターンを踏襲（日付ディレクトリ構造）
-    - Ollama を使用して要約を生成
-    - PeriodicCapture と同様のスケジューラーパターン
+    - 既存の report_command() を拡張
+    - 要約ファイルを優先し、ログは フォールバック
+    - PBI-026 で実装した summarize.py を活用
 
     ## テスト方針
-    - Ollama API をモックして要約生成をテスト
+    - Ollama API をモックして日報生成をテスト
     - ファイルシステム操作は tmp_path fixture を使用
-    - スケジューラーは threading.Event で同期
+    - 複数の要約ファイルを作成してテスト
 ```
 
 ### Impediment Registry
@@ -1032,6 +1029,12 @@ completed:
     pbi_id: PBI-026
     story: "1時間ごとにログを要約して保存できる"
     subtasks_completed: 5
+    commits: []
+
+  - sprint: 33
+    pbi_id: PBI-027
+    story: "時間単位の要約を集約して日報を生成できる"
+    subtasks_completed: 4
     commits: []
 ```
 
@@ -1367,6 +1370,19 @@ retrospectives:
       - "特になし - 既存パターンを活用してシンプルに完了"
     action_items:
       - "PBI-027（要約を使った日報生成）をリファインメントして ready にする"
+
+  - sprint: 33
+    what_went_well:
+      - "PBI-026 で実装した summarize.py を効果的に活用"
+      - "get_summaries_for_date() と generate_daily_report_prompt_from_summaries() を追加"
+      - "report コマンドに --auto-summarize オプションを追加"
+      - "ST-001 の実装が ST-002、ST-003 の要件も満たしており効率的"
+      - "TDD サイクル（Red-Green）がスムーズに回った"
+      - "4つのサブタスクをすべて完了"
+    what_to_improve:
+      - "特になし - 既存パターンを活用してシンプルに完了"
+    action_items:
+      - "次の draft PBI をリファインメントして ready にする"
 ```
 
 ---

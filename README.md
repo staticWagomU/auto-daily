@@ -7,7 +7,8 @@ macOS でウィンドウ切り替え時に作業コンテキストを自動キ�
 - **ウィンドウ監視**: アクティブウィンドウの切り替えを検知し、アプリ名・ウィンドウタイトルを自動取得
 - **画面キャプチャ & OCR**: ウィンドウ切り替え時に画面をキャプチャし、Vision Framework で日本語テキストを抽出
 - **JSONL ログ保存**: 作業コンテキストを JSONL 形式で日付・時間ごとに自動保存
-- **日報自動生成**: Ollama または OpenAI を使って蓄積されたログから日報を自動作成
+- **時間単位の要約**: 1時間ごとにログを要約し、コンテキスト制限を回避
+- **日報自動生成**: Ollama または OpenAI を使って蓄積されたログまたは要約から日報を自動作成
 - **カレンダー連携**: Google カレンダーの iCal URL から予定を取得し、日報生成に活用
 - **カスタマイズ可能**: ログ出力先、日報保存先、プロンプトテンプレートを設定可能
 
@@ -88,12 +89,26 @@ auto-daily --version
 
 `Ctrl + C` で安全に停止できます。
 
-### 日報の生成
+### ログの要約
 
-蓄積されたログから日報を生成できます。
+1時間ごとのログを要約することで、長時間の作業でもコンテキスト制限を回避できます。
 
 ```bash
-# 今日のログから日報を生成
+# 現在の時間のログを要約
+python -m auto_daily summarize
+
+# 特定の日時を指定して要約
+python -m auto_daily summarize --date 2024-12-24 --hour 14
+```
+
+要約は `~/.auto-daily/summaries/YYYY-MM-DD/summary_HH.md` に保存されます。
+
+### 日報の生成
+
+蓄積された要約またはログから日報を生成できます。要約ファイルがある場合は優先的に使用されます。
+
+```bash
+# 今日の要約/ログから日報を生成
 python -m auto_daily report
 
 # または CLI コマンドで
@@ -102,9 +117,16 @@ auto-daily report
 # スクリプトで実行（Ollama 起動チェック付き）
 ./scripts/report.sh
 
-# 特定の日付のログから日報を生成
+# 特定の日付の日報を生成
 python -m auto_daily report --date 2024-12-24
 ./scripts/report.sh --date 2024-12-24
+
+# 未要約のログを自動で要約してから日報を生成
+python -m auto_daily report --auto-summarize
+./scripts/report.sh --auto-summarize
+
+# カレンダー情報を含めて日報を生成
+python -m auto_daily report --with-calendar
 ```
 
 生成された日報は `~/.auto-daily/reports/`（またはプロジェクトルートの `reports/`）に `daily_report_YYYY-MM-DD.md` という形式で保存されます。
@@ -135,6 +157,7 @@ vim ~/.auto-daily/.env
 | `OPENAI_MODEL` | 使用する OpenAI モデル | `gpt-4o-mini` |
 | `AUTO_DAILY_CAPTURE_INTERVAL` | 定期キャプチャの間隔（秒） | `30` |
 | `AUTO_DAILY_LOG_DIR` | ログ出力先ディレクトリ | `~/.auto-daily/logs/` |
+| `AUTO_DAILY_SUMMARIES_DIR` | 要約出力先ディレクトリ | `~/.auto-daily/summaries/` |
 | `AUTO_DAILY_REPORTS_DIR` | 日報出力先ディレクトリ | `~/.auto-daily/reports/` |
 
 ### ログ出力先のカスタマイズ

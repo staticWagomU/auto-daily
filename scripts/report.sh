@@ -22,24 +22,33 @@ show_help() {
     echo "auto-daily 日報生成スクリプト"
     echo ""
     echo "使用方法:"
-    echo "  $0                    今日のログから日報を生成"
-    echo "  $0 --date YYYY-MM-DD  特定の日付のログから日報を生成"
-    echo "  $0 --help             このヘルプを表示"
+    echo "  $0                       今日の要約/ログから日報を生成"
+    echo "  $0 --date YYYY-MM-DD     特定の日付の日報を生成"
+    echo "  $0 --auto-summarize      未要約のログを自動で要約してから日報を生成"
+    echo "  $0 --with-calendar       カレンダー情報を含めて日報を生成"
+    echo "  $0 --help                このヘルプを表示"
     echo ""
     echo "オプション:"
-    echo "  --date, -d    日報を生成する日付（YYYY-MM-DD 形式）"
+    echo "  --date, -d           日報を生成する日付（YYYY-MM-DD 形式）"
+    echo "  --auto-summarize, -a 未要約のログを自動で要約してから日報を生成"
+    echo "  --with-calendar, -c  カレンダー情報を含めて日報を生成"
     echo ""
     echo "例:"
-    echo "  $0                     # 今日の日報を生成"
-    echo "  $0 --date 2024-12-24   # 2024年12月24日の日報を生成"
-    echo "  $0 -d 2024-12-24       # 同上（短縮形）"
+    echo "  $0                        # 今日の日報を生成（要約優先）"
+    echo "  $0 --date 2024-12-24      # 2024年12月24日の日報を生成"
+    echo "  $0 -d 2024-12-24          # 同上（短縮形）"
+    echo "  $0 --auto-summarize       # 未要約のログを要約してから日報を生成"
+    echo "  $0 -a -d 2024-12-24       # 特定日付を自動要約して日報を生成"
+    echo "  $0 --with-calendar        # カレンダー情報を含めて日報を生成"
     echo ""
     echo "出力先:"
-    echo "  プロジェクト内: ./reports/daily_report_YYYY-MM-DD.md（reports/ ディレクトリがある場合）"
-    echo "  デフォルト: ~/.auto-daily/reports/daily_report_YYYY-MM-DD.md"
+    echo "  要約: ~/.auto-daily/summaries/YYYY-MM-DD/summary_HH.md"
+    echo "  日報: ~/.auto-daily/reports/daily_report_YYYY-MM-DD.md"
+    echo "       （プロジェクト内に reports/ がある場合はそちらを優先）"
     echo ""
     echo "環境変数:"
-    echo "  AUTO_DAILY_LOG_DIR  ログ読み込み元ディレクトリ（デフォルト: ~/.auto-daily/logs/）"
+    echo "  AUTO_DAILY_LOG_DIR       ログ読み込み元ディレクトリ（デフォルト: ~/.auto-daily/logs/）"
+    echo "  AUTO_DAILY_SUMMARIES_DIR 要約保存先ディレクトリ（デフォルト: ~/.auto-daily/summaries/）"
     echo ""
     echo "Ollama が起動している必要があります。"
 }
@@ -69,6 +78,8 @@ validate_date() {
 # メイン処理
 main() {
     local date_option=""
+    local auto_summarize=""
+    local with_calendar=""
 
     # 引数の解析
     while [[ $# -gt 0 ]]; do
@@ -85,6 +96,14 @@ main() {
                 validate_date "$2"
                 date_option="--date $2"
                 shift 2
+                ;;
+            --auto-summarize|-a)
+                auto_summarize="--auto-summarize"
+                shift
+                ;;
+            --with-calendar|-c)
+                with_calendar="--with-calendar"
+                shift
                 ;;
             *)
                 echo -e "${RED}エラー: 不明なオプション: $1${NC}"
@@ -104,7 +123,7 @@ main() {
 
     # アプリケーション実行
     # shellcheck disable=SC2086
-    python -m auto_daily report $date_option
+    python -m auto_daily report $date_option $auto_summarize $with_calendar
 
     echo ""
     echo -e "${GREEN}✓ 日報の生成が完了しました${NC}"

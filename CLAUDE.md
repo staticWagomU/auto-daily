@@ -23,6 +23,7 @@ auto-daily/
 │       ├── logger.py          # JSONL ログ保存
 │       ├── processor.py       # ウィンドウ変更処理パイプライン
 │       ├── scheduler.py       # 定期キャプチャ
+│       ├── summarize.py       # 時間単位のログ要約
 │       ├── config.py          # 設定管理
 │       ├── ollama.py          # Ollama 連携・日報生成
 │       ├── permissions.py     # macOS 権限チェック
