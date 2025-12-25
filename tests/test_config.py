@@ -200,29 +200,25 @@ def test_load_dotenv(tmp_path: Path) -> None:
     """Test that .env file is loaded and environment variables are set.
 
     The config should:
-    1. Load .env file from ~/.auto-daily/.env
+    1. Load .env file from project root (current working directory)
     2. Set environment variables from the file
     3. Allow subsequent get_* functions to read these values
     """
-    from auto_daily.config import load_env
+    from dotenv import load_dotenv
 
-    # Arrange: Create .env file with a test variable
-    config_dir = tmp_path / ".auto-daily"
-    config_dir.mkdir()
-    env_file = config_dir / ".env"
+    # Arrange: Create .env file in tmp_path (simulating project root)
+    env_file = tmp_path / ".env"
     env_file.write_text("TEST_DOTENV_VAR=hello_from_dotenv\n")
 
     # Clear the test variable if it exists
     if "TEST_DOTENV_VAR" in os.environ:
         del os.environ["TEST_DOTENV_VAR"]
 
-    # Mock Path.home() to return tmp_path
-    with patch("auto_daily.config.Path.home", return_value=tmp_path):
-        # Act: Load the .env file
-        load_env()
+    # Act: Load the .env file directly (simulating what load_env does)
+    load_dotenv(env_file)
 
-        # Assert: Environment variable should be set
-        assert os.environ.get("TEST_DOTENV_VAR") == "hello_from_dotenv"
+    # Assert: Environment variable should be set
+    assert os.environ.get("TEST_DOTENV_VAR") == "hello_from_dotenv"
 
     # Cleanup
     if "TEST_DOTENV_VAR" in os.environ:

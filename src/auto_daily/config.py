@@ -110,11 +110,11 @@ def get_slack_username(workspace: str) -> str | None:
 def load_env() -> None:
     """Load environment variables from .env file.
 
-    Loads from ~/.auto-daily/.env if it exists.
+    Loads from project root .env if it exists.
     Does not override existing environment variables.
     """
-    env_file = Path.home() / ".auto-daily" / ".env"
-    load_dotenv(env_file)
+    # Load from project root (where pyproject.toml is located)
+    load_dotenv()
 
 
 def get_ollama_base_url() -> str:
