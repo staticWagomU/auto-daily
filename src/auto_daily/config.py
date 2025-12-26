@@ -29,6 +29,7 @@ DEFAULT_LM_STUDIO_MODEL = "default"
 # OCR settings
 DEFAULT_OCR_BACKEND = "apple"
 DEFAULT_OCR_MODEL = "gpt-4o-mini"
+DEFAULT_OCR_FILTER_NOISE = True
 
 # Summary prompt template
 DEFAULT_SUMMARY_PROMPT_TEMPLATE = """以下の1時間分のアクティビティログを簡潔に要約してください。
@@ -342,3 +343,24 @@ def get_summary_prompt_template() -> str:
         return prompt_file.read_text()
 
     return DEFAULT_SUMMARY_PROMPT_TEMPLATE
+
+
+def get_ocr_filter_noise() -> bool:
+    """Get whether OCR noise filtering is enabled.
+
+    Reads from OCR_FILTER_NOISE environment variable.
+    Falls back to True (enabled) if not set.
+
+    Accepts:
+    - "true" or "1" for enabled
+    - "false" or "0" for disabled
+
+    Returns:
+        True if noise filtering is enabled, False otherwise.
+    """
+    value = os.environ.get("OCR_FILTER_NOISE")
+
+    if value is None:
+        return DEFAULT_OCR_FILTER_NOISE
+
+    return value.lower() in ("true", "1")

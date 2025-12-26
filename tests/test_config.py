@@ -818,3 +818,43 @@ def test_summary_prompt_template_default(tmp_path: Path) -> None:
         assert "要約" in result
     finally:
         os.chdir(original_cwd)
+
+
+# ============================================================
+# PBI-038: OCR ノイズフィルタリング
+# ============================================================
+
+
+def test_ocr_filter_noise_from_env() -> None:
+    """Test that OCR_FILTER_NOISE environment variable controls OCR filtering.
+
+    The config should:
+    1. Read OCR_FILTER_NOISE from environment
+    2. Return True when set to "true" or "1" or not set (default)
+    3. Return False when set to "false" or "0"
+    """
+    from auto_daily.config import get_ocr_filter_noise
+
+    # Test default (should be True)
+    env_without_var = {k: v for k, v in os.environ.items() if k != "OCR_FILTER_NOISE"}
+    with patch.dict(os.environ, env_without_var, clear=True):
+        result = get_ocr_filter_noise()
+        assert result is True
+
+    # Test explicit true values
+    with patch.dict(os.environ, {"OCR_FILTER_NOISE": "true"}):
+        result = get_ocr_filter_noise()
+        assert result is True
+
+    with patch.dict(os.environ, {"OCR_FILTER_NOISE": "1"}):
+        result = get_ocr_filter_noise()
+        assert result is True
+
+    # Test false values
+    with patch.dict(os.environ, {"OCR_FILTER_NOISE": "false"}):
+        result = get_ocr_filter_noise()
+        assert result is False
+
+    with patch.dict(os.environ, {"OCR_FILTER_NOISE": "0"}):
+        result = get_ocr_filter_noise()
+        assert result is False

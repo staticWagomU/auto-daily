@@ -323,3 +323,138 @@ def test_ollama_vision_image_encoding(tmp_path: Path) -> None:
 
     # Verify the result
     assert result == "Extracted text from image"
+
+
+# ============================================================
+# PBI-038: OCR ノイズフィルタリング
+# ============================================================
+
+
+def test_filter_system_ui_noise() -> None:
+    """Test that OCR filter removes system UI noise like menu bar elements.
+
+    The filter should:
+    1. Remove time patterns like "10:30 AM" or "10:30"
+    2. Remove battery percentage patterns like "100%"
+    3. Remove day abbreviations like "Mon", "Tue", etc.
+    4. Keep other meaningful text
+    """
+    from auto_daily.ocr.filters import OCRFilter
+
+    ocr_filter = OCRFilter()
+
+    # Test time patterns
+    text_with_time = "10:30 AM\nImportant text here\n3:45 PM"
+    result = ocr_filter.filter(text_with_time)
+    assert "Important text here" in result
+    assert "10:30 AM" not in result
+    assert "3:45 PM" not in result
+
+    # Test battery percentage
+    text_with_battery = "100%\nWorking on project\n45%"
+    result = ocr_filter.filter(text_with_battery)
+    assert "Working on project" in result
+    assert "100%" not in result
+    assert "45%" not in result
+
+    # Test day abbreviations
+    text_with_days = "Mon\nMeeting notes\nTue"
+    result = ocr_filter.filter(text_with_days)
+    assert "Meeting notes" in result
+    assert "Mon" not in result
+    assert "Tue" not in result
+
+
+def test_filter_sensitive_strings() -> None:
+    """Test that OCR filter removes sensitive strings like API keys.
+
+    The filter should:
+    1. Remove long alphanumeric strings (32+ characters) that look like API keys
+    2. Remove Bearer tokens
+    3. Keep short identifiers and normal text
+    """
+    from auto_daily.ocr.filters import OCRFilter
+
+    ocr_filter = OCRFilter()
+
+    # Test long API key-like strings (use fake pattern to avoid push protection)
+    api_key = "xk_test_abcdefghijklmnopqrstuvwxyz123456"  # 36+ chars
+    text_with_key = f"Token: {api_key}\nNormal text here"
+    result = ocr_filter.filter(text_with_key)
+    assert "Normal text here" in result
+    assert api_key not in result
+    assert "[REDACTED]" in result
+
+    # Test Bearer token
+    text_with_bearer = (
+        "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\nAPI Response"
+    )
+    result = ocr_filter.filter(text_with_bearer)
+    assert "API Response" in result
+    assert "Bearer [REDACTED]" in result
+    assert "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9" not in result
+
+
+def test_filter_garbage_characters() -> None:
+    """Test that OCR filter removes garbage characters and repeated lines.
+
+    The filter should:
+    1. Remove sequences of 3+ consecutive symbols
+    2. Remove duplicate lines
+    3. Keep meaningful text
+    """
+    from auto_daily.ocr.filters import OCRFilter
+
+    ocr_filter = OCRFilter()
+
+    # Test garbage symbol sequences
+    text_with_garbage = "###\nMeaningful text\n@@@***\n!!!>>><<<>>>"
+    result = ocr_filter.filter(text_with_garbage)
+    assert "Meaningful text" in result
+    assert "###" not in result
+    assert "@@@***" not in result
+    assert "!!!" not in result
+
+    # Test repeated lines
+    text_with_repeats = "Line one\nLine two\nLine two\nLine three\nLine one"
+    result = ocr_filter.filter(text_with_repeats)
+    assert result.count("Line one") == 1
+    assert result.count("Line two") == 1
+    assert "Line three" in result
+
+
+def test_filtering_enabled_by_default() -> None:
+    """Test that OCR filtering is enabled by default in perform_ocr().
+
+    The perform_ocr() function should:
+    1. Apply OCRFilter by default when OCR_FILTER_NOISE is not set
+    2. Skip filtering when OCR_FILTER_NOISE is "false"
+    """
+    import os
+    from unittest.mock import MagicMock, patch
+
+    from auto_daily.ocr import perform_ocr
+
+    # Mock the OCR backend to return text with noise
+    mock_backend = MagicMock()
+    mock_backend.perform_ocr.return_value = "10:30 AM\nImportant text\n100%"
+
+    # Test with filtering enabled (default)
+    env_without_var = {k: v for k, v in os.environ.items() if k != "OCR_FILTER_NOISE"}
+    with (
+        patch.dict(os.environ, env_without_var, clear=True),
+        patch("auto_daily.ocr.get_ocr_backend", return_value=mock_backend),
+    ):
+        result = perform_ocr("/fake/path.png")
+        assert "Important text" in result
+        assert "10:30 AM" not in result
+        assert "100%" not in result
+
+    # Test with filtering disabled
+    with (
+        patch.dict(os.environ, {"OCR_FILTER_NOISE": "false"}),
+        patch("auto_daily.ocr.get_ocr_backend", return_value=mock_backend),
+    ):
+        result = perform_ocr("/fake/path.png")
+        assert "10:30 AM" in result
+        assert "100%" in result

@@ -3,13 +3,15 @@
 This module provides a unified interface for interacting with different OCR backends.
 """
 
-from auto_daily.config import get_ocr_backend_name
+from auto_daily.config import get_ocr_backend_name, get_ocr_filter_noise
 from auto_daily.ocr.apple_vision import AppleVisionOCR, validate_ocr_result
+from auto_daily.ocr.filters import OCRFilter
 from auto_daily.ocr.protocol import OCRBackend
 
 __all__ = [
     "AppleVisionOCR",
     "OCRBackend",
+    "OCRFilter",
     "get_ocr_backend",
     "perform_ocr",
     "validate_ocr_result",
@@ -49,12 +51,21 @@ def perform_ocr(image_path: str) -> str:
     """Perform OCR on an image using the configured backend.
 
     This is a backward-compatible function that uses the configured backend.
+    By default, noise filtering is applied to clean up the OCR output.
+    Set OCR_FILTER_NOISE=false to disable filtering.
 
     Args:
         image_path: Path to the image file to process.
 
     Returns:
-        Recognized text from the image.
+        Recognized text from the image, optionally filtered.
     """
     backend = get_ocr_backend()
-    return backend.perform_ocr(image_path)
+    text = backend.perform_ocr(image_path)
+
+    # Apply noise filtering if enabled
+    if get_ocr_filter_noise():
+        ocr_filter = OCRFilter()
+        text = ocr_filter.filter(text)
+
+    return text
