@@ -17,6 +17,9 @@ pre-commit:
       glob: "*.py"
       run: ty check src/
 
+    gitleaks:
+      run: gitleaks detect --source . --verbose
+
 pre-push:
   parallel: true
   commands:

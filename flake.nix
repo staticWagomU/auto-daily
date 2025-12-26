@@ -19,13 +19,17 @@
         devShells.default = pkgs.mkShell {
           name = "auto-daily-dev";
 
-          buildInputs = [
-            pkgs.python312
-            pkgs.uv
-            pkgs.ruff
-            pkgs.ty
-            pkgs.direnv
-            pkgs.lefthook
+          buildInputs =  with pkgs; [
+            python312
+            uv
+            ruff
+            ty
+            direnv
+            lefthook
+
+            # security
+            gitleaks
+
           ];
 
           shellHook = ''
