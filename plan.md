@@ -158,6 +158,233 @@ product_goal:
 product_backlog:
   # --- Active PBIs (draft/refining/ready) ---
 
+  # === リファクタリング PBIs ===
+
+  - id: PBI-039
+    story:
+      role: "開発者"
+      capability: "deprecated な append_log() を削除し、エラー処理を統一できる"
+      benefit: "コードベースがクリーンになり、保守性が向上する"
+    acceptance_criteria:
+      - criterion: "logger.py から append_log() が削除されている"
+        verification: "! grep -n 'def append_log(' src/auto_daily/logger.py"
+      - criterion: "capture.py のエラー出力が logging.debug() を使用している"
+        verification: "grep -n 'logger.debug' src/auto_daily/capture.py"
+      - criterion: "calendar.py が具体的な例外をキャッチしている"
+        verification: "grep -n 'httpx.HTTPError' src/auto_daily/calendar.py"
+      - criterion: "全テストがパスする"
+        verification: "pytest tests/ -v --tb=short"
+    technical_notes: |
+      ## フェーズ1: デッドコード削除とエラー処理の統一
+
+      ### /tidy:first（構造的改善）
+      - capture.py に import logging を追加、logger インスタンス作成
+      - processor.py から不要コメント削除 (# Step 1: 等)
+
+      ### 修正実施（振る舞いの変更）
+      - logger.py から append_log() (93-136行) を完全削除
+      - tests/test_logger.py から append_log 関連テストを削除
+      - capture.py: sys.stderr → logging.debug()
+      - calendar.py: Exception → 具体的例外 (httpx.HTTPError, ValueError, KeyError)
+
+      ### /tidy:after（片付け）
+      - 未使用の import を削除（sys, warnings など）
+    story_points: 2
+    dependencies: []
+    status: done
+
+  - id: PBI-040
+    story:
+      role: "開発者"
+      capability: "processor.py と scheduler.py の重複したキャプチャ処理を統合できる"
+      benefit: "コードの重複が80%削減され、変更時の修正箇所が1箇所になる"
+    acceptance_criteria:
+      - criterion: "capture_pipeline.py が存在し、共通パイプライン関数を提供している"
+        verification: "test -f src/auto_daily/capture_pipeline.py"
+      - criterion: "processor.py が capture_pipeline を使用している"
+        verification: "grep -n 'from auto_daily.capture_pipeline' src/auto_daily/processor.py"
+      - criterion: "scheduler.py が capture_pipeline を使用している"
+        verification: "grep -n 'from auto_daily.capture_pipeline' src/auto_daily/scheduler.py"
+      - criterion: "scheduler.py の threading.Event() がインスタンス変数化されている"
+        verification: "grep -n '_stop_event' src/auto_daily/scheduler.py"
+      - criterion: "全テストがパスする"
+        verification: "pytest tests/ -v --tb=short"
+    technical_notes: |
+      ## フェーズ2: キャプチャパイプラインの統合
+
+      ### /tidy:first（構造的改善）
+      - capture_pipeline.py を新規作成（共通パイプライン関数を抽出）
+      - scheduler.py の threading.Event() をインスタンス変数化
+
+      ### 修正実施（振る舞いの変更）
+      - processor.py を capture_pipeline を使用するよう変更
+      - scheduler.py を capture_pipeline を使用するよう変更
+      - tests/test_capture_pipeline.py を新規作成
+
+      ### /tidy:after（片付け）
+      - processor.py / scheduler.py から重複コードを削除
+      - 未使用の import を削除
+
+      ### capture_pipeline.py の設計
+      ```python
+      @dataclass
+      class CaptureContext:
+          window_info: dict[str, str]
+          log_dir: Path
+          extract_slack_context: bool = False
+
+      def execute_capture_pipeline(context: CaptureContext) -> bool:
+          """キャプチャ→OCR→ログの共通パイプライン"""
+          ...
+      ```
+    story_points: 3
+    dependencies:
+      - PBI-039
+    status: ready
+
+  - id: PBI-041
+    story:
+      role: "開発者"
+      capability: "ollama.py の2つのプロンプト生成関数で重複するログ処理を統合できる"
+      benefit: "ログ読み込み処理の重複が解消され、保守性が向上する"
+    acceptance_criteria:
+      - criterion: "ollama.py に _load_log_entries() ヘルパー関数が存在する"
+        verification: "grep -n 'def _load_log_entries' src/auto_daily/ollama.py"
+      - criterion: "ollama.py に _format_activities() ヘルパー関数が存在する"
+        verification: "grep -n 'def _format_activities' src/auto_daily/ollama.py"
+      - criterion: "generate_daily_report_prompt() がヘルパー関数を使用している"
+        verification: "grep -A5 'def generate_daily_report_prompt' src/auto_daily/ollama.py | grep '_load_log_entries'"
+      - criterion: "全テストがパスする"
+        verification: "pytest tests/ -v --tb=short"
+    technical_notes: |
+      ## フェーズ3: ollama.py のプロンプト生成重複解消
+
+      ### /tidy:first（構造的改善）
+      - _load_log_entries() ヘルパー関数を抽出
+      - _format_activities() ヘルパー関数を抽出
+
+      ### 修正実施（振る舞いの変更）
+      - generate_daily_report_prompt() 簡略化
+      - generate_daily_report_prompt_with_calendar() 簡略化
+
+      ### /tidy:after（片付け）
+      - 重複コードの削除確認
+    story_points: 2
+    dependencies:
+      - PBI-039
+    status: ready
+
+  - id: PBI-042
+    story:
+      role: "開発者"
+      capability: "テストコードの重複を解消し、共有フィクスチャを導入できる"
+      benefit: "テストの保守性が向上し、新規テスト作成が容易になる"
+    acceptance_criteria:
+      - criterion: "tests/conftest.py が存在し、共通フィクスチャを定義している"
+        verification: "test -f tests/conftest.py && grep -n 'def log_base' tests/conftest.py"
+      - criterion: "test_llm_client.py の Protocol テストがパラメータ化されている"
+        verification: "grep -n 'pytest.mark.parametrize' tests/test_llm_client.py"
+      - criterion: "test_logger.py が共通フィクスチャを使用している"
+        verification: "grep -n 'log_base' tests/test_logger.py || true"
+      - criterion: "全テストがパスする"
+        verification: "pytest tests/ -v --tb=short"
+    technical_notes: |
+      ## フェーズ4: テスト基盤の改善
+
+      ### /tidy:first（構造的改善）
+      - tests/conftest.py を新規作成（共通フィクスチャ定義）
+
+      ### 修正実施（振る舞いの変更）
+      - test_llm_client.py の Protocol テストをパラメータ化 (28-78行)
+      - test_logger.py で共通フィクスチャを使用
+      - test_scheduler.py で共通フィクスチャを使用
+
+      ### /tidy:after（片付け）
+      - 各テストファイルから重複フィクスチャを削除
+
+      ### conftest.py のフィクスチャ
+      ```python
+      @pytest.fixture
+      def log_base(tmp_path: Path) -> Path:
+          """ログ用の一時ディレクトリ"""
+          log_dir = tmp_path / "logs"
+          log_dir.mkdir()
+          return log_dir
+
+      @pytest.fixture
+      def sample_window_info() -> dict[str, str]:
+          """サンプルのウィンドウ情報"""
+          return {"app_name": "Test App", "window_title": "Test Window"}
+      ```
+    story_points: 3
+    dependencies:
+      - PBI-039
+      - PBI-040
+      - PBI-041
+    status: ready
+
+  - id: PBI-043
+    story:
+      role: "開発者"
+      capability: "__init__.py の長い関数を分割して責務を明確化できる"
+      benefit: "可読性と保守性が向上し、テストが容易になる"
+    acceptance_criteria:
+      - criterion: "cli.py が存在し、CLI パーサーを定義している"
+        verification: "test -f src/auto_daily/cli.py && grep -n 'argparse' src/auto_daily/cli.py"
+      - criterion: "report.py が存在し、レポート生成ロジックを定義している"
+        verification: "test -f src/auto_daily/report.py && grep -n 'async def' src/auto_daily/report.py"
+      - criterion: "monitor.py が存在し、モニタリング起動ロジックを定義している"
+        verification: "test -f src/auto_daily/monitor.py && grep -n 'def start' src/auto_daily/monitor.py"
+      - criterion: "__init__.py の main() が50行以下になっている"
+        verification: "wc -l src/auto_daily/__init__.py | awk '{if ($1 < 100) print \"OK\"; else print \"NG\"}'"
+      - criterion: "全テストがパスする"
+        verification: "pytest tests/ -v --tb=short"
+    technical_notes: |
+      ## フェーズ5: __init__.py の長い関数の分割
+
+      ### /tidy:first（構造的改善）
+      - cli.py を新規作成（CLI パーサーを抽出）
+      - report.py を新規作成（レポート生成ロジックを抽出）
+      - monitor.py を新規作成（モニタリング起動ロジックを抽出）
+
+      ### 修正実施（振る舞いの変更）
+      - __init__.py から新モジュールをインポートし、main() を簡略化
+      - tests/test_cli.py を新規作成
+
+      ### /tidy:after（片付け）
+      - __init__.py から移動済みコードを削除
+      - 未使用の import を削除
+
+      ### 分割後の __init__.py
+      ```python
+      from auto_daily.cli import create_parser
+      from auto_daily.report import report_command, summarize_command
+      from auto_daily.monitor import start_monitoring
+
+      def main() -> None:
+          load_env()
+          parser = create_parser()
+          args = parser.parse_args()
+
+          if args.command == "report":
+              asyncio.run(report_command(...))
+          elif args.command == "summarize":
+              asyncio.run(summarize_command(...))
+          elif args.start:
+              start_monitoring()
+          else:
+              print(f"auto-daily v{__version__}")
+      ```
+    story_points: 5
+    dependencies:
+      - PBI-039
+      - PBI-040
+      - PBI-041
+      - PBI-042
+    status: ready
+
+  # === 既存 PBIs ===
+
   - id: PBI-037
     story:
       role: "Mac ユーザー"
