@@ -24,4 +24,4 @@ pre-push:
   parallel: true
   commands:
     test:
-      run: pytest tests/ -v --tb=short
+      run: pytest tests/ -v --tb=short -n auto
