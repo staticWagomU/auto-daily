@@ -123,11 +123,11 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 38
-  pbi: PBI-040
-  status: done
-  subtasks_completed: 5
-  subtasks_total: 5
+  number: 39
+  pbi: PBI-041
+  status: in_progress
+  subtasks_completed: 0
+  subtasks_total: 4
   impediments: 0
 ```
 
@@ -272,7 +272,7 @@ product_backlog:
     story_points: 2
     dependencies:
       - PBI-039
-    status: ready
+    status: in_progress
 
   - id: PBI-042
     story:
