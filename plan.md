@@ -123,13 +123,13 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 42
-  pbi: PBI-044
-  status: done
-  subtasks_completed: 4
-  subtasks_total: 4
+  number: 43
+  pbi: PBI-045
+  status: in_progress
+  subtasks_completed: 0
+  subtasks_total: 2
   impediments: 0
-  note: "prompt.txt, summary_prompt.txt を .example パターンに移行完了"
+  note: "pytest-xdist によるテスト並列化"
 ```
 
 ---
@@ -160,6 +160,40 @@ product_backlog:
   # --- Active PBIs (draft/refining/ready) ---
 
   # === リファクタリング PBIs ===
+
+  - id: PBI-045
+    story:
+      role: "開発者"
+      capability: "pytest-xdist を使ってテストを並列実行できる"
+      benefit: "テスト実行時間が短縮され、開発サイクルが高速化する"
+    acceptance_criteria:
+      - criterion: "pytest-xdist が dev 依存関係に追加されている"
+        verification: "grep -n 'pytest-xdist' pyproject.toml"
+      - criterion: "pytest -n auto でテストが並列実行できる"
+        verification: "pytest tests/ -n auto --tb=short"
+      - criterion: "全テストがパスする（並列実行時も）"
+        verification: "pytest tests/ -n auto -v --tb=short"
+    technical_notes: |
+      ## 概要
+      pytest-xdist を導入してテストを並列実行する。
+      現在 20 個のテストファイルがあり、並列化による速度向上が期待できる。
+
+      ## 実装手順
+
+      ### 1. 依存関係の追加
+      - pyproject.toml の dev 依存に pytest-xdist を追加
+      - uv sync で依存関係をインストール
+
+      ### 2. 動作確認
+      - pytest -n auto でテストを実行
+      - 並列実行時に問題がないことを確認
+
+      ### 注意事項
+      - テスト間で共有状態がある場合は修正が必要
+      - ファイル I/O を伴うテストでは一時ディレクトリの分離を確認
+    story_points: 1
+    dependencies: []
+    status: in_progress
 
   - id: PBI-039
     story:
