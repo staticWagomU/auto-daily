@@ -58,3 +58,6 @@ screenshots/
 .env
 
 .direnv
+
+calendar_config.yaml
+slack_config.yaml
