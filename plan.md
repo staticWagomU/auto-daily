@@ -123,11 +123,11 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 36
-  pbi: PBI-037
+  number: 37
+  pbi: PBI-038
   status: done
-  subtasks_completed: 2
-  subtasks_total: 2
+  subtasks_completed: 5
+  subtasks_total: 5
   impediments: 0
 ```
 
@@ -316,7 +316,7 @@ product_backlog:
     story_points: 3
     dependencies:
       - PBI-023
-    status: draft
+    status: done
 
   - id: PBI-036
     story:
@@ -993,51 +993,84 @@ definition_of_ready:
 ## 2. Current Sprint
 
 ```yaml
-sprint_36:
-  number: 36
-  pbi_id: PBI-037
-  story: "要約生成プロンプトにより具体的なガイドラインを含めてカスタマイズできる"
+sprint_37:
+  number: 37
+  pbi_id: PBI-038
+  story: "OCR テキストからノイズ（UI 要素、ゴミ文字）を自動除去できる"
   status: done
 
   sprint_goal:
-    statement: "DEFAULT_SUMMARY_PROMPT_TEMPLATE を改善し、より高精度な要約を生成する"
+    statement: "OCR 結果からノイズを自動除去し、要約・日報の精度を向上させる"
     success_criteria:
-      - "デフォルトプロンプトに作業目的の推測ガイドラインが含まれる"
-      - "同一アプリの連続操作をまとめる指示が含まれる"
-      - "除外すべき情報（ノイズ）の指示が含まれる"
-      - "Slack 会話の要約形式が指定されている"
-    stakeholder_value: "作業の目的・成果を推測した高精度な要約が得られる"
+      - "システム通知やメニューバー要素を除去できる"
+      - "パスワードやトークンと思われる文字列を除去できる"
+      - "連続する記号や意味のない文字列を除去できる"
+      - "フィルタリングがデフォルトで有効"
+      - "環境変数で無効化できる"
+    stakeholder_value: "要約や日報の精度が向上し、無関係な情報がログに含まれなくなる"
 
   subtasks:
     - id: ST-001
-      test: "test_improved_summary_prompt: DEFAULT_SUMMARY_PROMPT_TEMPLATE が改善されたガイドラインを含む"
+      test: "test_ocr_filter_noise_from_env: OCR_FILTER_NOISE 環境変数でフィルタリングを切り替えられる"
       implementation: |
-        config.py を修正:
-        - DEFAULT_SUMMARY_PROMPT_TEMPLATE を改善版プロンプトに更新
-        - 作業目的の推測、まとめ、除外、Slack 要約のガイドラインを追加
+        config.py に追加:
+        - DEFAULT_OCR_FILTER_NOISE = True
+        - get_ocr_filter_noise() 関数
       type: behavioral
       status: completed
       commits: []
 
     - id: ST-002
-      test: "summary_prompt.txt サンプルファイルが改善された内容を含む"
+      test: "test_filter_system_ui_noise: OCR 結果からシステム通知やメニューバー要素を除去する"
       implementation: |
-        summary_prompt.txt を修正:
-        - 改善されたプロンプトテンプレートに更新
+        ocr/filters.py を新規作成:
+        - OCRFilter クラス
+        - _filter_menu_bar() メソッド
+      type: behavioral
+      status: completed
+      commits: []
+
+    - id: ST-003
+      test: "test_filter_sensitive_strings: パスワードやトークンと思われる文字列を除去する"
+      implementation: |
+        ocr/filters.py に追加:
+        - _filter_sensitive_strings() メソッド
+      type: behavioral
+      status: completed
+      commits: []
+
+    - id: ST-004
+      test: "test_filter_garbage_characters: 連続する記号や意味のない文字列を除去する"
+      implementation: |
+        ocr/filters.py に追加:
+        - _filter_garbage_chars() メソッド
+        - _filter_repeated_lines() メソッド
+      type: behavioral
+      status: completed
+      commits: []
+
+    - id: ST-005
+      test: "test_filtering_enabled_by_default: フィルタリングがデフォルトで有効になっている"
+      implementation: |
+        ocr/__init__.py を修正:
+        - perform_ocr() でフィルターを適用
+        - get_ocr_filter_noise() を参照
       type: behavioral
       status: completed
       commits: []
 
   notes: |
     ## 実装方針
-    1. まず config.py の DEFAULT_SUMMARY_PROMPT_TEMPLATE を更新
-    2. summary_prompt.txt サンプルファイルも同様に更新
+    1. まず config.py に get_ocr_filter_noise() を追加
+    2. ocr/filters.py に OCRFilter クラスを作成
+    3. 各フィルターメソッドを順次実装
+    4. ocr/__init__.py の perform_ocr() にフィルターを統合
 
-    ## 改善ポイント
-    - 作業の「目的」と「成果」を推測するガイドライン
-    - 同じアプリの連続操作をまとめる指示
-    - 除外すべき情報（ノイズ）の指示
-    - Slack 会話の要約形式
+    ## フィルターパターン
+    - メニューバー: 時計、バッテリー、曜日など
+    - センシティブ: 32文字以上の英数字、Bearer トークン
+    - ゴミ文字: 3つ以上の記号連続
+    - 重複行: 完全に同じ行の繰り返し
 ```
 
 ### Impediment Registry
@@ -1320,6 +1353,12 @@ completed:
     pbi_id: PBI-037
     story: "要約生成プロンプトにより具体的なガイドラインを含めてカスタマイズできる"
     subtasks_completed: 2
+    commits: []
+
+  - sprint: 37
+    pbi_id: PBI-038
+    story: "OCR テキストからノイズ（UI 要素、ゴミ文字）を自動除去できる"
+    subtasks_completed: 5
     commits: []
 ```
 
@@ -1703,6 +1742,19 @@ retrospectives:
       - "特になし - シンプルなプロンプト改善がスムーズに完了"
     action_items:
       - "実際の要約結果を確認して、プロンプトの効果を評価"
+
+  - sprint: 37
+    what_went_well:
+      - "OCRFilter クラスで複数のフィルターを組み合わせたパイプライン設計"
+      - "正規表現パターンでメニューバー要素、センシティブ情報、ゴミ文字を効率的に除去"
+      - "get_ocr_filter_noise() で既存の環境変数パターンを踏襲"
+      - "perform_ocr() へのフィルター統合が最小限の変更で完了"
+      - "5つのサブタスクをすべて完了"
+    what_to_improve:
+      - "特になし - 既存パターンを活用してスムーズに完了"
+    action_items:
+      - "実際の OCR 結果でフィルターの効果を確認"
+      - "必要に応じてフィルターパターンを追加・調整"
 ```
 
 ---
