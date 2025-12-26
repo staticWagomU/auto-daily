@@ -61,6 +61,25 @@ ty check src/
 python -m auto_daily
 ```
 
+## Development Workflow
+
+Kent Beck の Tidy First 原則に従い、以下のワークフローで開発を行う:
+
+```
+1. /tidy:first    - 構造的改善を先に実施（import追加、関数抽出、コメント削除など）
+2. /git:commit    - Tidy First のコミットを作成（refactor:）
+3. 修正実施        - 実際の機能変更を実施
+4. /git:commit    - 機能変更のコミットを作成（feat:/fix:）
+5. /tidy:after    - 完了後の片付け（未使用importの削除など）
+6. /git:commit    - Tidy After のコミットを作成（refactor:）
+```
+
+### コミットのガイドライン
+
+- **こまめにコミット**: 1つの論理的な変更ごとにコミットを作成
+- **構造と振る舞いを分離**: 構造的変更（リネーム、移動、抽出）と振る舞いの変更（ロジック追加、削除）は別コミットに
+- **WHY を記述**: コミットメッセージには「なぜ」この変更が必要かを記述
+
 ## Development Notes
 
 - macOS の権限設定が必要:
