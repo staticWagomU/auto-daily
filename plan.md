@@ -125,11 +125,11 @@ Sprint Cycle:
 sprint:
   number: 42
   pbi: PBI-044
-  status: in_progress
-  subtasks_completed: 0
+  status: done
+  subtasks_completed: 4
   subtasks_total: 4
   impediments: 0
-  note: "prompt.txt, summary_prompt.txt をバージョン管理から除外"
+  note: "prompt.txt, summary_prompt.txt を .example パターンに移行完了"
 ```
 
 ---
@@ -422,7 +422,7 @@ product_backlog:
       ```
     story_points: 1
     dependencies: []
-    status: ready
+    status: done
 
   # === 既存 PBIs ===
 
@@ -1670,6 +1670,13 @@ completed:
     subtasks_completed: 5
     commits:
       - 4583501  # refactor: extract CLI, report, and monitor modules from __init__.py
+
+  - sprint: 42
+    pbi_id: PBI-044
+    story: "prompt.txt と summary_prompt.txt をバージョン管理から除外し、サンプルファイルを参照できる"
+    subtasks_completed: 4
+    commits:
+      - 53bd4a0  # build: move prompt templates to .example files
 ```
 
 ---
@@ -2108,6 +2115,18 @@ retrospectives:
       - "特になし - Tidy First の原則に従いスムーズに完了"
     action_items:
       - "各モジュールの単体テストを将来的に追加検討"
+
+  - sprint: 42
+    what_went_well:
+      - ".example パターンでカスタマイズ可能ファイルとバージョン管理を分離"
+      - "config.py の既存フォールバック機構により追加実装不要"
+      - ".gitignore と git rm --cached で既存ファイルを適切に除外"
+      - "全テスト（165件）がパスし、既存機能への影響なし"
+    what_to_improve:
+      - "特になし - シンプルな設定変更がスムーズに完了"
+    action_items:
+      - "CLAUDE.md に .example ファイルの使用方法を追記"
+      - "他のカスタマイズ可能ファイル（calendar_config.yaml等）も同様のパターンを踏襲済み"
 ```
 
 ---
