@@ -44,7 +44,7 @@ jobs:
         run: uv python install 3.12
 
       - name: Run ruff check
-        run: uv run --with ruff ruff check .
+        run: uvx ruff check .
 
   format:
     name: Format
@@ -62,7 +62,7 @@ jobs:
         run: uv python install 3.12
 
       - name: Check format
-        run: uv run --with ruff ruff format --check .
+        run: uvx ruff format --check .
 
   typecheck:
     name: Type Check
@@ -80,7 +80,7 @@ jobs:
         run: uv python install 3.12
 
       - name: Run ty
-        run: uv run --with ty ty check src/
+        run: uvx ty check src/
 
   test:
     name: Test
