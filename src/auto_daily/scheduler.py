@@ -5,10 +5,8 @@ from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
-from auto_daily.capture import capture_screen, cleanup_image
+from auto_daily.capture_pipeline import CaptureContext, execute_capture_pipeline
 from auto_daily.config import get_capture_interval
-from auto_daily.logger import append_log_hourly
-from auto_daily.ocr import perform_ocr
 from auto_daily.system import is_system_active
 from auto_daily.window_monitor import get_active_window
 
@@ -27,24 +25,13 @@ def process_periodic_capture(log_dir: Path) -> bool:
     Returns:
         True if processing completed successfully, False otherwise.
     """
-    # Get current window info
     window_info = get_active_window()
-
-    # Capture the screen
-    image_path = capture_screen(log_dir)
-    if image_path is None:
-        return False
-
-    # Perform OCR
-    ocr_text = perform_ocr(image_path)
-
-    # Log the activity
-    append_log_hourly(log_dir, window_info, ocr_text)
-
-    # Clean up
-    cleanup_image(image_path)
-
-    return True
+    context = CaptureContext(
+        window_info=window_info,
+        log_dir=log_dir,
+        extract_slack_context=False,
+    )
+    return execute_capture_pipeline(context)
 
 
 class PeriodicCapture:
