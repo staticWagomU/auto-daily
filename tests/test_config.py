@@ -72,6 +72,25 @@ def test_log_dir_auto_create(tmp_path: Path) -> None:
         assert new_log_dir.is_dir()
 
 
+def test_log_dir_expands_tilde() -> None:
+    """Test that ~ in AUTO_DAILY_LOG_DIR is expanded to home directory.
+
+    When the path contains ~, the config should:
+    1. Expand ~ to the user's home directory
+    2. Return an absolute path without ~
+    """
+    from auto_daily.config import get_log_dir
+
+    # Arrange: Set environment variable with ~
+    with patch.dict(os.environ, {"AUTO_DAILY_LOG_DIR": "~/.auto-daily/logs"}):
+        # Act: Get log directory
+        result = get_log_dir()
+
+        # Assert: ~ should be expanded
+        assert "~" not in str(result)
+        assert result == Path.home() / ".auto-daily" / "logs"
+
+
 def test_prompt_template_default(tmp_path: Path) -> None:
     """Test that default template is used when prompt.txt doesn't exist.
 

@@ -87,7 +87,11 @@ def get_log_dir() -> Path:
         Path to the log directory.
     """
     env_value = os.environ.get(ENV_LOG_DIR)
-    log_dir = Path(env_value) if env_value else DEFAULT_LOG_DIR
+    if env_value:
+        # Expand ~ to home directory
+        log_dir = Path(os.path.expanduser(env_value))
+    else:
+        log_dir = DEFAULT_LOG_DIR
 
     log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -132,7 +136,8 @@ def get_reports_dir() -> Path:
     # 2. Check environment variable
     env_value = os.environ.get("AUTO_DAILY_REPORTS_DIR")
     if env_value:
-        reports_dir = Path(env_value)
+        # Expand ~ to home directory
+        reports_dir = Path(os.path.expanduser(env_value))
         reports_dir.mkdir(parents=True, exist_ok=True)
         return reports_dir
 
@@ -321,7 +326,11 @@ def get_summaries_dir() -> Path:
         Path to the summaries directory.
     """
     env_value = os.environ.get("AUTO_DAILY_SUMMARIES_DIR")
-    summaries_dir = Path(env_value) if env_value else DEFAULT_SUMMARIES_DIR
+    if env_value:
+        # Expand ~ to home directory
+        summaries_dir = Path(os.path.expanduser(env_value))
+    else:
+        summaries_dir = DEFAULT_SUMMARIES_DIR
 
     summaries_dir.mkdir(parents=True, exist_ok=True)
 
