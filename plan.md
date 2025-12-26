@@ -123,11 +123,11 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 35
-  pbi: PBI-036
+  number: 36
+  pbi: PBI-037
   status: done
-  subtasks_completed: 3
-  subtasks_total: 3
+  subtasks_completed: 2
+  subtasks_total: 2
   impediments: 0
 ```
 
@@ -213,7 +213,7 @@ product_backlog:
     story_points: 2
     dependencies:
       - PBI-035
-    status: draft
+    status: done
 
   - id: PBI-038
     story:
@@ -993,60 +993,51 @@ definition_of_ready:
 ## 2. Current Sprint
 
 ```yaml
-sprint_35:
-  number: 35
-  pbi_id: PBI-036
-  story: "ログファイルが日付ごとのディレクトリ（logs/YYYY-MM-DD/）に保存される"
+sprint_36:
+  number: 36
+  pbi_id: PBI-037
+  story: "要約生成プロンプトにより具体的なガイドラインを含めてカスタマイズできる"
   status: done
 
   sprint_goal:
-    statement: "processor.py を append_log_hourly() に移行し、ログを日付ディレクトリ/時間単位で保存する"
+    statement: "DEFAULT_SUMMARY_PROMPT_TEMPLATE を改善し、より高精度な要約を生成する"
     success_criteria:
-      - "processor.py が append_log_hourly() を使用している"
-      - "ログが logs/YYYY-MM-DD/activity_HH.jsonl に保存される"
-      - "既存の append_log() は後方互換のため残すが非推奨とする"
-    stakeholder_value: "日ごとのログが整理され、管理・検索がしやすくなる"
+      - "デフォルトプロンプトに作業目的の推測ガイドラインが含まれる"
+      - "同一アプリの連続操作をまとめる指示が含まれる"
+      - "除外すべき情報（ノイズ）の指示が含まれる"
+      - "Slack 会話の要約形式が指定されている"
+    stakeholder_value: "作業の目的・成果を推測した高精度な要約が得られる"
 
   subtasks:
     - id: ST-001
-      test: "test_log_in_date_directory: processor が append_log_hourly を使用してログを保存"
+      test: "test_improved_summary_prompt: DEFAULT_SUMMARY_PROMPT_TEMPLATE が改善されたガイドラインを含む"
       implementation: |
-        processor.py を修正:
-        - append_log → append_log_hourly に変更
-        - append_log_hourly に slack_context パラメータを追加
+        config.py を修正:
+        - DEFAULT_SUMMARY_PROMPT_TEMPLATE を改善版プロンプトに更新
+        - 作業目的の推測、まとめ、除外、Slack 要約のガイドラインを追加
       type: behavioral
       status: completed
       commits: []
 
     - id: ST-002
-      test: "test_append_log_hourly_with_slack_context: append_log_hourly に slack_context を渡せる"
+      test: "summary_prompt.txt サンプルファイルが改善された内容を含む"
       implementation: |
-        logger.py の append_log_hourly() を修正:
-        - slack_context パラメータを追加
-        - entry に slack_context を含める
-      type: behavioral
-      status: completed
-      commits: []
-
-    - id: ST-003
-      test: "grep -n 'deprecated' で append_log() に deprecation が含まれる"
-      implementation: |
-        logger.py の append_log() を修正:
-        - docstring に deprecated 警告を追加
-        - warnings.warn() で非推奨警告を出力
+        summary_prompt.txt を修正:
+        - 改善されたプロンプトテンプレートに更新
       type: behavioral
       status: completed
       commits: []
 
   notes: |
     ## 実装方針
-    1. まず append_log_hourly() に slack_context パラメータを追加
-    2. processor.py を append_log_hourly() を使うように修正
-    3. append_log() に deprecation 警告を追加
+    1. まず config.py の DEFAULT_SUMMARY_PROMPT_TEMPLATE を更新
+    2. summary_prompt.txt サンプルファイルも同様に更新
 
-    ## 注意点
-    - append_log_hourly() の戻り値は Path | None だが、append_log() は str | None
-    - processor.py は戻り値を使っていないので問題なし
+    ## 改善ポイント
+    - 作業の「目的」と「成果」を推測するガイドライン
+    - 同じアプリの連続操作をまとめる指示
+    - 除外すべき情報（ノイズ）の指示
+    - Slack 会話の要約形式
 ```
 
 ### Impediment Registry
@@ -1323,6 +1314,12 @@ completed:
     pbi_id: PBI-036
     story: "ログファイルが日付ごとのディレクトリ（logs/YYYY-MM-DD/）に保存される"
     subtasks_completed: 3
+    commits: []
+
+  - sprint: 36
+    pbi_id: PBI-037
+    story: "要約生成プロンプトにより具体的なガイドラインを含めてカスタマイズできる"
+    subtasks_completed: 2
     commits: []
 ```
 
@@ -1695,6 +1692,17 @@ retrospectives:
       - "既存テスト（test_integration.py）のモック更新が必要だった点に注意"
     action_items:
       - "append_log を使用している他のコードがないか確認"
+
+  - sprint: 36
+    what_went_well:
+      - "PBI-035（カスタムプロンプト機能）をベースに効率的に実装"
+      - "DEFAULT_SUMMARY_PROMPT_TEMPLATE の改善で LLM への指示が明確化"
+      - "目的・成果の推測、ノイズ除外、Slack 要約のガイドラインを追加"
+      - "2つのサブタスクをすべて完了"
+    what_to_improve:
+      - "特になし - シンプルなプロンプト改善がスムーズに完了"
+    action_items:
+      - "実際の要約結果を確認して、プロンプトの効果を評価"
 ```
 
 ---
