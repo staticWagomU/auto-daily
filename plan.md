@@ -123,13 +123,13 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 41
-  pbi: PBI-043
-  status: done
-  subtasks_completed: 5
-  subtasks_total: 5
+  number: 42
+  pbi: PBI-044
+  status: in_progress
+  subtasks_completed: 0
+  subtasks_total: 4
   impediments: 0
-  note: "全てのリファクタリング PBI が完了。次の機能開発待ち。"
+  note: "prompt.txt, summary_prompt.txt をバージョン管理から除外"
 ```
 
 ---
@@ -383,6 +383,46 @@ product_backlog:
       - PBI-041
       - PBI-042
     status: done
+
+  - id: PBI-044
+    story:
+      role: "開発者"
+      capability: "prompt.txt と summary_prompt.txt をバージョン管理から除外し、サンプルファイルを参照できる"
+      benefit: "カスタマイズしたプロンプトが他の開発者のリポジトリと競合せず、各自の環境に合わせた設定を維持できる"
+    acceptance_criteria:
+      - criterion: ".gitignore に prompt.txt と summary_prompt.txt が追加されている"
+        verification: "grep -E '^prompt\\.txt$|^summary_prompt\\.txt$' .gitignore | wc -l | grep -q 2"
+      - criterion: "prompt.txt.example が存在し、デフォルトテンプレートと同じ内容を含む"
+        verification: "test -f prompt.txt.example && grep -q '{activities}' prompt.txt.example"
+      - criterion: "summary_prompt.txt.example が存在し、デフォルトテンプレートと同じ内容を含む"
+        verification: "test -f summary_prompt.txt.example && grep -q '{log_content}' summary_prompt.txt.example"
+      - criterion: "prompt.txt と summary_prompt.txt がリポジトリから削除されている"
+        verification: "! git ls-files --error-unmatch prompt.txt summary_prompt.txt 2>/dev/null"
+      - criterion: "既存の config.py のフォールバック機構が引き続き動作する"
+        verification: "pytest tests/test_config.py -v -k 'prompt'"
+    technical_notes: |
+      ## 背景
+      カスタマイズ可能なファイル（prompt.txt, summary_prompt.txt）がバージョン管理に含まれていると、
+      ユーザー固有の変更がコミットされたり、プル時にコンフリクトが発生する可能性がある。
+      既に config.py には DEFAULT_PROMPT_TEMPLATE と DEFAULT_SUMMARY_PROMPT_TEMPLATE が定義されており、
+      ファイルがない場合のフォールバックは実装済み。
+
+      ## 実装手順
+      1. prompt.txt.example と summary_prompt.txt.example を作成（現在のファイル内容をコピー）
+      2. .gitignore に prompt.txt と summary_prompt.txt を追加
+      3. git rm --cached で既存ファイルをリポジトリから削除（ローカルには残す）
+      4. CLAUDE.md または README に使用方法を記載
+
+      ## 使用方法（ユーザー向け）
+      ```bash
+      # カスタマイズしたい場合
+      cp prompt.txt.example prompt.txt
+      cp summary_prompt.txt.example summary_prompt.txt
+      # 編集して使用
+      ```
+    story_points: 1
+    dependencies: []
+    status: ready
 
   # === 既存 PBIs ===
 

@@ -61,3 +61,5 @@ screenshots/
 
 calendar_config.yaml
 slack_config.yaml
+prompt.txt
+summary_prompt.txt
