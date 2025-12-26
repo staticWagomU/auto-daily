@@ -378,7 +378,7 @@ def test_filter_sensitive_strings() -> None:
     ocr_filter = OCRFilter()
 
     # Test long API key-like strings (use fake pattern to avoid push protection)
-    api_key = "xk_test_abcdefghijklmnopqrstuvwxyz123456"  # 36+ chars
+    api_key = "xk_test_abcdefghijklmnopqrstuvwxyz123456"  # gitleaks:allow
     text_with_key = f"Token: {api_key}\nNormal text here"
     result = ocr_filter.filter(text_with_key)
     assert "Normal text here" in result

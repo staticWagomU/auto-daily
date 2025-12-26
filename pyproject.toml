@@ -64,8 +64,9 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 
 # PyObjC modules are dynamically generated and not supported by static type checkers
+# These files import macOS-only modules (Quartz, Vision, etc.)
 [[tool.ty.overrides]]
-include = ["src/auto_daily/ocr.py"]
+include = ["src/auto_daily/ocr.py", "src/auto_daily/system.py"]
 [tool.ty.overrides.rules]
 unresolved-import = "ignore"
 unresolved-attribute = "ignore"
