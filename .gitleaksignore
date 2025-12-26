@@ -1,0 +1,2 @@
+# False positives - test fixtures with dummy API keys
+f8751a5a2bf76a2b72ba4d30f6c830b53b1a1205:tests/test_ocr.py:generic-api-key:381
