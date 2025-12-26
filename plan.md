@@ -125,11 +125,11 @@ Sprint Cycle:
 sprint:
   number: 43
   pbi: PBI-045
-  status: in_progress
-  subtasks_completed: 0
+  status: done
+  subtasks_completed: 2
   subtasks_total: 2
   impediments: 0
-  note: "pytest-xdist によるテスト並列化"
+  note: "pytest-xdist 導入完了。165テストが6.28秒で並列実行可能に"
 ```
 
 ---
@@ -193,7 +193,7 @@ product_backlog:
       - ファイル I/O を伴うテストでは一時ディレクトリの分離を確認
     story_points: 1
     dependencies: []
-    status: in_progress
+    status: done
 
   - id: PBI-039
     story:
