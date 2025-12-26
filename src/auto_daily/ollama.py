@@ -28,14 +28,14 @@ __all__ = [
 ]
 
 
-def generate_daily_report_prompt(log_file: Path) -> str:
-    """Generate a prompt for daily report from JSONL log file.
+def _load_log_entries(log_file: Path) -> list[dict]:
+    """Load and parse log entries from a JSONL file.
 
     Args:
         log_file: Path to the JSONL log file.
 
     Returns:
-        Formatted prompt for LLM to generate daily report.
+        List of parsed log entry dictionaries.
     """
     entries = []
     with open(log_file) as f:
@@ -43,8 +43,18 @@ def generate_daily_report_prompt(log_file: Path) -> str:
             line = line.strip()
             if line:
                 entries.append(json.loads(line))
+    return entries
 
-    # Format activity entries
+
+def _format_activities(entries: list[dict]) -> str:
+    """Format log entries into activity lines for prompts.
+
+    Args:
+        entries: List of log entry dictionaries.
+
+    Returns:
+        Formatted activity text.
+    """
     activity_lines = []
     for entry in entries:
         timestamp = entry.get("timestamp", "不明")
@@ -59,13 +69,23 @@ def generate_daily_report_prompt(log_file: Path) -> str:
             else f"- {timestamp}: {app_name} ({window_title})\n  内容: {ocr_text}"
         )
 
-    activities = "\n".join(activity_lines)
+    return "\n".join(activity_lines)
 
-    # Use template from config
+
+def generate_daily_report_prompt(log_file: Path) -> str:
+    """Generate a prompt for daily report from JSONL log file.
+
+    Args:
+        log_file: Path to the JSONL log file.
+
+    Returns:
+        Formatted prompt for LLM to generate daily report.
+    """
+    entries = _load_log_entries(log_file)
+    activities = _format_activities(entries)
+
     template = get_prompt_template()
-    prompt = template.format(activities=activities)
-
-    return prompt
+    return template.format(activities=activities)
 
 
 def generate_daily_report_prompt_with_calendar(
@@ -80,30 +100,8 @@ def generate_daily_report_prompt_with_calendar(
     Returns:
         Formatted prompt for LLM with calendar and activity information.
     """
-    # Load log entries
-    entries = []
-    with open(log_file) as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                entries.append(json.loads(line))
-
-    # Format activity entries
-    activity_lines = []
-    for entry in entries:
-        timestamp = entry.get("timestamp", "不明")
-        window_info = entry.get("window_info", {})
-        app_name = window_info.get("app_name", "不明")
-        window_title = window_info.get("window_title", "")
-        ocr_text = entry.get("ocr_text", "")
-
-        activity_lines.append(
-            f"- {timestamp}: {app_name} ({window_title})\n  内容: {ocr_text[:100]}..."
-            if len(ocr_text) > 100
-            else f"- {timestamp}: {app_name} ({window_title})\n  内容: {ocr_text}"
-        )
-
-    activities = "\n".join(activity_lines)
+    entries = _load_log_entries(log_file)
+    activities = _format_activities(entries)
 
     # Format calendar sections
     schedule_lines = []
