@@ -71,17 +71,16 @@ class PeriodicCapture:
         )
         self._running = False
         self._thread: threading.Thread | None = None
+        self._stop_event = threading.Event()
 
     def _capture_loop(self) -> None:
         """Background loop that triggers captures at regular intervals."""
         while self._running:
             if is_system_active():
                 self._callback(self._log_dir)
-            # Use a loop with short sleeps to allow faster stop
-            elapsed = 0.0
-            while self._running and elapsed < self._interval:
-                threading.Event().wait(0.05)
-                elapsed += 0.05
+            # Wait for interval or stop signal
+            if self._stop_event.wait(self._interval):
+                break
 
     def start(self) -> None:
         """Start the periodic capture scheduler."""
@@ -96,6 +95,7 @@ class PeriodicCapture:
     def stop(self) -> None:
         """Stop the periodic capture scheduler."""
         self._running = False
+        self._stop_event.set()
         if self._thread is not None:
             self._thread.join(timeout=1.0)
             self._thread = None
