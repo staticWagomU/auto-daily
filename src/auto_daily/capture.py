@@ -1,8 +1,11 @@
 """Screen capture module for macOS."""
 
+import logging
 import subprocess
 import uuid
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 def capture_screen(output_dir: Path) -> str | None:
