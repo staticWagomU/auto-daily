@@ -6,7 +6,7 @@ from pathlib import Path
 from auto_daily.logger import append_log_hourly
 
 
-def test_jsonl_append(tmp_path: Path) -> None:
+def test_jsonl_append(log_base: Path) -> None:
     """Test that append_log_hourly writes window info, OCR text, and timestamp to JSONL.
 
     The function should:
@@ -14,9 +14,6 @@ def test_jsonl_append(tmp_path: Path) -> None:
     2. Append a JSON object with window_name, ocr_text, and timestamp
     3. Each call adds a new line to the file
     """
-    log_base = tmp_path / "logs"
-    log_base.mkdir()
-
     # Arrange
     window_info = {"app_name": "Claude Code", "window_title": "auto-daily"}
     ocr_text = "This is some OCR text from the screen"
@@ -88,7 +85,7 @@ def test_daily_rotation(tmp_path: Path) -> None:
     assert tomorrow_filename != next_year_filename
 
 
-def test_date_directory_creation(tmp_path: Path) -> None:
+def test_date_directory_creation(log_base: Path) -> None:
     """Test that date directory logs/YYYY-MM-DD/ is automatically created.
 
     The function should:
@@ -99,9 +96,6 @@ def test_date_directory_creation(tmp_path: Path) -> None:
     from datetime import datetime
 
     from auto_daily.logger import get_log_dir_for_date
-
-    log_base = tmp_path / "logs"
-    log_base.mkdir()
 
     # Act
     dt = datetime(2025, 12, 25, 10, 30, 0)
@@ -145,7 +139,7 @@ def test_hourly_log_filename() -> None:
     assert noon_filename != evening_filename
 
 
-def test_hourly_rotation(tmp_path: Path) -> None:
+def test_hourly_rotation(log_base: Path, sample_window_info: dict[str, str]) -> None:
     """Test that logs are written to different files when hour changes.
 
     The function should:
@@ -158,10 +152,7 @@ def test_hourly_rotation(tmp_path: Path) -> None:
 
     from auto_daily.logger import append_log_hourly
 
-    log_base = tmp_path / "logs"
-    log_base.mkdir()
-
-    window_info = {"app_name": "Test App", "window_title": "Test Window"}
+    window_info = sample_window_info
     ocr_text = "Test OCR text"
 
     # Arrange - mock datetime for 09:30
@@ -204,7 +195,7 @@ def test_hourly_rotation(tmp_path: Path) -> None:
     assert log_path_09 != log_path_10
 
 
-def test_append_log_hourly_with_slack_context(tmp_path: Path) -> None:
+def test_append_log_hourly_with_slack_context(log_base: Path) -> None:
     """Test that append_log_hourly supports slack_context parameter.
 
     When slack_context is provided to append_log_hourly:
@@ -217,9 +208,6 @@ def test_append_log_hourly_with_slack_context(tmp_path: Path) -> None:
     from unittest.mock import patch
 
     from auto_daily.logger import append_log_hourly
-
-    log_base = tmp_path / "logs"
-    log_base.mkdir()
 
     window_info = {"app_name": "Slack", "window_title": "#dev-team | Company"}
     ocr_text = "Slack conversation text"

@@ -1,9 +1,15 @@
 """Tests for LLM client abstraction layer."""
 
 import os
+from typing import Any
 from unittest.mock import patch
 
 import pytest
+
+from auto_daily.llm.lm_studio import LMStudioClient
+from auto_daily.llm.ollama import OllamaClient
+from auto_daily.llm.openai import OpenAIClient
+from auto_daily.llm.protocol import LLMClient
 
 
 def test_llm_protocol() -> None:
@@ -14,29 +20,35 @@ def test_llm_protocol() -> None:
     2. Be a valid typing.Protocol
     3. Allow structural subtyping (duck typing with type safety)
     """
-    from auto_daily.llm.protocol import LLMClient
+    from typing import Protocol
 
     # Verify Protocol exists and has expected attributes
     assert hasattr(LLMClient, "generate")
 
     # Verify it's a Protocol class
-    from typing import Protocol
-
     assert issubclass(LLMClient, Protocol)
 
 
-def test_ollama_implements_protocol() -> None:
-    """Test that OllamaClient implements the LLMClient protocol.
+@pytest.mark.parametrize(
+    ("client_class", "init_kwargs"),
+    [
+        (OllamaClient, {}),
+        (OpenAIClient, {"api_key": "test-api-key"}),
+        (LMStudioClient, {}),
+    ],
+    ids=["ollama", "openai", "lm_studio"],
+)
+def test_client_implements_protocol(
+    client_class: type, init_kwargs: dict[str, Any]
+) -> None:
+    """Test that LLM clients implement the LLMClient protocol.
 
-    The OllamaClient should:
+    Each client should:
     1. Have an async generate(prompt: str, model: str) -> str method
     2. Be structurally compatible with LLMClient Protocol
     """
-    from auto_daily.llm.ollama import OllamaClient
-    from auto_daily.llm.protocol import LLMClient
-
     # Create an instance
-    client = OllamaClient()
+    client = client_class(**init_kwargs)
 
     # Verify the method signature exists
     assert hasattr(client, "generate")
@@ -47,33 +59,7 @@ def test_ollama_implements_protocol() -> None:
     def accepts_llm_client(c: LLMClient) -> None:
         pass
 
-    # This should not raise - if OllamaClient implements the protocol correctly
-    accepts_llm_client(client)
-
-
-def test_openai_implements_protocol() -> None:
-    """Test that OpenAIClient implements the LLMClient protocol.
-
-    The OpenAIClient should:
-    1. Have an async generate(prompt: str, model: str) -> str method
-    2. Be structurally compatible with LLMClient Protocol
-    """
-    from auto_daily.llm.openai import OpenAIClient
-    from auto_daily.llm.protocol import LLMClient
-
-    # Create an instance (uses mock API key for testing)
-    client = OpenAIClient(api_key="test-api-key")
-
-    # Verify the method signature exists
-    assert hasattr(client, "generate")
-    assert callable(client.generate)
-
-    # Type checking verification (this is for runtime, static checking happens via mypy/ty)
-    # The client should be usable where LLMClient is expected
-    def accepts_llm_client(c: LLMClient) -> None:
-        pass
-
-    # This should not raise - if OpenAIClient implements the protocol correctly
+    # This should not raise - if the client implements the protocol correctly
     accepts_llm_client(client)
 
 
@@ -180,32 +166,6 @@ class TestCheckOllamaConnection:
                 mock_get.assert_called_once()
                 call_args = mock_get.call_args
                 assert "http://custom:8080/api/tags" in str(call_args)
-
-
-def test_lm_studio_implements_protocol() -> None:
-    """Test that LMStudioClient implements the LLMClient protocol.
-
-    The LMStudioClient should:
-    1. Have an async generate(prompt: str, model: str) -> str method
-    2. Be structurally compatible with LLMClient Protocol
-    """
-    from auto_daily.llm.lm_studio import LMStudioClient
-    from auto_daily.llm.protocol import LLMClient
-
-    # Create an instance
-    client = LMStudioClient()
-
-    # Verify the method signature exists
-    assert hasattr(client, "generate")
-    assert callable(client.generate)
-
-    # Type checking verification (this is for runtime, static checking happens via mypy/ty)
-    # The client should be usable where LLMClient is expected
-    def accepts_llm_client(c: LLMClient) -> None:
-        pass
-
-    # This should not raise - if LMStudioClient implements the protocol correctly
-    accepts_llm_client(client)
 
 
 def test_lm_studio_backend() -> None:
