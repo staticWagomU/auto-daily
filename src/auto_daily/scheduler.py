@@ -7,7 +7,7 @@ from pathlib import Path
 
 from auto_daily.capture import capture_screen, cleanup_image
 from auto_daily.config import get_capture_interval
-from auto_daily.logger import append_log
+from auto_daily.logger import append_log_hourly
 from auto_daily.ocr import perform_ocr
 from auto_daily.system import is_system_active
 from auto_daily.window_monitor import get_active_window
@@ -39,7 +39,7 @@ def process_periodic_capture(log_dir: Path) -> bool:
     ocr_text = perform_ocr(image_path)
 
     # Log the activity
-    append_log(log_dir, window_info, ocr_text)
+    append_log_hourly(log_dir, window_info, ocr_text)
 
     # Clean up
     cleanup_image(image_path)

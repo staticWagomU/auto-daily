@@ -18,8 +18,8 @@ class TestCaptureOnWindowChange:
             mock_capture.return_value = str(tmp_path / "test.png")
             with patch("auto_daily.processor.perform_ocr") as mock_ocr:
                 mock_ocr.return_value = "test text"
-                with patch("auto_daily.processor.append_log") as mock_log:
-                    mock_log.return_value = str(tmp_path / "log.jsonl")
+                with patch("auto_daily.processor.append_log_hourly") as mock_log:
+                    mock_log.return_value = tmp_path / "log.jsonl"
                     with patch("auto_daily.processor.cleanup_image"):
                         process_window_change(old_window, new_window, tmp_path)
 
@@ -39,8 +39,8 @@ class TestOcrOnCapture:
             mock_capture.return_value = captured_image
             with patch("auto_daily.processor.perform_ocr") as mock_ocr:
                 mock_ocr.return_value = "extracted text"
-                with patch("auto_daily.processor.append_log") as mock_log:
-                    mock_log.return_value = str(tmp_path / "log.jsonl")
+                with patch("auto_daily.processor.append_log_hourly") as mock_log:
+                    mock_log.return_value = tmp_path / "log.jsonl"
                     with patch("auto_daily.processor.cleanup_image"):
                         process_window_change(old_window, new_window, tmp_path)
 
@@ -51,7 +51,7 @@ class TestLogOnWindowChange:
     """Test that window info and OCR result are logged."""
 
     def test_log_on_window_change(self, tmp_path: Path) -> None:
-        """Verify append_log is called with window info and OCR text."""
+        """Verify append_log_hourly is called with window info and OCR text."""
         old_window = {"app_name": "Terminal", "window_title": "zsh"}
         new_window = {"app_name": "Safari", "window_title": "Google"}
         ocr_text = "Page content here"
@@ -60,8 +60,8 @@ class TestLogOnWindowChange:
             mock_capture.return_value = str(tmp_path / "test.png")
             with patch("auto_daily.processor.perform_ocr") as mock_ocr:
                 mock_ocr.return_value = ocr_text
-                with patch("auto_daily.processor.append_log") as mock_log:
-                    mock_log.return_value = str(tmp_path / "log.jsonl")
+                with patch("auto_daily.processor.append_log_hourly") as mock_log:
+                    mock_log.return_value = tmp_path / "log.jsonl"
                     with patch("auto_daily.processor.cleanup_image"):
                         process_window_change(old_window, new_window, tmp_path)
 
@@ -83,8 +83,8 @@ class TestCleanupAfterProcessing:
             mock_capture.return_value = captured_image
             with patch("auto_daily.processor.perform_ocr") as mock_ocr:
                 mock_ocr.return_value = "text"
-                with patch("auto_daily.processor.append_log") as mock_log:
-                    mock_log.return_value = str(tmp_path / "log.jsonl")
+                with patch("auto_daily.processor.append_log_hourly") as mock_log:
+                    mock_log.return_value = tmp_path / "log.jsonl"
                     with patch("auto_daily.processor.cleanup_image") as mock_cleanup:
                         process_window_change(old_window, new_window, tmp_path)
 
@@ -102,7 +102,7 @@ class TestProcessWindowChangeEdgeCases:
         with patch("auto_daily.processor.capture_screen") as mock_capture:
             mock_capture.return_value = None  # Capture failed
             with patch("auto_daily.processor.perform_ocr") as mock_ocr:
-                with patch("auto_daily.processor.append_log") as mock_log:
+                with patch("auto_daily.processor.append_log_hourly") as mock_log:
                     with patch("auto_daily.processor.cleanup_image") as mock_cleanup:
                         result = process_window_change(old_window, new_window, tmp_path)
 

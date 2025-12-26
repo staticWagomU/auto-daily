@@ -123,11 +123,11 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 34
-  pbi: PBI-035
+  number: 35
+  pbi: PBI-036
   status: done
-  subtasks_completed: 4
-  subtasks_total: 4
+  subtasks_completed: 3
+  subtasks_total: 3
   impediments: 0
 ```
 
@@ -157,6 +157,219 @@ product_goal:
 ```yaml
 product_backlog:
   # --- Active PBIs (draft/refining/ready) ---
+
+  - id: PBI-037
+    story:
+      role: "Mac ユーザー"
+      capability: "要約生成プロンプトにより具体的なガイドラインを含めてカスタマイズできる"
+      benefit: "作業の目的・成果を推測した高精度な要約が得られる"
+    acceptance_criteria:
+      - criterion: "デフォルトプロンプトに作業目的の推測ガイドラインが含まれる"
+        verification: "grep -n '目的' src/auto_daily/config.py"
+      - criterion: "同一アプリの連続操作をまとめる指示が含まれる"
+        verification: "grep -n 'まとめる' src/auto_daily/config.py"
+      - criterion: "除外すべき情報（ノイズ）の指示が含まれる"
+        verification: "grep -n '除外' src/auto_daily/config.py"
+      - criterion: "Slack 会話の要約形式が指定されている"
+        verification: "grep -n 'Slack' src/auto_daily/config.py"
+    technical_notes: |
+      ## 現状の課題
+      現在の summary_prompt.txt は汎用的すぎて、LLM が具体的な出力を生成しにくい。
+
+      ## 改善版プロンプト
+      ```
+      以下の1時間分のアクティビティログを簡潔に要約してください。
+
+      ## ガイドライン
+      - 作業の「目的」と「成果」を推測して記述する
+      - 同じアプリの連続操作はまとめる
+      - OCR テキストから具体的なファイル名、関数名、議論トピックを抽出する
+      - 「〇〇を確認」より「〇〇の△△を修正するために確認」のように文脈を補完する
+      - Slack の会話は「誰と」「何について」話したかを要約する
+
+      ## 除外すべき情報
+      - システム通知やポップアップの内容
+      - パスワードやトークンと思われる文字列
+      - 繰り返し同じ内容のキャプチャ
+
+      ## アクティビティログ
+      {log_content}
+
+      ## 出力フォーマット
+      ### 主な作業
+      - [作業1]: [目的/成果]
+      - [作業2]: [目的/成果]
+
+      ### コミュニケーション
+      - [相手/チャンネル]: [トピック]
+
+      ### 使用ツール
+      [アプリ名のリスト]
+      ```
+
+      ## 実装箇所
+      - config.py: DEFAULT_SUMMARY_PROMPT_TEMPLATE を更新
+      - summary_prompt.txt (example): サンプルファイルを更新
+    story_points: 2
+    dependencies:
+      - PBI-035
+    status: draft
+
+  - id: PBI-038
+    story:
+      role: "Mac ユーザー"
+      capability: "OCR テキストからノイズ（UI 要素、ゴミ文字）を自動除去できる"
+      benefit: "要約や日報の精度が向上し、無関係な情報がログに含まれなくなる"
+    acceptance_criteria:
+      - criterion: "OCR 結果からシステム通知やメニューバー要素を除去する"
+        verification: "pytest tests/test_ocr.py::test_filter_system_ui_noise -v"
+      - criterion: "パスワードやトークンと思われる文字列を除去する"
+        verification: "pytest tests/test_ocr.py::test_filter_sensitive_strings -v"
+      - criterion: "連続する記号や意味のない文字列を除去する"
+        verification: "pytest tests/test_ocr.py::test_filter_garbage_characters -v"
+      - criterion: "フィルタリングがデフォルトで有効になっている"
+        verification: "pytest tests/test_ocr.py::test_filtering_enabled_by_default -v"
+      - criterion: "OCR_FILTER_NOISE 環境変数でフィルタリングを無効化できる"
+        verification: "pytest tests/test_config.py::test_ocr_filter_noise_from_env -v"
+    technical_notes: |
+      ## 現状の課題
+      OCR 結果には以下のノイズが含まれることがある：
+      - macOS メニューバーの要素（時計、バッテリー、Wi-Fi など）
+      - システム通知やバナー
+      - 記号の羅列や意味不明な文字列
+      - API キーやパスワードと思われる長い英数字文字列
+
+      ## 実装方針
+      ```python
+      # ocr/filters.py
+      import re
+      from typing import Callable
+
+      class OCRFilter:
+          """OCR テキストのノイズを除去するフィルター"""
+
+          def __init__(self):
+              self.filters: list[Callable[[str], str]] = [
+                  self._filter_menu_bar,
+                  self._filter_sensitive_strings,
+                  self._filter_garbage_chars,
+                  self._filter_repeated_lines,
+              ]
+
+          def filter(self, text: str) -> str:
+              """すべてのフィルターを適用"""
+              for f in self.filters:
+                  text = f(text)
+              return text.strip()
+
+          def _filter_menu_bar(self, text: str) -> str:
+              """メニューバー要素を除去"""
+              patterns = [
+                  r'^\s*\d{1,2}:\d{2}\s*(AM|PM)?\s*$',  # 時計
+                  r'^\s*\d{1,3}%\s*$',  # バッテリー
+                  r'^\s*(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s*$',  # 曜日
+              ]
+              lines = text.split('\n')
+              return '\n'.join(
+                  line for line in lines
+                  if not any(re.match(p, line) for p in patterns)
+              )
+
+          def _filter_sensitive_strings(self, text: str) -> str:
+              """パスワードやトークンを [REDACTED] に置換"""
+              # 32文字以上の英数字文字列（API キーなど）
+              text = re.sub(r'\b[A-Za-z0-9]{32,}\b', '[REDACTED]', text)
+              # Bearer トークン
+              text = re.sub(r'Bearer\s+[A-Za-z0-9._-]+', 'Bearer [REDACTED]', text)
+              return text
+
+          def _filter_garbage_chars(self, text: str) -> str:
+              """意味のない記号の連続を除去"""
+              # 3つ以上の記号が連続
+              text = re.sub(r'[^\w\s]{3,}', '', text)
+              return text
+
+          def _filter_repeated_lines(self, text: str) -> str:
+              """完全に同じ行の繰り返しを1つにまとめる"""
+              lines = text.split('\n')
+              seen = set()
+              result = []
+              for line in lines:
+                  if line.strip() and line not in seen:
+                      seen.add(line)
+                      result.append(line)
+                  elif not line.strip():
+                      result.append(line)
+              return '\n'.join(result)
+      ```
+
+      ## 環境変数
+      - OCR_FILTER_NOISE: "true" (default) | "false"
+
+      ## 統合箇所
+      - ocr/__init__.py: perform_ocr() の戻り値にフィルターを適用
+      - config.py: get_ocr_filter_noise() を追加
+
+      ## 後方互換性
+      - フィルタリングはデフォルト有効
+      - 環境変数で無効化可能
+    story_points: 3
+    dependencies:
+      - PBI-023
+    status: draft
+
+  - id: PBI-036
+    story:
+      role: "Mac ユーザー"
+      capability: "ログファイルが日付ごとのディレクトリ（logs/YYYY-MM-DD/）に保存される"
+      benefit: "日ごとのログが整理され、管理・検索がしやすくなる"
+    acceptance_criteria:
+      - criterion: "processor.py が append_log_hourly() を使用している"
+        verification: "grep -n 'append_log_hourly' src/auto_daily/processor.py"
+      - criterion: "ログが logs/YYYY-MM-DD/activity_HH.jsonl に保存される"
+        verification: "pytest tests/test_processor.py::test_log_in_date_directory -v"
+      - criterion: "既存の append_log() は後方互換のため残すが非推奨とする"
+        verification: "grep -n 'deprecated' src/auto_daily/logger.py"
+    technical_notes: |
+      ## 問題
+      現在 processor.py は旧方式の append_log() を使用しており、
+      ログが logs/ 直下に activity_YYYY-MM-DD.jsonl として保存されている。
+
+      本来は新方式の append_log_hourly() を使用し、
+      logs/YYYY-MM-DD/activity_HH.jsonl に保存されるべき。
+
+      ## 修正箇所
+      1. processor.py
+         - append_log → append_log_hourly に変更
+         - 関数シグネチャの違いに対応（slack_context パラメータ）
+
+      2. logger.py
+         - append_log() に deprecation 警告を追加
+
+      ## 新旧ディレクトリ構造
+      ```
+      # 旧（現状）
+      ~/.auto-daily/
+        └── logs/
+            ├── activity_2025-12-25.jsonl
+            └── activity_2025-12-26.jsonl
+
+      # 新（期待）
+      ~/.auto-daily/
+        └── logs/
+            └── 2025-12-25/
+                ├── activity_09.jsonl
+                ├── activity_10.jsonl
+                └── ...
+      ```
+
+      ## 影響範囲
+      - processor.py: process_window_change()
+      - logger.py: append_log_hourly() に slack_context を追加する必要があるかも
+      - scheduler.py: PeriodicCapture も確認が必要
+    story_points: 2
+    dependencies: []
+    status: done
 
   - id: PBI-029
     story:
@@ -780,72 +993,60 @@ definition_of_ready:
 ## 2. Current Sprint
 
 ```yaml
-sprint_34:
-  number: 34
-  pbi_id: PBI-035
-  story: "要約生成に使うプロンプトをテキストファイルでカスタマイズできる"
+sprint_35:
+  number: 35
+  pbi_id: PBI-036
+  story: "ログファイルが日付ごとのディレクトリ（logs/YYYY-MM-DD/）に保存される"
   status: done
 
   sprint_goal:
-    statement: "summary_prompt.txt でプロンプトをカスタマイズ可能にし、ユーザー独自の要約形式を実現する"
+    statement: "processor.py を append_log_hourly() に移行し、ログを日付ディレクトリ/時間単位で保存する"
     success_criteria:
-      - "プロジェクトルートの summary_prompt.txt からプロンプトを読み込める"
-      - "summary_prompt.txt が存在しない場合はデフォルトプロンプトを使用する"
-      - "{log_content} プレースホルダーがログ内容で置換される"
-      - "summarize コマンドがカスタムプロンプトを使用する"
-    stakeholder_value: "自分の仕事スタイルに合った要約形式を定義でき、日報の質が向上する"
+      - "processor.py が append_log_hourly() を使用している"
+      - "ログが logs/YYYY-MM-DD/activity_HH.jsonl に保存される"
+      - "既存の append_log() は後方互換のため残すが非推奨とする"
+    stakeholder_value: "日ごとのログが整理され、管理・検索がしやすくなる"
 
   subtasks:
     - id: ST-001
-      test: "test_summary_prompt_template_from_file: summary_prompt.txt からプロンプトを読み込める"
+      test: "test_log_in_date_directory: processor が append_log_hourly を使用してログを保存"
       implementation: |
-        config.py に追加:
-        - DEFAULT_SUMMARY_PROMPT_TEMPLATE を定義
-        - get_summary_prompt_template() を実装
-        - Path.cwd() / "summary_prompt.txt" から読み込み
+        processor.py を修正:
+        - append_log → append_log_hourly に変更
+        - append_log_hourly に slack_context パラメータを追加
       type: behavioral
       status: completed
       commits: []
 
     - id: ST-002
-      test: "test_summary_prompt_template_default: ファイルがない場合はデフォルトを使用"
+      test: "test_append_log_hourly_with_slack_context: append_log_hourly に slack_context を渡せる"
       implementation: |
-        get_summary_prompt_template() のフォールバック:
-        - ファイルが存在しない場合は DEFAULT_SUMMARY_PROMPT_TEMPLATE を返す
+        logger.py の append_log_hourly() を修正:
+        - slack_context パラメータを追加
+        - entry に slack_context を含める
       type: behavioral
       status: completed
       commits: []
 
     - id: ST-003
-      test: "test_summary_prompt_placeholder: {log_content} がログ内容で置換される"
+      test: "grep -n 'deprecated' で append_log() に deprecation が含まれる"
       implementation: |
-        __init__.py に追加:
-        - generate_summary_prompt(log_content: str) -> str を実装
-        - template.format(log_content=log_content) で置換
-      type: behavioral
-      status: completed
-      commits: []
-
-    - id: ST-004
-      test: "test_summarize_uses_custom_prompt: summarize コマンドがカスタムプロンプトを使用"
-      implementation: |
-        __init__.py の summarize_command() を修正:
-        - get_summary_prompt_template() を使用してプロンプト生成
-        - ハードコードされたプロンプトを置き換え
+        logger.py の append_log() を修正:
+        - docstring に deprecated 警告を追加
+        - warnings.warn() で非推奨警告を出力
       type: behavioral
       status: completed
       commits: []
 
   notes: |
     ## 実装方針
-    - PBI-007（prompt.txt）と同じパターンを踏襲
-    - config.py に get_summary_prompt_template() を追加
-    - 既存のハードコードされたプロンプトを置き換え
+    1. まず append_log_hourly() に slack_context パラメータを追加
+    2. processor.py を append_log_hourly() を使うように修正
+    3. append_log() に deprecation 警告を追加
 
-    ## テスト方針
-    - os.chdir() で一時ディレクトリに移動してテスト
-    - ファイル存在/不在の両方をテスト
-    - プレースホルダー置換の検証
+    ## 注意点
+    - append_log_hourly() の戻り値は Path | None だが、append_log() は str | None
+    - processor.py は戻り値を使っていないので問題なし
 ```
 
 ### Impediment Registry
@@ -1116,6 +1317,12 @@ completed:
     pbi_id: PBI-035
     story: "要約生成に使うプロンプトをテキストファイルでカスタマイズできる"
     subtasks_completed: 4
+    commits: []
+
+  - sprint: 35
+    pbi_id: PBI-036
+    story: "ログファイルが日付ごとのディレクトリ（logs/YYYY-MM-DD/）に保存される"
+    subtasks_completed: 3
     commits: []
 ```
 
@@ -1476,6 +1683,18 @@ retrospectives:
       - "テストで使用するログファイル形式（hourly vs daily）の不整合に注意"
     action_items:
       - "Product Backlog の整理（完了した PBI を確認）"
+
+  - sprint: 35
+    what_went_well:
+      - "processor.py と scheduler.py の append_log → append_log_hourly 移行がスムーズに完了"
+      - "append_log_hourly() に slack_context パラメータを追加して機能拡張"
+      - "warnings.warn() による deprecation 警告を実装"
+      - "TDD サイクル（Red-Green）がスムーズに回った"
+      - "3つのサブタスクをすべて完了"
+    what_to_improve:
+      - "既存テスト（test_integration.py）のモック更新が必要だった点に注意"
+    action_items:
+      - "append_log を使用している他のコードがないか確認"
 ```
 
 ---

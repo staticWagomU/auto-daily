@@ -299,3 +299,90 @@ def test_slack_fields_in_log(tmp_path: Path) -> None:
     assert entry["slack_context"]["workspace"] == "Company"
     assert entry["slack_context"]["dm_user"] is None
     assert entry["slack_context"]["is_thread"] is False
+
+
+def test_append_log_hourly_with_slack_context(tmp_path: Path) -> None:
+    """Test that append_log_hourly supports slack_context parameter.
+
+    When slack_context is provided to append_log_hourly:
+    1. The log entry should include all Slack context fields
+    2. Fields should be properly serialized as JSON
+    3. Log should be saved in date directory with hourly filename
+    """
+    import json
+    from datetime import datetime
+    from unittest.mock import patch
+
+    from auto_daily.logger import append_log_hourly
+
+    log_base = tmp_path / "logs"
+    log_base.mkdir()
+
+    window_info = {"app_name": "Slack", "window_title": "#dev-team | Company"}
+    ocr_text = "Slack conversation text"
+    slack_context = {
+        "channel": "dev-team",
+        "workspace": "Company",
+        "dm_user": None,
+        "is_thread": False,
+    }
+
+    # Act - mock datetime to control file path
+    with patch("auto_daily.logger.datetime") as mock_dt:
+        mock_dt.now.return_value = datetime(2025, 12, 26, 10, 30, 0)
+        mock_dt.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
+
+        log_path = append_log_hourly(
+            log_base=log_base,
+            window_info=window_info,
+            ocr_text=ocr_text,
+            slack_context=slack_context,
+        )
+
+    # Assert
+    assert log_path is not None
+    expected_path = log_base / "2025-12-26" / "activity_10.jsonl"
+    assert log_path == expected_path
+    assert log_path.exists()
+
+    with open(log_path) as f:
+        entry = json.loads(f.readline())
+
+    assert "slack_context" in entry
+    assert entry["slack_context"]["channel"] == "dev-team"
+    assert entry["slack_context"]["workspace"] == "Company"
+    assert entry["slack_context"]["dm_user"] is None
+    assert entry["slack_context"]["is_thread"] is False
+
+
+def test_append_log_deprecated(tmp_path: Path) -> None:
+    """Test that append_log is marked as deprecated.
+
+    The legacy append_log function should:
+    1. Have 'deprecated' in its docstring
+    2. Emit a DeprecationWarning when called
+    """
+    import warnings
+
+    from auto_daily.logger import append_log
+
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+
+    # Check docstring contains 'deprecated'
+    assert append_log.__doc__ is not None
+    assert "deprecated" in append_log.__doc__.lower()
+
+    # Check that calling append_log emits a DeprecationWarning
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        append_log(
+            log_dir=log_dir,
+            window_info={"app_name": "Test", "window_title": "Test"},
+            ocr_text="test",
+        )
+        # Filter for DeprecationWarning
+        deprecation_warnings = [
+            x for x in w if issubclass(x.category, DeprecationWarning)
+        ]
+        assert len(deprecation_warnings) >= 1
