@@ -73,12 +73,14 @@ def test_main_starts_monitoring() -> None:
 
     with (
         patch(
-            "auto_daily.check_all_permissions",
+            "auto_daily.monitor.check_all_permissions",
             return_value={"screen_recording": True, "accessibility": True},
         ),
-        patch("auto_daily.WindowMonitor", mock_monitor_class),
+        patch("auto_daily.monitor.WindowMonitor", mock_monitor_class),
         patch("sys.argv", ["auto-daily", "--start"]),
-        patch("time.sleep", side_effect=KeyboardInterrupt),  # Stop loop immediately
+        patch(
+            "auto_daily.monitor.time.sleep", side_effect=KeyboardInterrupt
+        ),  # Stop loop immediately
     ):
         from auto_daily import main
 
@@ -128,9 +130,11 @@ def test_report_command(tmp_path, monkeypatch) -> None:
     mock_client = AsyncMock()
     mock_client.generate.return_value = "# 日報\n\n今日の作業内容..."
 
+    import auto_daily.report
+
     with (
-        patch.object(auto_daily, "OllamaClient", return_value=mock_client),
-        patch.object(auto_daily, "get_reports_dir", return_value=reports_dir),
+        patch.object(auto_daily.report, "OllamaClient", return_value=mock_client),
+        patch.object(auto_daily.report, "get_reports_dir", return_value=reports_dir),
         patch("sys.argv", ["auto-daily", "report"]),
     ):
         # Act: Call main with report command
@@ -153,6 +157,7 @@ def test_report_with_date_option(tmp_path, monkeypatch) -> None:
     from unittest.mock import AsyncMock, patch
 
     import auto_daily
+    import auto_daily.report
     from auto_daily.logger import get_log_filename
 
     # Arrange: Create a log file for a specific date
@@ -176,8 +181,8 @@ def test_report_with_date_option(tmp_path, monkeypatch) -> None:
     mock_client.generate.return_value = "# 日報 2024-12-24\n\n..."
 
     with (
-        patch.object(auto_daily, "OllamaClient", return_value=mock_client),
-        patch.object(auto_daily, "get_reports_dir", return_value=reports_dir),
+        patch.object(auto_daily.report, "OllamaClient", return_value=mock_client),
+        patch.object(auto_daily.report, "get_reports_dir", return_value=reports_dir),
         patch("sys.argv", ["auto-daily", "report", "--date", target_date]),
     ):
         # Act: Call main with report command and --date option
@@ -199,6 +204,7 @@ def test_report_saves_to_reports_dir(tmp_path, monkeypatch) -> None:
     from unittest.mock import AsyncMock, patch
 
     import auto_daily
+    import auto_daily.report
     from auto_daily.logger import get_log_filename
 
     # Arrange: Setup directories
@@ -222,8 +228,8 @@ def test_report_saves_to_reports_dir(tmp_path, monkeypatch) -> None:
     mock_client.generate.return_value = "# 日報\n\n今日の作業内容..."
 
     with (
-        patch.object(auto_daily, "OllamaClient", return_value=mock_client),
-        patch.object(auto_daily, "get_reports_dir", return_value=reports_dir),
+        patch.object(auto_daily.report, "OllamaClient", return_value=mock_client),
+        patch.object(auto_daily.report, "get_reports_dir", return_value=reports_dir),
         patch("sys.argv", ["auto-daily", "report"]),
     ):
         # Act: Call main with report command
@@ -247,6 +253,7 @@ def test_report_outputs_path(tmp_path, monkeypatch, capsys) -> None:
     from unittest.mock import AsyncMock, patch
 
     import auto_daily
+    import auto_daily.report
     from auto_daily.logger import get_log_filename
 
     # Arrange: Setup directories
@@ -270,8 +277,8 @@ def test_report_outputs_path(tmp_path, monkeypatch, capsys) -> None:
     mock_client.generate.return_value = "# 日報\n\n今日の作業内容..."
 
     with (
-        patch.object(auto_daily, "OllamaClient", return_value=mock_client),
-        patch.object(auto_daily, "get_reports_dir", return_value=reports_dir),
+        patch.object(auto_daily.report, "OllamaClient", return_value=mock_client),
+        patch.object(auto_daily.report, "get_reports_dir", return_value=reports_dir),
         patch("sys.argv", ["auto-daily", "report"]),
     ):
         # Act: Call main with report command
@@ -299,6 +306,7 @@ def test_report_uses_correct_log_filename(tmp_path, monkeypatch) -> None:
     from unittest.mock import AsyncMock, patch
 
     import auto_daily
+    import auto_daily.report
     from auto_daily.logger import get_log_filename
 
     # Arrange: Create a log file with the CORRECT format (activity_YYYY-MM-DD.jsonl)
@@ -327,8 +335,8 @@ def test_report_uses_correct_log_filename(tmp_path, monkeypatch) -> None:
     mock_client.generate.return_value = "# 日報\n\nPBI-017 修正確認用"
 
     with (
-        patch.object(auto_daily, "OllamaClient", return_value=mock_client),
-        patch.object(auto_daily, "get_reports_dir", return_value=reports_dir),
+        patch.object(auto_daily.report, "OllamaClient", return_value=mock_client),
+        patch.object(auto_daily.report, "get_reports_dir", return_value=reports_dir),
         patch("sys.argv", ["auto-daily", "report"]),
     ):
         # Act: Call main with report command
@@ -359,7 +367,7 @@ def test_permission_warning_on_start(capsys) -> None:
     mock_perms = {"screen_recording": False, "accessibility": False}
 
     with (
-        patch("auto_daily.check_all_permissions", return_value=mock_perms),
+        patch("auto_daily.monitor.check_all_permissions", return_value=mock_perms),
         patch("sys.argv", ["auto-daily", "--start"]),
     ):
         from auto_daily import main
@@ -401,10 +409,12 @@ def test_start_with_permissions(capsys) -> None:
     mock_monitor_class = MagicMock(return_value=mock_monitor_instance)
 
     with (
-        patch("auto_daily.check_all_permissions", return_value=mock_perms),
-        patch("auto_daily.WindowMonitor", mock_monitor_class),
+        patch("auto_daily.monitor.check_all_permissions", return_value=mock_perms),
+        patch("auto_daily.monitor.WindowMonitor", mock_monitor_class),
         patch("sys.argv", ["auto-daily", "--start"]),
-        patch("time.sleep", side_effect=KeyboardInterrupt),  # Stop loop immediately
+        patch(
+            "auto_daily.monitor.time.sleep", side_effect=KeyboardInterrupt
+        ),  # Stop loop immediately
     ):
         from auto_daily import main
 
@@ -447,11 +457,13 @@ def test_start_without_ollama(capsys) -> None:
     mock_monitor_class = MagicMock(return_value=mock_monitor_instance)
 
     with (
-        patch("auto_daily.check_all_permissions", return_value=mock_perms),
-        patch("auto_daily.check_ollama_connection", return_value=False),
-        patch("auto_daily.WindowMonitor", mock_monitor_class),
+        patch("auto_daily.monitor.check_all_permissions", return_value=mock_perms),
+        patch("auto_daily.monitor.check_ollama_connection", return_value=False),
+        patch("auto_daily.monitor.WindowMonitor", mock_monitor_class),
         patch("sys.argv", ["auto-daily", "--start"]),
-        patch("time.sleep", side_effect=KeyboardInterrupt),  # Stop loop immediately
+        patch(
+            "auto_daily.monitor.time.sleep", side_effect=KeyboardInterrupt
+        ),  # Stop loop immediately
     ):
         from auto_daily import main
 
@@ -484,12 +496,17 @@ def test_start_warns_without_ollama(capsys) -> None:
     mock_monitor_class = MagicMock(return_value=mock_monitor_instance)
 
     with (
-        patch("auto_daily.check_all_permissions", return_value=mock_perms),
-        patch("auto_daily.check_ollama_connection", return_value=False),
-        patch("auto_daily.get_ollama_base_url", return_value="http://localhost:11434"),
-        patch("auto_daily.WindowMonitor", mock_monitor_class),
+        patch("auto_daily.monitor.check_all_permissions", return_value=mock_perms),
+        patch("auto_daily.monitor.check_ollama_connection", return_value=False),
+        patch(
+            "auto_daily.monitor.get_ollama_base_url",
+            return_value="http://localhost:11434",
+        ),
+        patch("auto_daily.monitor.WindowMonitor", mock_monitor_class),
         patch("sys.argv", ["auto-daily", "--start"]),
-        patch("time.sleep", side_effect=KeyboardInterrupt),  # Stop loop immediately
+        patch(
+            "auto_daily.monitor.time.sleep", side_effect=KeyboardInterrupt
+        ),  # Stop loop immediately
     ):
         from auto_daily import main
 
@@ -537,8 +554,11 @@ def test_report_fails_without_ollama(tmp_path, monkeypatch, capsys) -> None:
     monkeypatch.setenv("AUTO_DAILY_LOG_DIR", str(log_dir))
 
     with (
-        patch("auto_daily.check_ollama_connection", return_value=False),
-        patch("auto_daily.get_ollama_base_url", return_value="http://localhost:11434"),
+        patch("auto_daily.report.check_ollama_connection", return_value=False),
+        patch(
+            "auto_daily.report.get_ollama_base_url",
+            return_value="http://localhost:11434",
+        ),
         patch("sys.argv", ["auto-daily", "report"]),
     ):
         from auto_daily import main
@@ -591,8 +611,8 @@ def test_report_fails_with_invalid_ollama_url(tmp_path, monkeypatch, capsys) -> 
     custom_url = "http://invalid-host:9999"
 
     with (
-        patch("auto_daily.check_ollama_connection", return_value=False),
-        patch("auto_daily.get_ollama_base_url", return_value=custom_url),
+        patch("auto_daily.report.check_ollama_connection", return_value=False),
+        patch("auto_daily.report.get_ollama_base_url", return_value=custom_url),
         patch("sys.argv", ["auto-daily", "report"]),
     ):
         from auto_daily import main
@@ -625,6 +645,7 @@ def test_report_with_existing_log(tmp_path, monkeypatch, capsys) -> None:
     from unittest.mock import AsyncMock, patch
 
     import auto_daily
+    import auto_daily.report
     from auto_daily.logger import get_log_filename
 
     # Arrange: Create a log file with activity_YYYY-MM-DD.jsonl format
@@ -650,8 +671,8 @@ def test_report_with_existing_log(tmp_path, monkeypatch, capsys) -> None:
     mock_client.generate.return_value = "# 日報 2024-12-24\n\n調査作業を実施"
 
     with (
-        patch.object(auto_daily, "OllamaClient", return_value=mock_client),
-        patch.object(auto_daily, "get_reports_dir", return_value=reports_dir),
+        patch.object(auto_daily.report, "OllamaClient", return_value=mock_client),
+        patch.object(auto_daily.report, "get_reports_dir", return_value=reports_dir),
         patch("sys.argv", ["auto-daily", "report", "--date", target_date]),
     ):
         # Act: Call main with report command
@@ -683,6 +704,7 @@ def test_report_with_calendar_option(tmp_path, monkeypatch) -> None:
     from unittest.mock import AsyncMock, patch
 
     import auto_daily
+    import auto_daily.report
     from auto_daily.calendar import CalendarEvent
     from auto_daily.logger import get_log_filename
 
@@ -722,9 +744,9 @@ def test_report_with_calendar_option(tmp_path, monkeypatch) -> None:
     mock_client.generate.return_value = "# 日報\n\n予定通りにミーティングを実施"
 
     with (
-        patch.object(auto_daily, "OllamaClient", return_value=mock_client),
-        patch.object(auto_daily, "get_reports_dir", return_value=reports_dir),
-        patch("auto_daily.get_all_events", return_value=mock_events),
+        patch.object(auto_daily.report, "OllamaClient", return_value=mock_client),
+        patch.object(auto_daily.report, "get_reports_dir", return_value=reports_dir),
+        patch("auto_daily.report.get_all_events", return_value=mock_events),
         patch("sys.argv", ["auto-daily", "report", "--with-calendar"]),
     ):
         # Act: Call main with report command and --with-calendar
@@ -760,6 +782,7 @@ def test_report_from_summaries(tmp_path, monkeypatch) -> None:
     from unittest.mock import AsyncMock, patch
 
     import auto_daily
+    import auto_daily.report
 
     # Arrange: Create summary files for several hours
     summaries_dir = tmp_path / "summaries"
@@ -788,8 +811,8 @@ def test_report_from_summaries(tmp_path, monkeypatch) -> None:
     )
 
     with (
-        patch.object(auto_daily, "OllamaClient", return_value=mock_client),
-        patch.object(auto_daily, "get_reports_dir", return_value=reports_dir),
+        patch.object(auto_daily.report, "OllamaClient", return_value=mock_client),
+        patch.object(auto_daily.report, "get_reports_dir", return_value=reports_dir),
         patch("sys.argv", ["auto-daily", "report"]),
     ):
         # Act: Call main with report command
@@ -820,6 +843,7 @@ def test_report_skips_missing_summaries(tmp_path, monkeypatch) -> None:
     from unittest.mock import AsyncMock, patch
 
     import auto_daily
+    import auto_daily.report
 
     # Arrange: Create sparse summary files (only hours 9 and 14, missing 10-13)
     summaries_dir = tmp_path / "summaries"
@@ -839,8 +863,8 @@ def test_report_skips_missing_summaries(tmp_path, monkeypatch) -> None:
     mock_client.generate.return_value = "# 日報\n\n朝会と午後の作業を行いました。"
 
     with (
-        patch.object(auto_daily, "OllamaClient", return_value=mock_client),
-        patch.object(auto_daily, "get_reports_dir", return_value=reports_dir),
+        patch.object(auto_daily.report, "OllamaClient", return_value=mock_client),
+        patch.object(auto_daily.report, "get_reports_dir", return_value=reports_dir),
         patch("sys.argv", ["auto-daily", "report"]),
     ):
         # Act: Call main with report command
@@ -878,6 +902,7 @@ def test_report_fallback_to_logs(tmp_path, monkeypatch) -> None:
     from unittest.mock import AsyncMock, patch
 
     import auto_daily
+    import auto_daily.report
     from auto_daily.logger import get_log_filename
 
     # Arrange: Create log file but NO summary files
@@ -909,8 +934,8 @@ def test_report_fallback_to_logs(tmp_path, monkeypatch) -> None:
     mock_client.generate.return_value = "# 日報\n\nコーディング作業を行いました。"
 
     with (
-        patch.object(auto_daily, "OllamaClient", return_value=mock_client),
-        patch.object(auto_daily, "get_reports_dir", return_value=reports_dir),
+        patch.object(auto_daily.report, "OllamaClient", return_value=mock_client),
+        patch.object(auto_daily.report, "get_reports_dir", return_value=reports_dir),
         patch("sys.argv", ["auto-daily", "report"]),
     ):
         # Act: Call main with report command
@@ -940,6 +965,7 @@ def test_report_auto_summarize(tmp_path, monkeypatch, capsys) -> None:
     from unittest.mock import AsyncMock, patch
 
     import auto_daily
+    import auto_daily.report
     from auto_daily.logger import get_hourly_log_filename, get_log_dir_for_date
 
     # Arrange: Create hourly log files but NO summary files
@@ -979,8 +1005,8 @@ def test_report_auto_summarize(tmp_path, monkeypatch, capsys) -> None:
     ]
 
     with (
-        patch.object(auto_daily, "OllamaClient", return_value=mock_client),
-        patch.object(auto_daily, "get_reports_dir", return_value=reports_dir),
+        patch.object(auto_daily.report, "OllamaClient", return_value=mock_client),
+        patch.object(auto_daily.report, "get_reports_dir", return_value=reports_dir),
         patch("sys.argv", ["auto-daily", "report", "--auto-summarize"]),
     ):
         # Act: Call main with report command and --auto-summarize
@@ -1014,6 +1040,7 @@ def test_summary_prompt_placeholder(tmp_path, monkeypatch) -> None:
     from unittest.mock import AsyncMock, patch
 
     import auto_daily
+    import auto_daily.report
     from auto_daily.logger import get_log_dir_for_date, get_log_filename
 
     # Arrange: Create a log file for a specific hour
@@ -1042,7 +1069,7 @@ def test_summary_prompt_placeholder(tmp_path, monkeypatch) -> None:
     mock_client.generate.return_value = "## 10:00-11:00\n- コーディング作業"
 
     with (
-        patch.object(auto_daily, "OllamaClient", return_value=mock_client),
+        patch.object(auto_daily.report, "OllamaClient", return_value=mock_client),
         patch("sys.argv", ["auto-daily", "summarize", "--hour", "10"]),
     ):
         # Act: Call main with summarize command
@@ -1076,6 +1103,7 @@ def test_summarize_uses_custom_prompt(tmp_path, monkeypatch) -> None:
     from unittest.mock import AsyncMock, patch
 
     import auto_daily
+    import auto_daily.report
     from auto_daily.logger import get_log_dir_for_date, get_log_filename
 
     # Arrange: Create a custom summary_prompt.txt
@@ -1124,7 +1152,7 @@ def test_summarize_uses_custom_prompt(tmp_path, monkeypatch) -> None:
         os.chdir(project_root)
 
         with (
-            patch.object(auto_daily, "OllamaClient", return_value=mock_client),
+            patch.object(auto_daily.report, "OllamaClient", return_value=mock_client),
             patch("sys.argv", ["auto-daily", "summarize", "--hour", "11"]),
         ):
             # Act: Call main with summarize command

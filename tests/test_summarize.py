@@ -14,6 +14,7 @@ def test_summarize_command(tmp_path, monkeypatch) -> None:
     3. Save the summary to summaries/YYYY-MM-DD/summary_HH.md
     """
     import auto_daily
+    import auto_daily.report
     from auto_daily.logger import get_log_dir_for_date, get_log_filename
 
     # Arrange: Create a temporary log directory with an hourly log file
@@ -40,7 +41,7 @@ def test_summarize_command(tmp_path, monkeypatch) -> None:
     mock_client.generate.return_value = "- 新機能の実装を行った"
 
     with (
-        patch.object(auto_daily, "OllamaClient", return_value=mock_client),
+        patch.object(auto_daily.report, "OllamaClient", return_value=mock_client),
         patch("sys.argv", ["auto-daily", "summarize"]),
     ):
         # Act: Call main with summarize command

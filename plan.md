@@ -125,8 +125,8 @@ Sprint Cycle:
 sprint:
   number: 41
   pbi: PBI-043
-  status: in_progress
-  subtasks_completed: 0
+  status: done
+  subtasks_completed: 5
   subtasks_total: 5
   impediments: 0
 ```
@@ -381,7 +381,7 @@ product_backlog:
       - PBI-040
       - PBI-041
       - PBI-042
-    status: ready
+    status: done
 
   # === 既存 PBIs ===
 
@@ -1220,84 +1220,92 @@ definition_of_ready:
 ## 2. Current Sprint
 
 ```yaml
-sprint_37:
-  number: 37
-  pbi_id: PBI-038
-  story: "OCR テキストからノイズ（UI 要素、ゴミ文字）を自動除去できる"
+sprint_41:
+  number: 41
+  pbi_id: PBI-043
+  story: "__init__.py の長い関数を分割して責務を明確化できる"
   status: done
 
   sprint_goal:
-    statement: "OCR 結果からノイズを自動除去し、要約・日報の精度を向上させる"
+    statement: "__init__.py から CLI、レポート、モニター機能を別モジュールに抽出し、main() を簡潔にする"
     success_criteria:
-      - "システム通知やメニューバー要素を除去できる"
-      - "パスワードやトークンと思われる文字列を除去できる"
-      - "連続する記号や意味のない文字列を除去できる"
-      - "フィルタリングがデフォルトで有効"
-      - "環境変数で無効化できる"
-    stakeholder_value: "要約や日報の精度が向上し、無関係な情報がログに含まれなくなる"
+      - "cli.py が CLI パーサーを定義している"
+      - "report.py がレポート生成ロジックを定義している"
+      - "monitor.py がモニタリング起動ロジックを定義している"
+      - "__init__.py の main() が50行以下"
+      - "全テストがパスする"
+    stakeholder_value: "可読性と保守性が向上し、テストが容易になる"
 
   subtasks:
     - id: ST-001
-      test: "test_ocr_filter_noise_from_env: OCR_FILTER_NOISE 環境変数でフィルタリングを切り替えられる"
+      test: "test_cli_create_parser: CLI パーサーが正しく作成される"
       implementation: |
-        config.py に追加:
-        - DEFAULT_OCR_FILTER_NOISE = True
-        - get_ocr_filter_noise() 関数
-      type: behavioral
+        cli.py を新規作成:
+        - create_parser() 関数を __init__.py から抽出
+      type: structural
       status: completed
       commits: []
 
     - id: ST-002
-      test: "test_filter_system_ui_noise: OCR 結果からシステム通知やメニューバー要素を除去する"
+      test: "test_report_command: report サブコマンドが正しく動作する"
       implementation: |
-        ocr/filters.py を新規作成:
-        - OCRFilter クラス
-        - _filter_menu_bar() メソッド
-      type: behavioral
+        report.py を新規作成:
+        - report_command() 関数を __init__.py から抽出
+        - summarize_command() 関数を __init__.py から抽出
+        - generate_summary_prompt() 関数を __init__.py から抽出
+        - _load_logs_as_entries() 関数を __init__.py から抽出
+      type: structural
       status: completed
       commits: []
 
     - id: ST-003
-      test: "test_filter_sensitive_strings: パスワードやトークンと思われる文字列を除去する"
+      test: "test_monitor_start: モニタリングが正しく起動する"
       implementation: |
-        ocr/filters.py に追加:
-        - _filter_sensitive_strings() メソッド
-      type: behavioral
+        monitor.py を新規作成:
+        - start_monitoring() 関数を __init__.py から抽出
+        - on_window_change() コールバックを含む
+        - on_periodic_capture() コールバックを含む
+        - on_hourly_summary() コールバックを含む
+      type: structural
       status: completed
       commits: []
 
     - id: ST-004
-      test: "test_filter_garbage_characters: 連続する記号や意味のない文字列を除去する"
+      test: "既存テストがパスする（リグレッションなし）"
       implementation: |
-        ocr/filters.py に追加:
-        - _filter_garbage_chars() メソッド
-        - _filter_repeated_lines() メソッド
-      type: behavioral
+        __init__.py を簡略化:
+        - cli, report, monitor モジュールをインポート
+        - main() から各モジュールの関数を呼び出し
+      type: structural
       status: completed
       commits: []
 
     - id: ST-005
-      test: "test_filtering_enabled_by_default: フィルタリングがデフォルトで有効になっている"
+      test: "DoD 検証: 全テスト・lint・型チェックがパスする"
       implementation: |
-        ocr/__init__.py を修正:
-        - perform_ocr() でフィルターを適用
-        - get_ocr_filter_noise() を参照
-      type: behavioral
+        以下を実行して確認:
+        - pytest tests/ -v --tb=short
+        - ruff check . && ruff format --check .
+        - ty check src/
+      type: verification
       status: completed
       commits: []
 
   notes: |
-    ## 実装方針
-    1. まず config.py に get_ocr_filter_noise() を追加
-    2. ocr/filters.py に OCRFilter クラスを作成
-    3. 各フィルターメソッドを順次実装
-    4. ocr/__init__.py の perform_ocr() にフィルターを統合
+    ## 実装方針（Tidy First アプローチ）
+    これは純粋な構造的リファクタリング（振る舞いの変更なし）なので、
+    テストファーストではなく、既存テストがパスすることを保証しながら進める。
 
-    ## フィルターパターン
-    - メニューバー: 時計、バッテリー、曜日など
-    - センシティブ: 32文字以上の英数字、Bearer トークン
-    - ゴミ文字: 3つ以上の記号連続
-    - 重複行: 完全に同じ行の繰り返し
+    1. cli.py を作成し、argparse 関連コードを移動
+    2. report.py を作成し、report/summarize コマンド関連を移動
+    3. monitor.py を作成し、モニタリング起動ロジックを移動
+    4. __init__.py を簡略化
+    5. 全テストがパスすることを確認
+
+    ## 依存関係
+    - report.py は config, logger, ollama, summarize, calendar に依存
+    - monitor.py は config, permissions, processor, scheduler, window_monitor に依存
+    - cli.py は引数定義のみ（他モジュール非依存）
 ```
 
 ### Impediment Registry
