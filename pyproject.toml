@@ -5,11 +5,13 @@ description = "macOS window activity logger with Ollama daily report generation"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "pyobjc-core",
-    "pyobjc-framework-Cocoa",
-    "pyobjc-framework-Quartz",
-    "pyobjc-framework-Vision",
-    "pyobjc-framework-CoreML",
+    # macOS-only dependencies (PyObjC)
+    "pyobjc-core; sys_platform == 'darwin'",
+    "pyobjc-framework-Cocoa; sys_platform == 'darwin'",
+    "pyobjc-framework-Quartz; sys_platform == 'darwin'",
+    "pyobjc-framework-Vision; sys_platform == 'darwin'",
+    "pyobjc-framework-CoreML; sys_platform == 'darwin'",
+    # Cross-platform dependencies
     "httpx",
     "pyyaml",
     "python-dotenv",
