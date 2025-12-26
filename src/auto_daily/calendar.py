@@ -246,7 +246,7 @@ async def get_all_events(target_date: date) -> list[CalendarEvent]:
         try:
             events = await fetch_events(ical_url, target_date, name)
             all_events.extend(events)
-        except Exception:
+        except (httpx.HTTPError, ValueError, KeyError):
             # Skip calendars that fail to fetch
             continue
 

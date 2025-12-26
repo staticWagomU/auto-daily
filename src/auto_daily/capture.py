@@ -31,21 +31,11 @@ def capture_screen(output_dir: Path) -> str | None:
         )
         if output_path.exists():
             return str(output_path)
-        # Capture command succeeded but file not created
-        import sys
-
-        print(
-            f"  [debug] screencapture succeeded but file not found: {output_path}",
-            file=sys.stderr,
-        )
+        logger.debug("screencapture succeeded but file not found: %s", output_path)
         return None
     except subprocess.CalledProcessError as e:
-        import sys
-
-        print(
-            f"  [debug] screencapture failed: {e.stderr.decode() if e.stderr else e}",
-            file=sys.stderr,
-        )
+        error_msg = e.stderr.decode() if e.stderr else str(e)
+        logger.debug("screencapture failed: %s", error_msg)
         return None
 
 

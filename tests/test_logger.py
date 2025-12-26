@@ -3,35 +3,35 @@
 import json
 from pathlib import Path
 
-from auto_daily.logger import append_log
+from auto_daily.logger import append_log_hourly
 
 
 def test_jsonl_append(tmp_path: Path) -> None:
-    """Test that append_log writes window info, OCR text, and timestamp to JSONL.
+    """Test that append_log_hourly writes window info, OCR text, and timestamp to JSONL.
 
     The function should:
     1. Create a JSONL file if it doesn't exist
     2. Append a JSON object with window_name, ocr_text, and timestamp
     3. Each call adds a new line to the file
     """
-    log_dir = tmp_path / "logs"
-    log_dir.mkdir()
+    log_base = tmp_path / "logs"
+    log_base.mkdir()
 
     # Arrange
     window_info = {"app_name": "Claude Code", "window_title": "auto-daily"}
     ocr_text = "This is some OCR text from the screen"
 
     # Act
-    log_path = append_log(
-        log_dir=log_dir,
+    log_path = append_log_hourly(
+        log_base=log_base,
         window_info=window_info,
         ocr_text=ocr_text,
     )
 
     # Assert
     assert log_path is not None
-    assert Path(log_path).exists()
-    assert Path(log_path).suffix == ".jsonl"
+    assert log_path.exists()
+    assert log_path.suffix == ".jsonl"
 
     # Read and verify the log entry
     with open(log_path) as f:
@@ -48,7 +48,7 @@ def test_jsonl_append(tmp_path: Path) -> None:
     window_info2 = {"app_name": "Terminal", "window_title": "zsh"}
     ocr_text2 = "Another OCR result"
 
-    append_log(log_dir=log_dir, window_info=window_info2, ocr_text=ocr_text2)
+    append_log_hourly(log_base=log_base, window_info=window_info2, ocr_text=ocr_text2)
 
     with open(log_path) as f:
         lines = f.readlines()
@@ -204,103 +204,6 @@ def test_hourly_rotation(tmp_path: Path) -> None:
     assert log_path_09 != log_path_10
 
 
-def test_legacy_daily_log_compat(tmp_path: Path) -> None:
-    """Test backward compatibility with existing daily log format.
-
-    The legacy append_log function should:
-    1. Continue to work with the existing daily format (activity_YYYY-MM-DD.jsonl)
-    2. Not break existing functionality during migration period
-    3. Allow both legacy and hourly logging to coexist
-    """
-    import json
-
-    from auto_daily.logger import append_log, append_log_hourly
-
-    log_base = tmp_path / "logs"
-    log_base.mkdir()
-
-    window_info = {"app_name": "Test App", "window_title": "Test Window"}
-    ocr_text = "Test OCR text"
-
-    # Act - use legacy daily log
-    legacy_path = append_log(
-        log_dir=log_base,
-        window_info=window_info,
-        ocr_text=ocr_text,
-    )
-
-    # Assert - legacy log should work
-    assert legacy_path is not None
-    assert Path(legacy_path).exists()
-    # Legacy filename format: activity_YYYY-MM-DD.jsonl
-    assert "activity_" in Path(legacy_path).name
-    assert Path(legacy_path).suffix == ".jsonl"
-
-    # Verify content
-    with open(legacy_path) as f:
-        entry = json.loads(f.readline())
-    assert entry["window_info"] == window_info
-    assert entry["ocr_text"] == ocr_text
-    assert "timestamp" in entry
-
-    # Act - use hourly log (should work alongside legacy)
-    date_dir = log_base / "2025-12-25"
-    date_dir.mkdir(exist_ok=True)
-    hourly_path = append_log_hourly(
-        log_base=log_base,
-        window_info=window_info,
-        ocr_text="Hourly OCR text",
-    )
-
-    # Assert - both systems coexist
-    assert hourly_path is not None
-    assert hourly_path.exists()
-    assert Path(legacy_path).exists()  # Legacy still exists
-
-
-def test_slack_fields_in_log(tmp_path: Path) -> None:
-    """Test that log entry includes slack_context with channel, workspace, dm_user, is_thread.
-
-    When slack_context is provided:
-    1. The log entry should include all Slack context fields
-    2. Fields should be properly serialized as JSON
-    """
-    import json
-
-    from auto_daily.logger import append_log
-
-    log_dir = tmp_path / "logs"
-    log_dir.mkdir()
-
-    window_info = {"app_name": "Slack", "window_title": "#dev-team | Company"}
-    ocr_text = "Slack conversation text"
-    slack_context = {
-        "channel": "dev-team",
-        "workspace": "Company",
-        "dm_user": None,
-        "is_thread": False,
-    }
-
-    # Act
-    log_path = append_log(
-        log_dir=log_dir,
-        window_info=window_info,
-        ocr_text=ocr_text,
-        slack_context=slack_context,
-    )
-
-    # Assert
-    assert log_path is not None
-    with open(log_path) as f:
-        entry = json.loads(f.readline())
-
-    assert "slack_context" in entry
-    assert entry["slack_context"]["channel"] == "dev-team"
-    assert entry["slack_context"]["workspace"] == "Company"
-    assert entry["slack_context"]["dm_user"] is None
-    assert entry["slack_context"]["is_thread"] is False
-
-
 def test_append_log_hourly_with_slack_context(tmp_path: Path) -> None:
     """Test that append_log_hourly supports slack_context parameter.
 
@@ -353,36 +256,3 @@ def test_append_log_hourly_with_slack_context(tmp_path: Path) -> None:
     assert entry["slack_context"]["workspace"] == "Company"
     assert entry["slack_context"]["dm_user"] is None
     assert entry["slack_context"]["is_thread"] is False
-
-
-def test_append_log_deprecated(tmp_path: Path) -> None:
-    """Test that append_log is marked as deprecated.
-
-    The legacy append_log function should:
-    1. Have 'deprecated' in its docstring
-    2. Emit a DeprecationWarning when called
-    """
-    import warnings
-
-    from auto_daily.logger import append_log
-
-    log_dir = tmp_path / "logs"
-    log_dir.mkdir()
-
-    # Check docstring contains 'deprecated'
-    assert append_log.__doc__ is not None
-    assert "deprecated" in append_log.__doc__.lower()
-
-    # Check that calling append_log emits a DeprecationWarning
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        append_log(
-            log_dir=log_dir,
-            window_info={"app_name": "Test", "window_title": "Test"},
-            ocr_text="test",
-        )
-        # Filter for DeprecationWarning
-        deprecation_warnings = [
-            x for x in w if issubclass(x.category, DeprecationWarning)
-        ]
-        assert len(deprecation_warnings) >= 1
