@@ -30,12 +30,16 @@ def get_active_window() -> dict[str, str]:
     return appName & "|||" & windowTitle
     """
 
-    result = subprocess.run(
-        ["osascript", "-e", script],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+    try:
+        result = subprocess.run(
+            ["osascript", "-e", script],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except subprocess.CalledProcessError:
+        # Return empty window info on failure (e.g., during shutdown)
+        return {"app_name": "", "window_title": ""}
 
     output = result.stdout.strip()
     parts = output.split("|||")

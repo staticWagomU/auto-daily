@@ -18,6 +18,9 @@ def capture_screen(output_dir: Path) -> str | None:
     output_path = output_dir / filename
 
     try:
+        # Ensure output directory exists
+        output_dir.mkdir(parents=True, exist_ok=True)
+
         subprocess.run(
             ["screencapture", "-x", "-C", str(output_path)],
             check=True,
@@ -25,8 +28,21 @@ def capture_screen(output_dir: Path) -> str | None:
         )
         if output_path.exists():
             return str(output_path)
+        # Capture command succeeded but file not created
+        import sys
+
+        print(
+            f"  [debug] screencapture succeeded but file not found: {output_path}",
+            file=sys.stderr,
+        )
         return None
-    except subprocess.CalledProcessError:
+    except subprocess.CalledProcessError as e:
+        import sys
+
+        print(
+            f"  [debug] screencapture failed: {e.stderr.decode() if e.stderr else e}",
+            file=sys.stderr,
+        )
         return None
 
 
