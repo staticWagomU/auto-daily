@@ -16,29 +16,44 @@ macOS でウィンドウ切り替え時に作業コンテキストを自動キ�
 auto-daily/
 ├── src/
 │   └── auto_daily/
-│       ├── __init__.py        # エントリーポイント
-│       ├── window_monitor.py  # ウィンドウ切り替え検知
-│       ├── capture.py         # スクリーンキャプチャ
-│       ├── ocr.py             # Vision Framework OCR
-│       ├── logger.py          # JSONL ログ保存
-│       ├── processor.py       # ウィンドウ変更処理パイプライン
-│       ├── scheduler.py       # 定期キャプチャ
-│       ├── summarize.py       # 時間単位のログ要約
-│       ├── config.py          # 設定管理
-│       ├── ollama.py          # Ollama 連携・日報生成
-│       ├── permissions.py     # macOS 権限チェック
-│       ├── slack_parser.py    # Slack コンテキスト抽出
-│       ├── calendar.py        # Google カレンダー iCal 連携
-│       └── llm/               # LLM クライアント抽象化
-│           ├── __init__.py
-│           ├── protocol.py    # LLMClient Protocol
-│           ├── ollama.py      # Ollama バックエンド
-│           └── openai.py      # OpenAI バックエンド
+│       ├── __init__.py          # エントリーポイント（main 関数）
+│       ├── __main__.py          # python -m auto_daily 用
+│       ├── cli.py               # CLI 引数パーサー
+│       ├── report.py            # レポート生成ロジック
+│       ├── monitor.py           # モニタリング起動ロジック
+│       ├── window_monitor.py    # ウィンドウ切り替え検知
+│       ├── capture.py           # スクリーンキャプチャ
+│       ├── capture_pipeline.py  # キャプチャ→OCR→ログの共通パイプライン
+│       ├── processor.py         # ウィンドウ変更処理
+│       ├── scheduler.py         # 定期キャプチャ
+│       ├── logger.py            # JSONL ログ保存
+│       ├── summarize.py         # 時間単位のログ要約
+│       ├── config.py            # 設定管理
+│       ├── ollama.py            # Ollama 連携・日報プロンプト生成
+│       ├── permissions.py       # macOS 権限チェック
+│       ├── slack_parser.py      # Slack コンテキスト抽出
+│       ├── calendar.py          # Google カレンダー iCal 連携
+│       ├── system.py            # システム状態チェック（ロック、スリープ）
+│       ├── ocr/                 # OCR バックエンド抽象化
+│       │   ├── __init__.py      # ファクトリ関数、後方互換 perform_ocr()
+│       │   ├── protocol.py      # OCRBackend Protocol
+│       │   ├── filters.py       # OCR テキストノイズフィルター
+│       │   ├── apple_vision.py  # Apple Vision Framework 実装
+│       │   ├── openai_vision.py # OpenAI Vision API 実装
+│       │   └── ollama_vision.py # Ollama Vision 実装
+│       └── llm/                 # LLM クライアント抽象化
+│           ├── __init__.py      # ファクトリ関数
+│           ├── protocol.py      # LLMClient Protocol
+│           ├── ollama.py        # Ollama バックエンド
+│           ├── openai.py        # OpenAI バックエンド
+│           └── lm_studio.py     # LM Studio バックエンド
 ├── scripts/
 │   ├── start.sh               # アプリ起動スクリプト
 │   ├── report.sh              # 日報生成スクリプト
 │   └── setup-permissions.sh   # 権限設定スクリプト
 ├── tests/
+│   ├── conftest.py            # 共通フィクスチャ
+│   └── test_*.py              # テストファイル
 ├── plan.md                    # AI-Agentic Scrum Dashboard
 ├── plan-archive.md            # 完了した PBI のアーカイブ
 └── pyproject.toml

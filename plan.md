@@ -129,6 +129,7 @@ sprint:
   subtasks_completed: 5
   subtasks_total: 5
   impediments: 0
+  note: "全てのリファクタリング PBI が完了。次の機能開発待ち。"
 ```
 
 ---
@@ -1595,6 +1596,40 @@ completed:
     story: "OCR テキストからノイズ（UI 要素、ゴミ文字）を自動除去できる"
     subtasks_completed: 5
     commits: []
+
+  - sprint: 38
+    pbi_id: PBI-040
+    story: "processor.py と scheduler.py の重複したキャプチャ処理を統合できる"
+    subtasks_completed: 5
+    commits:
+      - 4b8e35a  # refactor: extract common capture pipeline to deduplicate code
+      - 72f0013  # docs(scrum): start Sprint 38 for PBI-040
+      - 4e08785  # refactor(scheduler): use instance variable for stop event
+      - fb86849  # refactor(processor): use capture_pipeline to eliminate duplication
+      - 13fbaa0  # refactor(scheduler): use capture_pipeline to eliminate duplication
+      - bceec74  # chore(scrum): complete Sprint 38 - capture pipeline integration (PBI-040)
+
+  - sprint: 39
+    pbi_id: PBI-041
+    story: "ollama.py の2つのプロンプト生成関数で重複するログ処理を統合できる"
+    subtasks_completed: 2
+    commits:
+      - e1e6d3b  # docs(scrum): start Sprint 39 for PBI-041
+      - 110c3a9  # refactor(ollama): extract helper functions to eliminate duplication
+
+  - sprint: 40
+    pbi_id: PBI-042
+    story: "テストコードの重複を解消し、共有フィクスチャを導入できる"
+    subtasks_completed: 4
+    commits:
+      - 4ba02d9  # refactor(test): introduce shared fixtures to eliminate duplication
+
+  - sprint: 41
+    pbi_id: PBI-043
+    story: "__init__.py の長い関数を分割して責務を明確化できる"
+    subtasks_completed: 5
+    commits:
+      - 4583501  # refactor: extract CLI, report, and monitor modules from __init__.py
 ```
 
 ---
@@ -1990,6 +2025,49 @@ retrospectives:
     action_items:
       - "実際の OCR 結果でフィルターの効果を確認"
       - "必要に応じてフィルターパターンを追加・調整"
+
+  - sprint: 38
+    what_went_well:
+      - "capture_pipeline.py を新規作成し、processor.py と scheduler.py の重複コードを約80%削減"
+      - "CaptureContext dataclass でキャプチャのコンテキスト情報を明確に構造化"
+      - "execute_capture_pipeline() で共通パイプライン（キャプチャ→OCR→ログ）を統一"
+      - "scheduler.py の threading.Event() をインスタンス変数化してテスタビリティを向上"
+      - "Tidy First アプローチで構造変更と振る舞い変更を分離してコミット"
+    what_to_improve:
+      - "特になし - 計画通りにリファクタリングを完了"
+    action_items:
+      - "今後の機能追加時は capture_pipeline を拡張して重複を防ぐ"
+
+  - sprint: 39
+    what_went_well:
+      - "_load_log_entries() と _format_activities() ヘルパー関数を抽出"
+      - "generate_daily_report_prompt() と _with_calendar() の重複ログ処理を統合"
+      - "関数の責務が明確になり、可読性が向上"
+    what_to_improve:
+      - "特になし - 小規模なリファクタリングで効率的に完了"
+    action_items:
+      - "今後のプロンプト生成機能追加時はヘルパー関数を活用"
+
+  - sprint: 40
+    what_went_well:
+      - "tests/conftest.py を新規作成し、共通フィクスチャ（log_base, sample_window_info）を定義"
+      - "test_llm_client.py の Protocol テストをパラメータ化して重複を削減"
+      - "pytest の fixture と parametrize を活用した効率的なテスト構造"
+    what_to_improve:
+      - "test_logger.py の既存テストはシンプルで共通フィクスチャ不要だった"
+    action_items:
+      - "新規テスト作成時は conftest.py のフィクスチャを積極的に活用"
+
+  - sprint: 41
+    what_went_well:
+      - "cli.py、report.py、monitor.py の3モジュールを抽出し責務を分離"
+      - "__init__.py の main() を50行以下に簡略化"
+      - "純粋な構造的リファクタリングで既存テストがすべてパス"
+      - "モジュール分離により将来のテスト追加が容易に"
+    what_to_improve:
+      - "特になし - Tidy First の原則に従いスムーズに完了"
+    action_items:
+      - "各モジュールの単体テストを将来的に追加検討"
 ```
 
 ---
