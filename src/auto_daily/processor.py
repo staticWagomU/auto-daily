@@ -2,10 +2,7 @@
 
 from pathlib import Path
 
-from auto_daily.capture import capture_screen, cleanup_image
-from auto_daily.logger import append_log_hourly
-from auto_daily.ocr import perform_ocr
-from auto_daily.slack_parser import SlackContext, parse_slack_title
+from auto_daily.capture_pipeline import CaptureContext, execute_capture_pipeline
 
 
 def process_window_change(
@@ -25,18 +22,9 @@ def process_window_change(
     Returns:
         True if processing completed successfully, False otherwise.
     """
-    image_path = capture_screen(log_dir)
-    if image_path is None:
-        return False
-
-    ocr_text = perform_ocr(image_path)
-
-    slack_context: SlackContext | None = None
-    if new_window.get("app_name") == "Slack":
-        slack_context = parse_slack_title(new_window.get("window_title", ""))
-
-    append_log_hourly(log_dir, new_window, ocr_text, slack_context=slack_context)
-
-    cleanup_image(image_path)
-
-    return True
+    context = CaptureContext(
+        window_info=new_window,
+        log_dir=log_dir,
+        extract_slack_context=True,
+    )
+    return execute_capture_pipeline(context)

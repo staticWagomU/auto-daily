@@ -21,13 +21,13 @@ class TestSlackContextAdded:
         old_window = {"app_name": "Terminal", "window_title": "zsh"}
         new_window = {"app_name": "Slack", "window_title": "#dev-team | Company"}
 
-        with patch("auto_daily.processor.capture_screen") as mock_capture:
+        with patch("auto_daily.capture_pipeline.capture_screen") as mock_capture:
             mock_capture.return_value = str(tmp_path / "test.png")
-            with patch("auto_daily.processor.perform_ocr") as mock_ocr:
+            with patch("auto_daily.capture_pipeline.perform_ocr") as mock_ocr:
                 mock_ocr.return_value = "test text"
-                with patch("auto_daily.processor.append_log_hourly") as mock_log:
+                with patch("auto_daily.capture_pipeline.append_log_hourly") as mock_log:
                     mock_log.return_value = tmp_path / "log.jsonl"
-                    with patch("auto_daily.processor.cleanup_image"):
+                    with patch("auto_daily.capture_pipeline.cleanup_image"):
                         process_window_change(old_window, new_window, tmp_path)
 
                     # Verify append_log_hourly was called with slack_context
@@ -62,13 +62,13 @@ class TestNonSlackNoContext:
         old_window = {"app_name": "Slack", "window_title": "#dev-team | Company"}
         new_window = {"app_name": "Safari", "window_title": "Google Search"}
 
-        with patch("auto_daily.processor.capture_screen") as mock_capture:
+        with patch("auto_daily.capture_pipeline.capture_screen") as mock_capture:
             mock_capture.return_value = str(tmp_path / "test.png")
-            with patch("auto_daily.processor.perform_ocr") as mock_ocr:
+            with patch("auto_daily.capture_pipeline.perform_ocr") as mock_ocr:
                 mock_ocr.return_value = "web page content"
-                with patch("auto_daily.processor.append_log_hourly") as mock_log:
+                with patch("auto_daily.capture_pipeline.append_log_hourly") as mock_log:
                     mock_log.return_value = tmp_path / "log.jsonl"
-                    with patch("auto_daily.processor.cleanup_image"):
+                    with patch("auto_daily.capture_pipeline.cleanup_image"):
                         process_window_change(old_window, new_window, tmp_path)
 
                     # Verify append_log_hourly was called with slack_context=None
@@ -95,11 +95,11 @@ class TestLogInDateDirectory:
         log_base = tmp_path / "logs"
         log_base.mkdir()
 
-        with patch("auto_daily.processor.capture_screen") as mock_capture:
+        with patch("auto_daily.capture_pipeline.capture_screen") as mock_capture:
             mock_capture.return_value = str(tmp_path / "test.png")
-            with patch("auto_daily.processor.perform_ocr") as mock_ocr:
+            with patch("auto_daily.capture_pipeline.perform_ocr") as mock_ocr:
                 mock_ocr.return_value = "test text"
-                with patch("auto_daily.processor.cleanup_image"):
+                with patch("auto_daily.capture_pipeline.cleanup_image"):
                     # Mock datetime to control the directory/file names
                     with patch("auto_daily.logger.datetime") as mock_dt:
                         mock_dt.now.return_value = datetime(2025, 12, 26, 14, 30, 0)

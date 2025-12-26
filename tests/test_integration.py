@@ -14,13 +14,13 @@ class TestCaptureOnWindowChange:
         old_window = {"app_name": "Terminal", "window_title": "zsh"}
         new_window = {"app_name": "Safari", "window_title": "Google"}
 
-        with patch("auto_daily.processor.capture_screen") as mock_capture:
+        with patch("auto_daily.capture_pipeline.capture_screen") as mock_capture:
             mock_capture.return_value = str(tmp_path / "test.png")
-            with patch("auto_daily.processor.perform_ocr") as mock_ocr:
+            with patch("auto_daily.capture_pipeline.perform_ocr") as mock_ocr:
                 mock_ocr.return_value = "test text"
-                with patch("auto_daily.processor.append_log_hourly") as mock_log:
+                with patch("auto_daily.capture_pipeline.append_log_hourly") as mock_log:
                     mock_log.return_value = tmp_path / "log.jsonl"
-                    with patch("auto_daily.processor.cleanup_image"):
+                    with patch("auto_daily.capture_pipeline.cleanup_image"):
                         process_window_change(old_window, new_window, tmp_path)
 
             mock_capture.assert_called_once()
@@ -35,13 +35,13 @@ class TestOcrOnCapture:
         new_window = {"app_name": "Safari", "window_title": "Google"}
         captured_image = str(tmp_path / "captured.png")
 
-        with patch("auto_daily.processor.capture_screen") as mock_capture:
+        with patch("auto_daily.capture_pipeline.capture_screen") as mock_capture:
             mock_capture.return_value = captured_image
-            with patch("auto_daily.processor.perform_ocr") as mock_ocr:
+            with patch("auto_daily.capture_pipeline.perform_ocr") as mock_ocr:
                 mock_ocr.return_value = "extracted text"
-                with patch("auto_daily.processor.append_log_hourly") as mock_log:
+                with patch("auto_daily.capture_pipeline.append_log_hourly") as mock_log:
                     mock_log.return_value = tmp_path / "log.jsonl"
-                    with patch("auto_daily.processor.cleanup_image"):
+                    with patch("auto_daily.capture_pipeline.cleanup_image"):
                         process_window_change(old_window, new_window, tmp_path)
 
             mock_ocr.assert_called_once_with(captured_image)
@@ -56,13 +56,13 @@ class TestLogOnWindowChange:
         new_window = {"app_name": "Safari", "window_title": "Google"}
         ocr_text = "Page content here"
 
-        with patch("auto_daily.processor.capture_screen") as mock_capture:
+        with patch("auto_daily.capture_pipeline.capture_screen") as mock_capture:
             mock_capture.return_value = str(tmp_path / "test.png")
-            with patch("auto_daily.processor.perform_ocr") as mock_ocr:
+            with patch("auto_daily.capture_pipeline.perform_ocr") as mock_ocr:
                 mock_ocr.return_value = ocr_text
-                with patch("auto_daily.processor.append_log_hourly") as mock_log:
+                with patch("auto_daily.capture_pipeline.append_log_hourly") as mock_log:
                     mock_log.return_value = tmp_path / "log.jsonl"
-                    with patch("auto_daily.processor.cleanup_image"):
+                    with patch("auto_daily.capture_pipeline.cleanup_image"):
                         process_window_change(old_window, new_window, tmp_path)
 
             mock_log.assert_called_once_with(
@@ -79,13 +79,15 @@ class TestCleanupAfterProcessing:
         new_window = {"app_name": "Safari", "window_title": "Google"}
         captured_image = str(tmp_path / "captured.png")
 
-        with patch("auto_daily.processor.capture_screen") as mock_capture:
+        with patch("auto_daily.capture_pipeline.capture_screen") as mock_capture:
             mock_capture.return_value = captured_image
-            with patch("auto_daily.processor.perform_ocr") as mock_ocr:
+            with patch("auto_daily.capture_pipeline.perform_ocr") as mock_ocr:
                 mock_ocr.return_value = "text"
-                with patch("auto_daily.processor.append_log_hourly") as mock_log:
+                with patch("auto_daily.capture_pipeline.append_log_hourly") as mock_log:
                     mock_log.return_value = tmp_path / "log.jsonl"
-                    with patch("auto_daily.processor.cleanup_image") as mock_cleanup:
+                    with patch(
+                        "auto_daily.capture_pipeline.cleanup_image"
+                    ) as mock_cleanup:
                         process_window_change(old_window, new_window, tmp_path)
 
                         mock_cleanup.assert_called_once_with(captured_image)
@@ -99,11 +101,13 @@ class TestProcessWindowChangeEdgeCases:
         old_window = {"app_name": "Terminal", "window_title": "zsh"}
         new_window = {"app_name": "Safari", "window_title": "Google"}
 
-        with patch("auto_daily.processor.capture_screen") as mock_capture:
+        with patch("auto_daily.capture_pipeline.capture_screen") as mock_capture:
             mock_capture.return_value = None  # Capture failed
-            with patch("auto_daily.processor.perform_ocr") as mock_ocr:
-                with patch("auto_daily.processor.append_log_hourly") as mock_log:
-                    with patch("auto_daily.processor.cleanup_image") as mock_cleanup:
+            with patch("auto_daily.capture_pipeline.perform_ocr") as mock_ocr:
+                with patch("auto_daily.capture_pipeline.append_log_hourly") as mock_log:
+                    with patch(
+                        "auto_daily.capture_pipeline.cleanup_image"
+                    ) as mock_cleanup:
                         result = process_window_change(old_window, new_window, tmp_path)
 
                         assert result is False
