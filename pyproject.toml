@@ -11,6 +11,8 @@ dependencies = [
     "pyobjc-framework-Quartz; sys_platform == 'darwin'",
     "pyobjc-framework-Vision; sys_platform == 'darwin'",
     "pyobjc-framework-CoreML; sys_platform == 'darwin'",
+    "pyobjc-framework-Speech; sys_platform == 'darwin'",
+    "pyobjc-framework-AVFoundation; sys_platform == 'darwin'",
     # Cross-platform dependencies
     "httpx",
     "pyyaml",

@@ -123,13 +123,13 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 43
-  pbi: PBI-045
+  number: 44
+  pbi: PBI-046a
   status: done
   subtasks_completed: 2
   subtasks_total: 2
   impediments: 0
-  note: "pytest-xdist 導入完了。165テストが6.28秒で並列実行可能に"
+  note: "pyobjc-framework-Speech/AVFoundation を追加。flaky テストも修正。"
 ```
 
 ---
@@ -457,6 +457,308 @@ product_backlog:
     story_points: 1
     dependencies: []
     status: done
+
+  # === 音声認識機能 PBIs（PBI-046 を分割）===
+  # 元の PBI-046 を7つの小さな PBI に分割
+
+  - id: PBI-046a
+    story:
+      role: "開発者"
+      capability: "pyobjc-framework-Speech と pyobjc-framework-AVFoundation を依存関係に追加できる"
+      benefit: "音声認識機能の開発に必要なフレームワークが利用可能になる"
+    acceptance_criteria:
+      - criterion: "pyobjc-framework-Speech が pyproject.toml に追加されている"
+        verification: "grep -n 'pyobjc-framework-Speech' pyproject.toml"
+      - criterion: "pyobjc-framework-AVFoundation が pyproject.toml に追加されている"
+        verification: "grep -n 'pyobjc-framework-AVFoundation' pyproject.toml"
+      - criterion: "uv sync でエラーなくインストールできる"
+        verification: "uv sync"
+      - criterion: "Speech と AVFoundation が import できる"
+        verification: "python3 -c 'from Speech import SFSpeechRecognizer; from AVFoundation import AVAudioEngine; print(\"OK\")'"
+      - criterion: "全テストがパスする"
+        verification: "pytest tests/ -n auto -v --tb=short"
+    technical_notes: |
+      ## 概要
+      音声認識機能に必要な pyobjc フレームワークを依存関係に追加する。
+
+      ## 追加するパッケージ
+      ```toml
+      "pyobjc-framework-Speech; sys_platform == 'darwin'",
+      "pyobjc-framework-AVFoundation; sys_platform == 'darwin'",
+      ```
+
+      ## 依存チェーン（既存でカバー済み）
+      - pyobjc-core（既存）
+      - pyobjc-framework-Cocoa（既存）
+      - pyobjc-framework-Quartz（既存）
+      - pyobjc-framework-CoreMedia（AVFoundation が必要、自動インストール）
+    story_points: 1
+    dependencies: []
+    status: done
+
+  - id: PBI-046b
+    story:
+      role: "Mac ユーザー"
+      capability: "マイクアクセス権限と音声認識権限がチェックできる"
+      benefit: "権限が不足している場合に明確なエラーメッセージが表示される"
+    acceptance_criteria:
+      - criterion: "check_microphone_permission() 関数が実装されている"
+        verification: "grep -n 'def check_microphone_permission' src/auto_daily/permissions.py"
+      - criterion: "check_speech_recognition_permission() 関数が実装されている"
+        verification: "grep -n 'def check_speech_recognition_permission' src/auto_daily/permissions.py"
+      - criterion: "check_all_permissions() に microphone と speech_recognition が含まれる"
+        verification: "grep -n 'microphone\\|speech_recognition' src/auto_daily/permissions.py"
+      - criterion: "権限チェックのテストが実装されている"
+        verification: "pytest tests/test_permissions.py -v --tb=short -k 'microphone or speech'"
+      - criterion: "全テストがパスする"
+        verification: "pytest tests/ -n auto -v --tb=short"
+    technical_notes: |
+      ## 概要
+      既存の permissions.py パターンに従い、マイクと音声認識の権限チェックを追加。
+
+      ## 実装方針
+      ```python
+      def check_microphone_permission() -> bool:
+          """Check if microphone permission is granted."""
+          # AVAudioSession.sharedInstance().recordPermission を使用
+          ...
+
+      def check_speech_recognition_permission() -> bool:
+          """Check if speech recognition permission is granted."""
+          # SFSpeechRecognizer.authorizationStatus() を使用
+          ...
+      ```
+
+      ## テスト方針
+      既存の mock patch パターンを踏襲し、macOS API をモック化。
+    story_points: 1
+    dependencies:
+      - PBI-046a
+    status: ready
+
+  - id: PBI-046c
+    story:
+      role: "開発者"
+      capability: "SpeechRecognizer クラスでマイク入力から音声認識ができる"
+      benefit: "音声認識の基本機能が独立したモジュールとして利用可能になる"
+    acceptance_criteria:
+      - criterion: "speech.py に SpeechRecognizer クラスが実装されている"
+        verification: "grep -n 'class SpeechRecognizer' src/auto_daily/speech.py"
+      - criterion: "start() メソッドで音声認識を開始できる"
+        verification: "grep -n 'def start' src/auto_daily/speech.py"
+      - criterion: "stop() メソッドで音声認識を停止できる"
+        verification: "grep -n 'def stop' src/auto_daily/speech.py"
+      - criterion: "認識結果をコールバックで受け取れる"
+        verification: "grep -n 'on_result\\|callback' src/auto_daily/speech.py"
+      - criterion: "スレッドセーフな実装になっている"
+        verification: "grep -n 'threading\\|Lock' src/auto_daily/speech.py"
+      - criterion: "テストが実装されている"
+        verification: "pytest tests/test_speech.py -v --tb=short"
+      - criterion: "全テストがパスする"
+        verification: "pytest tests/ -n auto -v --tb=short"
+    technical_notes: |
+      ## 概要
+      Apple Speech Framework を使用した音声認識モジュールを作成。
+
+      ## クラス設計
+      ```python
+      class SpeechRecognizer:
+          def __init__(
+              self,
+              on_result: Callable[[str, float, bool], None],
+              language: str = "ja-JP",
+          ):
+              ...
+
+          def start(self) -> None:
+              """Start speech recognition."""
+              ...
+
+          def stop(self) -> None:
+              """Stop speech recognition."""
+              ...
+
+          def is_running(self) -> bool:
+              """Check if recognition is running."""
+              ...
+      ```
+
+      ## 使用する macOS API
+      - SFSpeechRecognizer: 音声認識エンジン
+      - SFSpeechAudioBufferRecognitionRequest: 認識リクエスト
+      - AVAudioEngine: マイク入力キャプチャ
+
+      ## スレッド設計
+      - 音声認識は別スレッドで実行
+      - threading.Lock で状態管理
+      - コールバックはメインスレッドから呼び出し
+    story_points: 2
+    dependencies:
+      - PBI-046a
+      - PBI-046b
+    status: ready
+
+  - id: PBI-046d
+    story:
+      role: "Mac ユーザー"
+      capability: "音声認識結果が JSONL ログに記録される"
+      benefit: "音声での作業内容も自動的にログに保存される"
+    acceptance_criteria:
+      - criterion: "append_log_speech() 関数が logger.py に実装されている"
+        verification: "grep -n 'def append_log_speech' src/auto_daily/logger.py"
+      - criterion: "音声ログエントリに type='speech' が含まれる"
+        verification: "grep -n \"type.*speech\" src/auto_daily/logger.py"
+      - criterion: "transcript, confidence, is_final フィールドが記録される"
+        verification: "grep -n 'transcript\\|confidence\\|is_final' src/auto_daily/logger.py"
+      - criterion: "テストが実装されている"
+        verification: "pytest tests/test_logger.py -v --tb=short -k speech"
+      - criterion: "全テストがパスする"
+        verification: "pytest tests/ -n auto -v --tb=short"
+    technical_notes: |
+      ## 概要
+      既存の logger.py に音声認識結果を記録する関数を追加。
+
+      ## ログフォーマット
+      ```json
+      {
+        "type": "speech",
+        "timestamp": "2024-01-15T10:30:00.123456",
+        "transcript": "認識されたテキスト",
+        "confidence": 0.95,
+        "is_final": true,
+        "language": "ja-JP"
+      }
+      ```
+
+      ## 実装
+      ```python
+      def append_log_speech(
+          log_base: Path,
+          transcript: str,
+          confidence: float,
+          is_final: bool,
+          language: str = "ja-JP",
+      ) -> Path | None:
+          """Append speech recognition result to hourly log."""
+          ...
+      ```
+
+      ## 既存との統合
+      - 同じ時間ごとの JSONL ファイルに追記
+      - type フィールドで window/speech を区別
+    story_points: 1
+    dependencies: []
+    status: ready
+
+  - id: PBI-046e
+    story:
+      role: "Mac ユーザー"
+      capability: "--enable-speech オプションで音声認識を有効化できる"
+      benefit: "コマンドラインから簡単に音声認識機能をオン/オフできる"
+    acceptance_criteria:
+      - criterion: "--enable-speech フラグが cli.py に追加されている"
+        verification: "grep -n 'enable-speech\\|enable_speech' src/auto_daily/cli.py"
+      - criterion: "python -m auto_daily --help で --enable-speech が表示される"
+        verification: "python -m auto_daily --help | grep -i speech"
+      - criterion: "テストが実装されている"
+        verification: "pytest tests/test_cli.py -v --tb=short -k speech"
+      - criterion: "全テストがパスする"
+        verification: "pytest tests/ -n auto -v --tb=short"
+    technical_notes: |
+      ## 概要
+      既存の CLI パーサーに音声認識オプションを追加。
+
+      ## 実装
+      ```python
+      parser.add_argument(
+          "--enable-speech",
+          action="store_true",
+          help="Enable speech recognition while monitoring",
+      )
+      ```
+
+      ## 動作
+      - --start と組み合わせて使用
+      - --enable-speech 単体では警告を表示
+    story_points: 1
+    dependencies: []
+    status: ready
+
+  - id: PBI-046f
+    story:
+      role: "Mac ユーザー"
+      capability: "モニタリング中に音声認識が自動的に動作する"
+      benefit: "ウィンドウ監視と同時に音声も記録され、より完全な作業ログが得られる"
+    acceptance_criteria:
+      - criterion: "monitor.py が SpeechRecognizer をインポートしている"
+        verification: "grep -n 'from.*speech import\\|import.*speech' src/auto_daily/monitor.py"
+      - criterion: "--enable-speech 時に音声認識が開始される"
+        verification: "grep -n 'speech.*start\\|SpeechRecognizer' src/auto_daily/monitor.py"
+      - criterion: "終了時に音声認識が停止される"
+        verification: "grep -n 'speech.*stop' src/auto_daily/monitor.py"
+      - criterion: "認識結果が logger に記録される"
+        verification: "grep -n 'append_log_speech' src/auto_daily/monitor.py"
+      - criterion: "テストが実装されている"
+        verification: "pytest tests/test_monitor.py -v --tb=short -k speech"
+      - criterion: "全テストがパスする"
+        verification: "pytest tests/ -n auto -v --tb=short"
+    technical_notes: |
+      ## 概要
+      既存の monitor.py に音声認識機能を統合。
+
+      ## 統合ポイント
+      - start_monitoring() で SpeechRecognizer を初期化
+      - --enable-speech フラグをチェック
+      - 認識結果を append_log_speech() で記録
+      - シグナルハンドリングで停止
+
+      ## 依存関係
+      - PBI-046c: SpeechRecognizer クラス
+      - PBI-046d: append_log_speech() 関数
+      - PBI-046e: --enable-speech フラグ
+    story_points: 1
+    dependencies:
+      - PBI-046c
+      - PBI-046d
+      - PBI-046e
+    status: ready
+
+  - id: PBI-046g
+    story:
+      role: "Mac ユーザー"
+      capability: "日報生成時に音声ログが考慮される"
+      benefit: "会議や通話の内容も日報に反映され、より正確な作業記録が得られる"
+    acceptance_criteria:
+      - criterion: "report.py が音声ログを読み込む"
+        verification: "grep -n \"type.*speech\\|speech.*log\" src/auto_daily/report.py"
+      - criterion: "generate_summary_prompt() に音声トランスクリプトが含まれる"
+        verification: "grep -n 'transcript\\|speech' src/auto_daily/report.py"
+      - criterion: "日報テンプレートに音声セクションが追加されている"
+        verification: "grep -n '音声\\|会議\\|通話' src/auto_daily/config.py"
+      - criterion: "テストが実装されている"
+        verification: "pytest tests/test_report.py -v --tb=short -k speech"
+      - criterion: "全テストがパスする"
+        verification: "pytest tests/ -n auto -v --tb=short"
+    technical_notes: |
+      ## 概要
+      既存の report.py を拡張し、音声ログを日報生成に統合。
+
+      ## 変更箇所
+      - _load_logs_as_entries(): type='speech' エントリも読み込み
+      - generate_summary_prompt(): 音声トランスクリプトをプロンプトに含める
+      - config.py: 日報テンプレートに音声セクションを追加
+
+      ## プロンプト例
+      ```
+      ### 音声記録（会議・通話）
+      - 10:30: "今日のスプリントレビューについて..."
+      - 11:15: "実装方針を確認..."
+      ```
+    story_points: 1
+    dependencies:
+      - PBI-046d
+      - PBI-046f
+    status: ready
 
   # === 既存 PBIs ===
 
@@ -1295,71 +1597,39 @@ definition_of_ready:
 ## 2. Current Sprint
 
 ```yaml
-sprint_41:
-  number: 41
-  pbi_id: PBI-043
-  story: "__init__.py の長い関数を分割して責務を明確化できる"
+sprint_44:
+  number: 44
+  pbi_id: PBI-046a
+  story: "pyobjc-framework-Speech と pyobjc-framework-AVFoundation を依存関係に追加できる"
   status: done
 
   sprint_goal:
-    statement: "__init__.py から CLI、レポート、モニター機能を別モジュールに抽出し、main() を簡潔にする"
+    statement: "音声認識機能に必要な pyobjc フレームワークを依存関係に追加し、import 可能にする"
     success_criteria:
-      - "cli.py が CLI パーサーを定義している"
-      - "report.py がレポート生成ロジックを定義している"
-      - "monitor.py がモニタリング起動ロジックを定義している"
-      - "__init__.py の main() が50行以下"
+      - "pyobjc-framework-Speech が pyproject.toml に追加されている"
+      - "pyobjc-framework-AVFoundation が pyproject.toml に追加されている"
+      - "Speech と AVFoundation が Python から import できる"
       - "全テストがパスする"
-    stakeholder_value: "可読性と保守性が向上し、テストが容易になる"
+    stakeholder_value: "音声認識機能の開発基盤が整い、次の PBI に進める"
 
   subtasks:
     - id: ST-001
-      test: "test_cli_create_parser: CLI パーサーが正しく作成される"
+      test: "pyproject.toml に Speech と AVFoundation が追加されている"
       implementation: |
-        cli.py を新規作成:
-        - create_parser() 関数を __init__.py から抽出
-      type: structural
+        pyproject.toml の dependencies に追加:
+        - "pyobjc-framework-Speech; sys_platform == 'darwin'"
+        - "pyobjc-framework-AVFoundation; sys_platform == 'darwin'"
+      type: behavioral
       status: completed
       commits: []
 
     - id: ST-002
-      test: "test_report_command: report サブコマンドが正しく動作する"
-      implementation: |
-        report.py を新規作成:
-        - report_command() 関数を __init__.py から抽出
-        - summarize_command() 関数を __init__.py から抽出
-        - generate_summary_prompt() 関数を __init__.py から抽出
-        - _load_logs_as_entries() 関数を __init__.py から抽出
-      type: structural
-      status: completed
-      commits: []
-
-    - id: ST-003
-      test: "test_monitor_start: モニタリングが正しく起動する"
-      implementation: |
-        monitor.py を新規作成:
-        - start_monitoring() 関数を __init__.py から抽出
-        - on_window_change() コールバックを含む
-        - on_periodic_capture() コールバックを含む
-        - on_hourly_summary() コールバックを含む
-      type: structural
-      status: completed
-      commits: []
-
-    - id: ST-004
-      test: "既存テストがパスする（リグレッションなし）"
-      implementation: |
-        __init__.py を簡略化:
-        - cli, report, monitor モジュールをインポート
-        - main() から各モジュールの関数を呼び出し
-      type: structural
-      status: completed
-      commits: []
-
-    - id: ST-005
-      test: "DoD 検証: 全テスト・lint・型チェックがパスする"
+      test: "DoD 検証: import 確認と全テストパス"
       implementation: |
         以下を実行して確認:
-        - pytest tests/ -v --tb=short
+        - uv sync
+        - python3 -c 'from Speech import SFSpeechRecognizer; from AVFoundation import AVAudioEngine; print("OK")'
+        - pytest tests/ -n auto -v --tb=short
         - ruff check . && ruff format --check .
         - ty check src/
       type: verification
@@ -1367,20 +1637,19 @@ sprint_41:
       commits: []
 
   notes: |
-    ## 実装方針（Tidy First アプローチ）
-    これは純粋な構造的リファクタリング（振る舞いの変更なし）なので、
-    テストファーストではなく、既存テストがパスすることを保証しながら進める。
+    ## 背景
+    PBI-046（音声認識機能）を7つの小さな PBI に分割した最初のタスク。
+    このスプリントでは依存関係の追加のみを行い、実装は後続の PBI で行う。
 
-    1. cli.py を作成し、argparse 関連コードを移動
-    2. report.py を作成し、report/summarize コマンド関連を移動
-    3. monitor.py を作成し、モニタリング起動ロジックを移動
-    4. __init__.py を簡略化
-    5. 全テストがパスすることを確認
+    ## 追加で実施した改善
+    - test_scheduler.py と test_window_monitor.py の flaky テストを修正
+    - is_system_active() のモック追加により、テストが安定化
 
-    ## 依存関係
-    - report.py は config, logger, ollama, summarize, calendar に依存
-    - monitor.py は config, permissions, processor, scheduler, window_monitor に依存
-    - cli.py は引数定義のみ（他モジュール非依存）
+    ## 依存チェーン
+    - pyobjc-core（既存）
+    - pyobjc-framework-Cocoa（既存）
+    - pyobjc-framework-Quartz（既存）
+    - pyobjc-framework-CoreMedia（AVFoundation の依存、自動インストール）
 ```
 
 ### Impediment Registry

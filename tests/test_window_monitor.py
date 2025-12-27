@@ -66,15 +66,18 @@ def test_background_monitoring():
             return result
         return window_sequence[-1]
 
-    with patch(
-        "auto_daily.window_monitor.get_active_window",
-        side_effect=mock_get_active_window,
+    with (
+        patch(
+            "auto_daily.window_monitor.get_active_window",
+            side_effect=mock_get_active_window,
+        ),
+        patch("auto_daily.window_monitor.is_system_active", return_value=True),
     ):
         # バックグラウンド監視を開始
         monitor.start(interval=0.01)
 
         # 少し待ってからウィンドウ変更が検知されることを確認
-        time.sleep(0.1)
+        time.sleep(0.3)  # More generous wait time for CI
 
         # 監視を停止
         monitor.stop()

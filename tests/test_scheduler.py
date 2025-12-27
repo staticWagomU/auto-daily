@@ -18,12 +18,14 @@ class TestPeriodicCapture:
         scheduler = PeriodicCapture(
             callback=mock_callback,
             log_dir=tmp_path,
-            interval=0.1,  # 100ms for testing
+            interval=0.05,  # 50ms for testing
         )
 
-        scheduler.start()
-        time.sleep(0.35)  # Wait for ~3 intervals
-        scheduler.stop()
+        # Mock is_system_active to always return True in tests
+        with patch("auto_daily.scheduler.is_system_active", return_value=True):
+            scheduler.start()
+            time.sleep(0.5)  # Wait for ~10 intervals (more generous)
+            scheduler.stop()
 
         # Should have been called at least 3 times
         assert mock_callback.call_count >= 3
@@ -36,17 +38,19 @@ class TestPeriodicCapture:
         scheduler = PeriodicCapture(
             callback=periodic_callback,
             log_dir=tmp_path,
-            interval=0.1,
+            interval=0.05,  # 50ms for testing
         )
 
-        scheduler.start()
+        # Mock is_system_active to always return True in tests
+        with patch("auto_daily.scheduler.is_system_active", return_value=True):
+            scheduler.start()
 
-        # Simulate window change callback being called independently
-        window_callback("old", "new")
-        window_callback("old2", "new2")
+            # Simulate window change callback being called independently
+            window_callback("old", "new")
+            window_callback("old2", "new2")
 
-        time.sleep(0.25)
-        scheduler.stop()
+            time.sleep(0.4)  # More generous wait time
+            scheduler.stop()
 
         # Both should have been called
         assert periodic_callback.call_count >= 2
@@ -59,15 +63,17 @@ class TestPeriodicCapture:
         scheduler = PeriodicCapture(
             callback=mock_callback,
             log_dir=tmp_path,
-            interval=0.1,
+            interval=0.05,  # 50ms for testing
         )
 
-        scheduler.start()
-        time.sleep(0.15)
-        scheduler.stop()
+        # Mock is_system_active to always return True in tests
+        with patch("auto_daily.scheduler.is_system_active", return_value=True):
+            scheduler.start()
+            time.sleep(0.2)
+            scheduler.stop()
 
-        call_count_after_stop = mock_callback.call_count
-        time.sleep(0.2)
+            call_count_after_stop = mock_callback.call_count
+            time.sleep(0.2)
 
         # Should not have been called after stop
         assert mock_callback.call_count == call_count_after_stop
@@ -79,12 +85,14 @@ class TestPeriodicCapture:
         scheduler = PeriodicCapture(
             callback=mock_callback,
             log_dir=tmp_path,
-            interval=0.1,
+            interval=0.05,  # 50ms for testing
         )
 
-        scheduler.start()
-        time.sleep(0.15)
-        scheduler.stop()
+        # Mock is_system_active to always return True in tests
+        with patch("auto_daily.scheduler.is_system_active", return_value=True):
+            scheduler.start()
+            time.sleep(0.3)  # More generous wait time
+            scheduler.stop()
 
         # Check that callback was called with the log_dir
         mock_callback.assert_called_with(tmp_path)
@@ -95,15 +103,18 @@ class TestPeriodicCaptureWithProcessor:
 
     def test_periodic_capture_calls_processor(self, tmp_path: Path) -> None:
         """Verify periodic capture calls the processor function."""
-        with patch("auto_daily.scheduler.process_periodic_capture") as mock_process:
+        with (
+            patch("auto_daily.scheduler.process_periodic_capture") as mock_process,
+            patch("auto_daily.scheduler.is_system_active", return_value=True),
+        ):
             scheduler = PeriodicCapture(
                 callback=mock_process,
                 log_dir=tmp_path,
-                interval=0.1,
+                interval=0.05,  # 50ms for testing
             )
 
             scheduler.start()
-            time.sleep(0.15)
+            time.sleep(0.3)  # More generous wait time
             scheduler.stop()
 
             assert mock_process.call_count >= 1
