@@ -123,13 +123,13 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 46
-  pbi: PBI-046d
-  status: done
-  subtasks_completed: 1
-  subtasks_total: 1
+  number: 47
+  pbi: PBI-046c
+  status: in_progress
+  subtasks_completed: 0
+  subtasks_total: 3
   impediments: 0
-  note: "append_log_speech()を実装。TDDで4つのテストケースを追加。"
+  note: "SpeechRecognizer クラスを実装中"
 ```
 
 ---
@@ -1597,64 +1597,73 @@ definition_of_ready:
 ## 2. Current Sprint
 
 ```yaml
-sprint_45:
-  number: 45
-  pbi_id: PBI-046b
-  story: "マイクアクセス権限と音声認識権限がチェックできる"
-  status: done
+sprint_47:
+  number: 47
+  pbi_id: PBI-046c
+  story: "SpeechRecognizer クラスでマイク入力から音声認識ができる"
+  status: in_progress
 
   sprint_goal:
-    statement: "既存の permissions.py に権限チェック関数を追加し、音声認識に必要な権限状態を確認できるようにする"
+    statement: "Apple Speech Framework を使用した音声認識モジュールを作成し、独立したモジュールとして利用可能にする"
     success_criteria:
-      - "check_microphone_permission() 関数が実装されている"
-      - "check_speech_recognition_permission() 関数が実装されている"
-      - "check_all_permissions() に microphone と speech_recognition が含まれる"
+      - "speech.py に SpeechRecognizer クラスが実装されている"
+      - "start() メソッドで音声認識を開始できる"
+      - "stop() メソッドで音声認識を停止できる"
+      - "認識結果をコールバックで受け取れる"
+      - "スレッドセーフな実装になっている"
       - "全テストがパスする"
-    stakeholder_value: "権限不足時に明確なエラーメッセージを表示でき、ユーザー体験が向上する"
+    stakeholder_value: "音声認識の基本機能が独立したモジュールとして利用可能になり、後続PBIで統合できる"
 
   subtasks:
     - id: ST-001
-      test: "check_microphone_permission() と check_speech_recognition_permission() のテスト"
+      test: "SpeechRecognizer クラスの基本構造テスト"
       implementation: |
-        tests/test_permissions.py に以下を追加:
-        - test_check_microphone_permission_granted/denied/undetermined (3テスト)
-        - test_check_speech_recognition_permission_authorized/denied/restricted/not_determined (4テスト)
-        - test_check_all_permissions_includes_microphone_and_speech (1テスト)
-        - 既存テスト3件を更新（all_granted, none_granted, partial）
+        tests/test_speech.py を新規作成:
+        - test_speech_recognizer_init: インスタンス化のテスト
+        - test_speech_recognizer_is_running_initially_false: 初期状態は is_running=False
+        - test_speech_recognizer_start_sets_running: start() で is_running=True
+        - test_speech_recognizer_stop_clears_running: stop() で is_running=False
       type: behavioral
-      status: completed
-      commits:
-        - sha: 9b376df
-          phase: green
-          message: "feat(permissions): add microphone and speech recognition permission checks"
+      status: pending
+      commits: []
 
     - id: ST-002
+      test: "コールバック呼び出しのテスト"
+      implementation: |
+        tests/test_speech.py に追加:
+        - test_speech_recognizer_callback_on_result: 認識結果でコールバックが呼ばれる
+        - test_speech_recognizer_callback_with_confidence: confidence 値が渡される
+        - test_speech_recognizer_callback_with_is_final: is_final フラグが渡される
+      type: behavioral
+      status: pending
+      commits: []
+
+    - id: ST-003
       test: "DoD 検証: 全テストパスと lint/type チェック"
       implementation: |
         以下を実行して確認:
-        - pytest tests/ -n auto -v --tb=short → 173テスト全てパス
+        - pytest tests/ -n auto -v --tb=short → 全テストパス
         - ruff check . && ruff format --check . → All checks passed
         - ty check src/ → All checks passed
       type: verification
-      status: completed
+      status: pending
       commits: []
 
   notes: |
     ## 背景
-    PBI-046（音声認識機能）の2番目のタスク。
-    音声認識を実装する前に、マイクと音声認識の権限チェック機能を追加する。
+    PBI-046（音声認識機能）の3番目のタスク。
+    マイクと音声認識の権限チェック（PBI-046b）が完了したので、
+    実際の音声認識機能を実装する。
 
-    ## 実装方針
-    既存の permissions.py のパターン（screen_recording, accessibility）に従う:
-    - AVAudioSession.sharedInstance().recordPermission でマイク権限チェック
-    - SFSpeechRecognizer.authorizationStatus() で音声認識権限チェック
-    - undetermined/not_determined 状態は保守的に False を返す
+    ## 使用する macOS API
+    - SFSpeechRecognizer: 音声認識エンジン
+    - SFSpeechAudioBufferRecognitionRequest: 認識リクエスト
+    - AVAudioEngine: マイク入力キャプチャ
 
-    ## 成果物
-    - 新規関数2件: check_microphone_permission(), check_speech_recognition_permission()
-    - check_all_permissions() を4権限に拡張
-    - 新規テスト8件、既存テスト3件更新
-    - 全173テストパス（並列実行 8.10秒）
+    ## スレッド設計
+    - 音声認識は別スレッドで実行
+    - threading.Lock で状態管理
+    - コールバックはメインスレッドから呼び出し
 ```
 
 ### Impediment Registry
