@@ -125,11 +125,11 @@ Sprint Cycle:
 sprint:
   number: 45
   pbi: PBI-046b
-  status: in_progress
-  subtasks_completed: 0
+  status: done
+  subtasks_completed: 2
   subtasks_total: 2
   impediments: 0
-  note: "マイクアクセス権限と音声認識権限のチェック機能を追加"
+  note: "マイクと音声認識の権限チェック機能を実装。既存パターンを踏襲。"
 ```
 
 ---
@@ -534,7 +534,7 @@ product_backlog:
     story_points: 1
     dependencies:
       - PBI-046a
-    status: ready
+    status: done
 
   - id: PBI-046c
     story:
@@ -1601,7 +1601,7 @@ sprint_45:
   number: 45
   pbi_id: PBI-046b
   story: "マイクアクセス権限と音声認識権限がチェックできる"
-  status: in_progress
+  status: done
 
   sprint_goal:
     statement: "既存の permissions.py に権限チェック関数を追加し、音声認識に必要な権限状態を確認できるようにする"
@@ -1617,22 +1617,26 @@ sprint_45:
       test: "check_microphone_permission() と check_speech_recognition_permission() のテスト"
       implementation: |
         tests/test_permissions.py に以下を追加:
-        - test_check_microphone_permission_granted/denied
-        - test_check_speech_recognition_permission_granted/denied
-        - test_check_all_permissions に microphone/speech_recognition を追加
+        - test_check_microphone_permission_granted/denied/undetermined (3テスト)
+        - test_check_speech_recognition_permission_authorized/denied/restricted/not_determined (4テスト)
+        - test_check_all_permissions_includes_microphone_and_speech (1テスト)
+        - 既存テスト3件を更新（all_granted, none_granted, partial）
       type: behavioral
-      status: pending
-      commits: []
+      status: completed
+      commits:
+        - sha: 9b376df
+          phase: green
+          message: "feat(permissions): add microphone and speech recognition permission checks"
 
     - id: ST-002
       test: "DoD 検証: 全テストパスと lint/type チェック"
       implementation: |
         以下を実行して確認:
-        - pytest tests/ -n auto -v --tb=short
-        - ruff check . && ruff format --check .
-        - ty check src/
+        - pytest tests/ -n auto -v --tb=short → 173テスト全てパス
+        - ruff check . && ruff format --check . → All checks passed
+        - ty check src/ → All checks passed
       type: verification
-      status: pending
+      status: completed
       commits: []
 
   notes: |
@@ -1644,6 +1648,13 @@ sprint_45:
     既存の permissions.py のパターン（screen_recording, accessibility）に従う:
     - AVAudioSession.sharedInstance().recordPermission でマイク権限チェック
     - SFSpeechRecognizer.authorizationStatus() で音声認識権限チェック
+    - undetermined/not_determined 状態は保守的に False を返す
+
+    ## 成果物
+    - 新規関数2件: check_microphone_permission(), check_speech_recognition_permission()
+    - check_all_permissions() を4権限に拡張
+    - 新規テスト8件、既存テスト3件更新
+    - 全173テストパス（並列実行 8.10秒）
 ```
 
 ### Impediment Registry
@@ -2424,6 +2435,21 @@ retrospectives:
     action_items:
       - "CLAUDE.md に .example ファイルの使用方法を追記"
       - "他のカスタマイズ可能ファイル（calendar_config.yaml等）も同様のパターンを踏襲済み"
+
+  - sprint: 45
+    pbi_id: PBI-046b
+    story: "マイクアクセス権限と音声認識権限がチェックできる"
+    what_went_well:
+      - "既存の permissions.py パターンを踏襲し、効率的に実装"
+      - "AVAudioSession と SFSpeechRecognizer の macOS API を正しく使用"
+      - "8つの新規テストと3つの既存テスト更新で網羅的にカバー"
+      - "全173テストがパス（並列実行 8.10秒）"
+      - "TDD サイクル（Red-Green）が順調に回った"
+    what_to_improve:
+      - "特になし - 既存パターンを活用してスムーズに完了"
+    action_items:
+      - "次の PBI-046c（SpeechRecognizer クラス実装）で権限チェックを活用"
+      - "音声認識機能が完成したら、権限不足時のエラーハンドリングを統合"
 ```
 
 ---
