@@ -123,13 +123,13 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 45
-  pbi: PBI-046b
+  number: 46
+  pbi: PBI-046d
   status: done
-  subtasks_completed: 2
-  subtasks_total: 2
+  subtasks_completed: 1
+  subtasks_total: 1
   impediments: 0
-  note: "マイクと音声認識の権限チェック機能を実装。既存パターンを踏襲。"
+  note: "append_log_speech()を実装。TDDで4つのテストケースを追加。"
 ```
 
 ---
@@ -648,7 +648,7 @@ product_backlog:
       - type フィールドで window/speech を区別
     story_points: 1
     dependencies: []
-    status: ready
+    status: done
 
   - id: PBI-046e
     story:

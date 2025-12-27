@@ -87,3 +87,44 @@ def append_log_hourly(
         return log_path
     except OSError:
         return None
+
+
+def append_log_speech(
+    log_base: Path,
+    transcript: str,
+    confidence: float,
+    is_final: bool,
+    language: str = "ja-JP",
+) -> Path | None:
+    """Append a speech recognition result to the hourly JSONL file.
+
+    Args:
+        log_base: Base directory for logs.
+        transcript: Transcribed text from speech recognition.
+        confidence: Confidence score (0.0-1.0) of the recognition.
+        is_final: Whether this is a final result or interim.
+        language: Language code for the speech (default: ja-JP).
+
+    Returns:
+        Path to the log file, or None if logging failed.
+    """
+    try:
+        now = datetime.now()
+        date_dir = get_log_dir_for_date(log_base, now)
+        log_path = date_dir / get_hourly_log_filename(now)
+
+        entry: dict[str, Any] = {
+            "timestamp": now.isoformat(),
+            "type": "speech",
+            "transcript": transcript,
+            "confidence": confidence,
+            "is_final": is_final,
+            "language": language,
+        }
+
+        with open(log_path, "a") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+        return log_path
+    except OSError:
+        return None

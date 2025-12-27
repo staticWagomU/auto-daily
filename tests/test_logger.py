@@ -244,3 +244,188 @@ def test_append_log_hourly_with_slack_context(log_base: Path) -> None:
     assert entry["slack_context"]["workspace"] == "Company"
     assert entry["slack_context"]["dm_user"] is None
     assert entry["slack_context"]["is_thread"] is False
+
+
+def test_append_log_speech_basic(log_base: Path) -> None:
+    """Test that append_log_speech writes speech recognition result to JSONL.
+
+    The function should:
+    1. Create a JSONL file if it doesn't exist
+    2. Append a JSON object with type='speech', transcript, confidence, is_final
+    3. Use the same date/hour directory structure as window logs
+    """
+    from datetime import datetime
+    from unittest.mock import patch
+
+    from auto_daily.logger import append_log_speech
+
+    # Arrange
+    transcript = "今日のスプリントレビューについて話しましょう"
+    confidence = 0.95
+    is_final = True
+
+    # Act - mock datetime to control file path
+    with patch("auto_daily.logger.datetime") as mock_dt:
+        mock_dt.now.return_value = datetime(2025, 12, 27, 14, 30, 0)
+        mock_dt.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
+
+        log_path = append_log_speech(
+            log_base=log_base,
+            transcript=transcript,
+            confidence=confidence,
+            is_final=is_final,
+        )
+
+    # Assert
+    assert log_path is not None
+    expected_path = log_base / "2025-12-27" / "activity_14.jsonl"
+    assert log_path == expected_path
+    assert log_path.exists()
+
+    with open(log_path) as f:
+        entry = json.loads(f.readline())
+
+    assert entry["type"] == "speech"
+    assert entry["transcript"] == transcript
+    assert entry["confidence"] == confidence
+    assert entry["is_final"] is True
+    assert entry["language"] == "ja-JP"  # default language
+    assert "timestamp" in entry
+
+
+def test_append_log_speech_with_custom_language(log_base: Path) -> None:
+    """Test that append_log_speech accepts custom language parameter.
+
+    The function should:
+    1. Accept an optional language parameter
+    2. Default to 'ja-JP' if not specified
+    3. Store the language in the log entry
+    """
+    from datetime import datetime
+    from unittest.mock import patch
+
+    from auto_daily.logger import append_log_speech
+
+    # Arrange
+    transcript = "Let's discuss the sprint review"
+    confidence = 0.88
+    is_final = True
+    language = "en-US"
+
+    # Act - mock datetime to control file path
+    with patch("auto_daily.logger.datetime") as mock_dt:
+        mock_dt.now.return_value = datetime(2025, 12, 27, 15, 0, 0)
+        mock_dt.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
+
+        log_path = append_log_speech(
+            log_base=log_base,
+            transcript=transcript,
+            confidence=confidence,
+            is_final=is_final,
+            language=language,
+        )
+
+    # Assert
+    assert log_path is not None
+    with open(log_path) as f:
+        entry = json.loads(f.readline())
+
+    assert entry["language"] == "en-US"
+
+
+def test_append_log_speech_interim_result(log_base: Path) -> None:
+    """Test that append_log_speech handles interim (non-final) recognition results.
+
+    The function should:
+    1. Accept is_final=False for interim results
+    2. Store is_final correctly in the log entry
+    """
+    from datetime import datetime
+    from unittest.mock import patch
+
+    from auto_daily.logger import append_log_speech
+
+    # Arrange
+    transcript = "今日の"
+    confidence = 0.7
+    is_final = False
+
+    # Act - mock datetime to control file path
+    with patch("auto_daily.logger.datetime") as mock_dt:
+        mock_dt.now.return_value = datetime(2025, 12, 27, 16, 0, 0)
+        mock_dt.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
+
+        log_path = append_log_speech(
+            log_base=log_base,
+            transcript=transcript,
+            confidence=confidence,
+            is_final=is_final,
+        )
+
+    # Assert
+    assert log_path is not None
+    with open(log_path) as f:
+        entry = json.loads(f.readline())
+
+    assert entry["is_final"] is False
+    assert entry["confidence"] == 0.7
+
+
+def test_append_log_speech_coexists_with_window_logs(log_base: Path) -> None:
+    """Test that speech logs can coexist with window logs in the same file.
+
+    The function should:
+    1. Append to the same hourly JSONL file as window logs
+    2. Be distinguishable by the 'type' field
+    3. Window logs should not have 'type' field (for backward compatibility)
+    """
+    from datetime import datetime
+    from unittest.mock import patch
+
+    from auto_daily.logger import append_log_hourly, append_log_speech
+
+    # Arrange - fixed datetime for consistent file path
+    fixed_dt = datetime(2025, 12, 27, 17, 30, 0)
+
+    # Act - write window log first
+    with patch("auto_daily.logger.datetime") as mock_dt:
+        mock_dt.now.return_value = fixed_dt
+        mock_dt.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
+
+        append_log_hourly(
+            log_base=log_base,
+            window_info={"app_name": "VSCode", "window_title": "test.py"},
+            ocr_text="some code",
+        )
+
+    # Act - write speech log to the same file
+    with patch("auto_daily.logger.datetime") as mock_dt:
+        mock_dt.now.return_value = fixed_dt
+        mock_dt.side_effect = lambda *args, **kwargs: datetime(*args, **kwargs)
+
+        append_log_speech(
+            log_base=log_base,
+            transcript="音声テスト",
+            confidence=0.9,
+            is_final=True,
+        )
+
+    # Assert - both entries are in the same file
+    log_path = log_base / "2025-12-27" / "activity_17.jsonl"
+    assert log_path.exists()
+
+    with open(log_path) as f:
+        lines = f.readlines()
+
+    assert len(lines) == 2
+
+    window_entry = json.loads(lines[0])
+    speech_entry = json.loads(lines[1])
+
+    # Window entry has no 'type' field
+    assert "type" not in window_entry
+    assert "window_info" in window_entry
+
+    # Speech entry has 'type' = 'speech'
+    assert speech_entry["type"] == "speech"
+    assert speech_entry["transcript"] == "音声テスト"
