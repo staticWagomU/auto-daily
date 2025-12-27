@@ -123,13 +123,13 @@ Sprint Cycle:
 
 ```yaml
 sprint:
-  number: 44
-  pbi: PBI-046a
-  status: done
-  subtasks_completed: 2
+  number: 45
+  pbi: PBI-046b
+  status: in_progress
+  subtasks_completed: 0
   subtasks_total: 2
   impediments: 0
-  note: "pyobjc-framework-Speech/AVFoundation を追加。flaky テストも修正。"
+  note: "マイクアクセス権限と音声認識権限のチェック機能を追加"
 ```
 
 ---
@@ -1597,59 +1597,53 @@ definition_of_ready:
 ## 2. Current Sprint
 
 ```yaml
-sprint_44:
-  number: 44
-  pbi_id: PBI-046a
-  story: "pyobjc-framework-Speech と pyobjc-framework-AVFoundation を依存関係に追加できる"
-  status: done
+sprint_45:
+  number: 45
+  pbi_id: PBI-046b
+  story: "マイクアクセス権限と音声認識権限がチェックできる"
+  status: in_progress
 
   sprint_goal:
-    statement: "音声認識機能に必要な pyobjc フレームワークを依存関係に追加し、import 可能にする"
+    statement: "既存の permissions.py に権限チェック関数を追加し、音声認識に必要な権限状態を確認できるようにする"
     success_criteria:
-      - "pyobjc-framework-Speech が pyproject.toml に追加されている"
-      - "pyobjc-framework-AVFoundation が pyproject.toml に追加されている"
-      - "Speech と AVFoundation が Python から import できる"
+      - "check_microphone_permission() 関数が実装されている"
+      - "check_speech_recognition_permission() 関数が実装されている"
+      - "check_all_permissions() に microphone と speech_recognition が含まれる"
       - "全テストがパスする"
-    stakeholder_value: "音声認識機能の開発基盤が整い、次の PBI に進める"
+    stakeholder_value: "権限不足時に明確なエラーメッセージを表示でき、ユーザー体験が向上する"
 
   subtasks:
     - id: ST-001
-      test: "pyproject.toml に Speech と AVFoundation が追加されている"
+      test: "check_microphone_permission() と check_speech_recognition_permission() のテスト"
       implementation: |
-        pyproject.toml の dependencies に追加:
-        - "pyobjc-framework-Speech; sys_platform == 'darwin'"
-        - "pyobjc-framework-AVFoundation; sys_platform == 'darwin'"
+        tests/test_permissions.py に以下を追加:
+        - test_check_microphone_permission_granted/denied
+        - test_check_speech_recognition_permission_granted/denied
+        - test_check_all_permissions に microphone/speech_recognition を追加
       type: behavioral
-      status: completed
+      status: pending
       commits: []
 
     - id: ST-002
-      test: "DoD 検証: import 確認と全テストパス"
+      test: "DoD 検証: 全テストパスと lint/type チェック"
       implementation: |
         以下を実行して確認:
-        - uv sync
-        - python3 -c 'from Speech import SFSpeechRecognizer; from AVFoundation import AVAudioEngine; print("OK")'
         - pytest tests/ -n auto -v --tb=short
         - ruff check . && ruff format --check .
         - ty check src/
       type: verification
-      status: completed
+      status: pending
       commits: []
 
   notes: |
     ## 背景
-    PBI-046（音声認識機能）を7つの小さな PBI に分割した最初のタスク。
-    このスプリントでは依存関係の追加のみを行い、実装は後続の PBI で行う。
+    PBI-046（音声認識機能）の2番目のタスク。
+    音声認識を実装する前に、マイクと音声認識の権限チェック機能を追加する。
 
-    ## 追加で実施した改善
-    - test_scheduler.py と test_window_monitor.py の flaky テストを修正
-    - is_system_active() のモック追加により、テストが安定化
-
-    ## 依存チェーン
-    - pyobjc-core（既存）
-    - pyobjc-framework-Cocoa（既存）
-    - pyobjc-framework-Quartz（既存）
-    - pyobjc-framework-CoreMedia（AVFoundation の依存、自動インストール）
+    ## 実装方針
+    既存の permissions.py のパターン（screen_recording, accessibility）に従う:
+    - AVAudioSession.sharedInstance().recordPermission でマイク権限チェック
+    - SFSpeechRecognizer.authorizationStatus() で音声認識権限チェック
 ```
 
 ### Impediment Registry

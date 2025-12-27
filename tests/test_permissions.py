@@ -97,12 +97,12 @@ def test_check_all_permissions_all_granted() -> None:
     """Test that check_all_permissions returns correct status when all granted.
 
     The function should:
-    1. Check both screen recording and accessibility permissions
+    1. Check all four permissions (screen recording, accessibility, microphone, speech)
     2. Return a dictionary with permission names as keys and booleans as values
     """
     from auto_daily.permissions import check_all_permissions
 
-    # Arrange: Mock both permission checks to return True
+    # Arrange: Mock all permission checks to return True
     with (
         patch(
             "auto_daily.permissions.check_screen_recording_permission",
@@ -111,24 +111,34 @@ def test_check_all_permissions_all_granted() -> None:
         patch(
             "auto_daily.permissions.check_accessibility_permission", return_value=True
         ),
+        patch("auto_daily.permissions.check_microphone_permission", return_value=True),
+        patch(
+            "auto_daily.permissions.check_speech_recognition_permission",
+            return_value=True,
+        ),
     ):
         # Act: Check all permissions
         result = check_all_permissions()
 
         # Assert: Should return dict with all True
-        assert result == {"screen_recording": True, "accessibility": True}
+        assert result == {
+            "screen_recording": True,
+            "accessibility": True,
+            "microphone": True,
+            "speech_recognition": True,
+        }
 
 
 def test_check_all_permissions_none_granted() -> None:
     """Test that check_all_permissions returns correct status when none granted.
 
     The function should:
-    1. Check both permissions
+    1. Check all four permissions
     2. Return a dictionary with False for denied permissions
     """
     from auto_daily.permissions import check_all_permissions
 
-    # Arrange: Mock both permission checks to return False
+    # Arrange: Mock all permission checks to return False
     with (
         patch(
             "auto_daily.permissions.check_screen_recording_permission",
@@ -137,12 +147,22 @@ def test_check_all_permissions_none_granted() -> None:
         patch(
             "auto_daily.permissions.check_accessibility_permission", return_value=False
         ),
+        patch("auto_daily.permissions.check_microphone_permission", return_value=False),
+        patch(
+            "auto_daily.permissions.check_speech_recognition_permission",
+            return_value=False,
+        ),
     ):
         # Act: Check all permissions
         result = check_all_permissions()
 
         # Assert: Should return dict with all False
-        assert result == {"screen_recording": False, "accessibility": False}
+        assert result == {
+            "screen_recording": False,
+            "accessibility": False,
+            "microphone": False,
+            "speech_recognition": False,
+        }
 
 
 def test_check_all_permissions_partial() -> None:
@@ -152,7 +172,7 @@ def test_check_all_permissions_partial() -> None:
     """
     from auto_daily.permissions import check_all_permissions
 
-    # Arrange: Mock screen recording granted, accessibility denied
+    # Arrange: Mock screen recording and microphone granted, others denied
     with (
         patch(
             "auto_daily.permissions.check_screen_recording_permission",
@@ -161,12 +181,22 @@ def test_check_all_permissions_partial() -> None:
         patch(
             "auto_daily.permissions.check_accessibility_permission", return_value=False
         ),
+        patch("auto_daily.permissions.check_microphone_permission", return_value=True),
+        patch(
+            "auto_daily.permissions.check_speech_recognition_permission",
+            return_value=False,
+        ),
     ):
         # Act: Check all permissions
         result = check_all_permissions()
 
         # Assert: Should return dict with mixed status
-        assert result == {"screen_recording": True, "accessibility": False}
+        assert result == {
+            "screen_recording": True,
+            "accessibility": False,
+            "microphone": True,
+            "speech_recognition": False,
+        }
 
 
 # ============================================================
@@ -248,3 +278,206 @@ def test_open_accessibility_settings() -> None:
         call_args = mock_run.call_args[0][0]
         assert "open" in call_args
         assert "Privacy_Accessibility" in str(call_args)
+
+
+# ============================================================
+# ST-001 (PBI-046b): check_microphone_permission
+# ============================================================
+
+
+def test_check_microphone_permission_granted() -> None:
+    """Test that microphone permission check returns True when granted.
+
+    The function should:
+    1. Use AVAudioSession.sharedInstance().recordPermission to check permission
+    2. Return True when the permission is granted (AVAudioSessionRecordPermissionGranted)
+    """
+    from auto_daily.permissions import check_microphone_permission
+
+    # Arrange: Mock AVAudioSession to return granted status
+    mock_session = MagicMock()
+    # AVAudioSessionRecordPermissionGranted = 1735552628 ('gran')
+    mock_session.recordPermission.return_value = 1735552628
+
+    with patch("auto_daily.permissions.AVAudioSession") as mock_class:
+        mock_class.sharedInstance.return_value = mock_session
+        # Act: Check permission
+        result = check_microphone_permission()
+
+        # Assert: Should return True
+        assert result is True
+
+
+def test_check_microphone_permission_denied() -> None:
+    """Test that microphone permission check returns False when denied.
+
+    The function should:
+    1. Use AVAudioSession.sharedInstance().recordPermission to check permission
+    2. Return False when the permission is denied (AVAudioSessionRecordPermissionDenied)
+    """
+    from auto_daily.permissions import check_microphone_permission
+
+    # Arrange: Mock AVAudioSession to return denied status
+    mock_session = MagicMock()
+    # AVAudioSessionRecordPermissionDenied = 1684369017 ('deny')
+    mock_session.recordPermission.return_value = 1684369017
+
+    with patch("auto_daily.permissions.AVAudioSession") as mock_class:
+        mock_class.sharedInstance.return_value = mock_session
+        # Act: Check permission
+        result = check_microphone_permission()
+
+        # Assert: Should return False
+        assert result is False
+
+
+def test_check_microphone_permission_undetermined() -> None:
+    """Test that microphone permission check returns False when undetermined.
+
+    The function should:
+    1. Return False when permission has not been determined yet
+    2. This ensures conservative behavior (treat undetermined as not granted)
+    """
+    from auto_daily.permissions import check_microphone_permission
+
+    # Arrange: Mock AVAudioSession to return undetermined status
+    mock_session = MagicMock()
+    # AVAudioSessionRecordPermissionUndetermined = 1970170212 ('undt')
+    mock_session.recordPermission.return_value = 1970170212
+
+    with patch("auto_daily.permissions.AVAudioSession") as mock_class:
+        mock_class.sharedInstance.return_value = mock_session
+        # Act: Check permission
+        result = check_microphone_permission()
+
+        # Assert: Should return False (conservative behavior)
+        assert result is False
+
+
+# ============================================================
+# ST-001 (PBI-046b): check_speech_recognition_permission
+# ============================================================
+
+
+def test_check_speech_recognition_permission_authorized() -> None:
+    """Test that speech recognition permission check returns True when authorized.
+
+    The function should:
+    1. Use SFSpeechRecognizer.authorizationStatus() to check permission
+    2. Return True when the permission is authorized
+    """
+    from auto_daily.permissions import check_speech_recognition_permission
+
+    # Arrange: Mock SFSpeechRecognizer to return authorized status
+    # SFSpeechRecognizerAuthorizationStatusAuthorized = 3
+    with patch("auto_daily.permissions.SFSpeechRecognizer") as mock_class:
+        mock_class.authorizationStatus.return_value = 3
+        # Act: Check permission
+        result = check_speech_recognition_permission()
+
+        # Assert: Should return True
+        assert result is True
+
+
+def test_check_speech_recognition_permission_denied() -> None:
+    """Test that speech recognition permission check returns False when denied.
+
+    The function should:
+    1. Use SFSpeechRecognizer.authorizationStatus() to check permission
+    2. Return False when the permission is denied
+    """
+    from auto_daily.permissions import check_speech_recognition_permission
+
+    # Arrange: Mock SFSpeechRecognizer to return denied status
+    # SFSpeechRecognizerAuthorizationStatusDenied = 1
+    with patch("auto_daily.permissions.SFSpeechRecognizer") as mock_class:
+        mock_class.authorizationStatus.return_value = 1
+        # Act: Check permission
+        result = check_speech_recognition_permission()
+
+        # Assert: Should return False
+        assert result is False
+
+
+def test_check_speech_recognition_permission_restricted() -> None:
+    """Test that speech recognition permission check returns False when restricted.
+
+    The function should:
+    1. Return False when speech recognition is restricted by device policy
+    """
+    from auto_daily.permissions import check_speech_recognition_permission
+
+    # Arrange: Mock SFSpeechRecognizer to return restricted status
+    # SFSpeechRecognizerAuthorizationStatusRestricted = 2
+    with patch("auto_daily.permissions.SFSpeechRecognizer") as mock_class:
+        mock_class.authorizationStatus.return_value = 2
+        # Act: Check permission
+        result = check_speech_recognition_permission()
+
+        # Assert: Should return False
+        assert result is False
+
+
+def test_check_speech_recognition_permission_not_determined() -> None:
+    """Test that speech recognition permission check returns False when not determined.
+
+    The function should:
+    1. Return False when permission has not been determined yet
+    2. This ensures conservative behavior
+    """
+    from auto_daily.permissions import check_speech_recognition_permission
+
+    # Arrange: Mock SFSpeechRecognizer to return not determined status
+    # SFSpeechRecognizerAuthorizationStatusNotDetermined = 0
+    with patch("auto_daily.permissions.SFSpeechRecognizer") as mock_class:
+        mock_class.authorizationStatus.return_value = 0
+        # Act: Check permission
+        result = check_speech_recognition_permission()
+
+        # Assert: Should return False (conservative behavior)
+        assert result is False
+
+
+# ============================================================
+# ST-001 (PBI-046b): check_all_permissions with new permissions
+# ============================================================
+
+
+def test_check_all_permissions_includes_microphone_and_speech() -> None:
+    """Test that check_all_permissions includes microphone and speech_recognition.
+
+    The function should:
+    1. Include 'microphone' key in the returned dictionary
+    2. Include 'speech_recognition' key in the returned dictionary
+    """
+    from auto_daily.permissions import check_all_permissions
+
+    # Arrange: Mock all permission checks
+    with (
+        patch(
+            "auto_daily.permissions.check_screen_recording_permission",
+            return_value=True,
+        ),
+        patch(
+            "auto_daily.permissions.check_accessibility_permission", return_value=True
+        ),
+        patch("auto_daily.permissions.check_microphone_permission", return_value=True),
+        patch(
+            "auto_daily.permissions.check_speech_recognition_permission",
+            return_value=True,
+        ),
+    ):
+        # Act: Check all permissions
+        result = check_all_permissions()
+
+        # Assert: Should include all four permissions
+        assert "screen_recording" in result
+        assert "accessibility" in result
+        assert "microphone" in result
+        assert "speech_recognition" in result
+        assert result == {
+            "screen_recording": True,
+            "accessibility": True,
+            "microphone": True,
+            "speech_recognition": True,
+        }

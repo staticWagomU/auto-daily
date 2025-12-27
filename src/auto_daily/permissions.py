@@ -1,15 +1,22 @@
-"""macOS permissions checking and management module (PBI-020).
+"""macOS permissions checking and management module (PBI-020, PBI-046b).
 
 This module provides functions to:
 1. Check screen recording permission status
 2. Check accessibility permission status
-3. Open the relevant System Preferences panes
+3. Check microphone permission status (PBI-046b)
+4. Check speech recognition permission status (PBI-046b)
+5. Open the relevant System Preferences panes
 """
 
 import subprocess
 from ctypes import CDLL, c_bool
 
+from AVFoundation import AVAudioSession  # type: ignore[import-untyped]
 from Quartz import CGPreflightScreenCaptureAccess  # type: ignore[import-untyped]
+from Speech import SFSpeechRecognizer  # type: ignore[import-untyped]
+
+# AVAudioSession record permission constants (FourCC codes)
+AVAudioSessionRecordPermissionGranted = 1735552628  # 'gran'
 
 # Load ApplicationServices framework for accessibility API
 _app_services = CDLL(
@@ -56,16 +63,48 @@ def check_accessibility_permission() -> bool:
     return AXIsProcessTrusted()
 
 
+def check_microphone_permission() -> bool:
+    """Check if microphone permission is granted.
+
+    Uses AVAudioSession.sharedInstance().recordPermission to check if the
+    application has permission to access the microphone.
+
+    Returns:
+        True if permission is granted, False otherwise.
+        Returns False for undetermined status (conservative behavior).
+    """
+    session = AVAudioSession.sharedInstance()
+    permission = session.recordPermission()
+    return permission == AVAudioSessionRecordPermissionGranted
+
+
+def check_speech_recognition_permission() -> bool:
+    """Check if speech recognition permission is granted.
+
+    Uses SFSpeechRecognizer.authorizationStatus() to check if the
+    application has permission to use speech recognition.
+
+    Returns:
+        True if permission is authorized, False otherwise.
+        Returns False for not determined, denied, or restricted status.
+    """
+    # SFSpeechRecognizerAuthorizationStatusAuthorized = 3
+    status = SFSpeechRecognizer.authorizationStatus()
+    return status == 3
+
+
 def check_all_permissions() -> dict[str, bool]:
     """Check all required permissions and return their status.
 
     Returns:
         A dictionary with permission names as keys and boolean status as values.
-        Keys: "screen_recording", "accessibility"
+        Keys: "screen_recording", "accessibility", "microphone", "speech_recognition"
     """
     return {
         "screen_recording": check_screen_recording_permission(),
         "accessibility": check_accessibility_permission(),
+        "microphone": check_microphone_permission(),
+        "speech_recognition": check_speech_recognition_permission(),
     }
 
 
